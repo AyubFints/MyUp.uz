@@ -1,0 +1,642 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import AuthScreen from './components/AuthScreen';
+import BottomNav from './components/BottomNav';
+import StationCard from './components/StationCard';
+import StationDetailModal from './components/StationDetailModal';
+import ProfileDetailModal from './components/ProfileDetailModal';
+import AddStationModal from './components/AddStationModal';
+import MapView from './components/MapView';
+import NavigationMode from './components/NavigationMode';
+import SplashScreen from './components/SplashScreen';
+import { CITIES, INITIAL_STATIONS } from './data/mockData';
+import { calculateDistance } from './utils/distance';
+import { Fuel, Flame, Droplets, Zap, User, ChevronRight, Plus, Edit3, MapPin, Star, Clock, Phone } from 'lucide-react';
+import './App.css';
+
+export default function App() {
+  // Eski dark temani tozalash va light ga o'tkazish
+  const [theme] = useState(() => {
+    localStorage.setItem('myup_theme', 'light');
+    return 'light';
+  });
+
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('myup_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [showSplash, setShowSplash] = useState(() => {
+    const savedUser = localStorage.getItem('myup_user');
+    const splashShown = sessionStorage.getItem('myup_splash_shown');
+    return Boolean(savedUser) && !splashShown;
+  });
+
+  const handleSplashComplete = () => {
+    sessionStorage.setItem('myup_splash_shown', 'true');
+    setShowSplash(false);
+  };
+
+  const [activeTab, setActiveTab] = useState('home');
+  const [stations, setStations] = useState(INITIAL_STATIONS);
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      const saved = localStorage.getItem('myup_favorites');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Foydalanuvchi yaratgan shahobchalar
+  const [myStations, setMyStations] = useState(() => {
+    try {
+      const saved = localStorage.getItem('myup_my_stations');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [showAddStation, setShowAddStation] = useState(false);
+  const [editingStation, setEditingStation] = useState(null);
+  
+  // Custom Reopen Modal
+  const [reopenModal, setReopenModal] = useState({ isOpen: false, stationId: null });
+  const [reopenTimeInput, setReopenTimeInput] = useState('');
+
+  // In-App Navigation State
+  const [navigationTarget, setNavigationTarget] = useState(null);
+
+  const [selectedCity] = useState(CITIES[0]);
+  const [userCoords, setUserCoords] = useState({ lat: 41.311081, lng: 69.240562 });
+
+  // Category & sub-filter (global — hamma tabda ishlaydi)
+  const [activeCategory, setActiveCategory] = useState('all'); // 'all' | 'fuel'
+  const [fuelSubFilter, setFuelSubFilter] = useState('all');
+  const [fuelSortBy, setFuelSortBy] = useState('nearest'); // nearest, nearest_cheap, cheapest, nearest_best
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [detailStation, setDetailStation] = useState(null);
+  const [showProfileDetail, setShowProfileDetail] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('myup_theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem('myup_favorites', JSON.stringify(favorites));
+  }, [favorites]);
+
+  useEffect(() => {
+    localStorage.setItem('myup_my_stations', JSON.stringify(myStations));
+  }, [myStations]);
+
+  useEffect(() => {
+    setUserCoords({ lat: selectedCity.lat, lng: selectedCity.lng });
+  }, [selectedCity]);
+
+  const handleToggleFavorite = (stationId) => {
+    if (favorites.includes(stationId)) {
+      setFavorites(favorites.filter((id) => id !== stationId));
+    } else {
+      setFavorites([...favorites, stationId]);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('myup_user');
+    setUser(null);
+  };
+
+  const handleRateStation = (stationId, newRating) => {
+    const updateFn = (st) => {
+      if (st.id === stationId) {
+        const currentCount = st.reviewsCount || 1;
+        const currentRating = st.rating || 5.0;
+        const newCount = currentCount + 1;
+        const newAvg = ((currentRating * currentCount) + newRating) / newCount;
+        return { ...st, rating: newAvg, reviewsCount: newCount };
+      }
+      return st;
+    };
+    setStations(stations.map(updateFn));
+    setMyStations(myStations.map(updateFn));
+  };
+
+  const handleNavigate = (station) => {
+    const url = `https://yandex.uz/maps/?rtext=~${station.lat},${station.lng}&rtt=auto`;
+    window.open(url, '_blank');
+  };
+
+  // Shahobcha saqlash / tahrirlash
+  const handleSaveStation = (station) => {
+    station.createdBy = user.id;
+    const exists = myStations.find(s => s.id === station.id);
+    if (exists) {
+      setMyStations(myStations.map(s => s.id === station.id ? station : s));
+    } else {
+      setMyStations([...myStations, station]);
+    }
+  };
+
+  const handleEditStation = (station) => {
+    setEditingStation(station);
+    setShowAddStation(true);
+  };
+
+  const handleSetStatus = (e, stationId, makeOpen) => {
+    e.stopPropagation();
+    const station = myStations.find(s => s.id === stationId);
+    if (!station) return;
+
+    if (station.isOpen === makeOpen) return;
+
+    if (!makeOpen) {
+      // Yopish modalini chaqirish
+      setReopenTimeInput('');
+      setReopenModal({ isOpen: true, stationId });
+    } else {
+      // Ochish
+      setMyStations(myStations.map(s =>
+        s.id === stationId ? { ...s, isOpen: true, reopenTime: '' } : s
+      ));
+    }
+  };
+
+  const submitReopenTime = () => {
+    setMyStations(myStations.map(s =>
+      s.id === reopenModal.stationId ? { ...s, isOpen: false, reopenTime: reopenTimeInput || '' } : s
+    ));
+    setReopenModal({ isOpen: false, stationId: null });
+  };
+
+  const filteredStations = useMemo(() => {
+    const allStations = [...stations, ...myStations];
+    let result = allStations
+      .map((st) => ({
+        ...st,
+        calculatedDistance: calculateDistance(userCoords.lat, userCoords.lng, st.lat, st.lng),
+      }))
+      .filter((st) => {
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          const matches = st.name.toLowerCase().includes(q) || st.brand?.toLowerCase().includes(q) || st.address?.toLowerCase().includes(q);
+          if (!matches) return false;
+        }
+        if (activeCategory === 'fuel' && fuelSubFilter !== 'all' && !st.type?.includes(fuelSubFilter)) return false;
+        return true;
+      });
+
+    if (activeCategory === 'fuel') {
+      const getPrice = (st) => {
+        if (!st.prices) return Infinity;
+        if (fuelSubFilter === 'all') {
+          const vals = Object.values(st.prices).filter(p => p > 0);
+          return vals.length > 0 ? Math.min(...vals) : Infinity;
+        }
+        return st.prices[fuelSubFilter] || Infinity;
+      };
+
+      if (fuelSortBy === 'nearest') {
+        result.sort((a, b) => a.calculatedDistance - b.calculatedDistance);
+      } else if (fuelSortBy === 'cheapest') {
+        result.sort((a, b) => {
+          const diff = getPrice(a) - getPrice(b);
+          return diff !== 0 ? diff : a.calculatedDistance - b.calculatedDistance;
+        });
+      } else if (fuelSortBy === 'nearest_cheap') {
+        result.sort((a, b) => {
+          const aNear = a.calculatedDistance <= 20;
+          const bNear = b.calculatedDistance <= 20;
+          if (aNear && !bNear) return -1;
+          if (!aNear && bNear) return 1;
+          const diff = getPrice(a) - getPrice(b);
+          return diff !== 0 ? diff : a.calculatedDistance - b.calculatedDistance;
+        });
+      } else if (fuelSortBy === 'nearest_best') {
+        result.sort((a, b) => {
+          const aNear = a.calculatedDistance <= 28;
+          const bNear = b.calculatedDistance <= 28;
+          if (aNear && !bNear) return -1;
+          if (!aNear && bNear) return 1;
+          const rA = a.rating || 0;
+          const rB = b.rating || 0;
+          if (rA !== rB) return rB - rA;
+          return a.calculatedDistance - b.calculatedDistance;
+        });
+      }
+    } else {
+      result.sort((a, b) => a.calculatedDistance - b.calculatedDistance);
+    }
+    
+    return result;
+  }, [stations, myStations, searchQuery, activeCategory, fuelSubFilter, fuelSortBy, userCoords]);
+
+  // Auth gate
+  if (!user) {
+    return <AuthScreen onLoginSuccess={setUser} />;
+  }
+
+  if (navigationTarget) {
+    return (
+      <NavigationMode 
+        targetStation={navigationTarget} 
+        userCoords={userCoords}
+        onClose={() => setNavigationTarget(null)} 
+      />
+    );
+  }
+
+  return (
+    <div className="app-container">
+      {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
+      
+      {/* Ambient background light */}
+      <div className="ambient-glow-top"></div>
+      <div className="ambient-glow-bottom"></div>
+
+      <main className="content-area pb-20">
+
+        {/* ===== GLOBAL TOP: MyUp branding (hamma tabda ko'rinadi) ===== */}
+        <div className="home-brand-bar">
+          <h1 className="home-brand-title">
+            <span className="brand-my">My</span><span className="brand-up">Up</span><span className="brand-dot">.uz</span>
+          </h1>
+        </div>
+
+        {/* ===== GLOBAL: Category Tabs (faqat Home va Qidiruvda) ===== */}
+        {(activeTab === 'home' || activeTab === 'search') && (
+          <>
+            <div className="home-category-tabs layout-padding">
+              <button
+                className={`home-cat-btn ${activeCategory === 'all' ? 'active' : ''}`}
+                onClick={() => { setActiveCategory('all'); setFuelSubFilter('all'); }}
+              >
+                Barchasi
+              </button>
+              <button
+                className={`home-cat-btn ${activeCategory === 'fuel' ? 'active' : ''}`}
+                onClick={() => setActiveCategory('fuel')}
+              >
+                <Fuel size={16} />
+                Yoqilg'i shahobchasi
+              </button>
+              {/* Keyinchalik boshqa kategoriyalar shu yerga qo'shiladi */}
+            </div>
+
+            {/* Sub-filters (faqat Yoqilg'i shahobchasi tanlanganda) */}
+            {activeCategory === 'fuel' && (
+              <>
+                <div className="home-sub-filters layout-padding">
+                  <button
+                    className={`sub-filter-pill ${fuelSubFilter === 'all' ? 'active' : ''}`}
+                    onClick={() => setFuelSubFilter('all')}
+                  >
+                    Barchasi
+                  </button>
+                  <button
+                    className={`sub-filter-pill gaz ${fuelSubFilter === 'metan' ? 'active' : ''}`}
+                    onClick={() => setFuelSubFilter('metan')}
+                  >
+                    <Flame size={14} />
+                    Gaz (Metan)
+                  </button>
+                  <button
+                    className={`sub-filter-pill propan ${fuelSubFilter === 'propan' ? 'active' : ''}`}
+                    onClick={() => setFuelSubFilter('propan')}
+                  >
+                    <Droplets size={14} />
+                    Propan
+                  </button>
+                  <button
+                    className={`sub-filter-pill benzin ${fuelSubFilter === 'benzin' ? 'active' : ''}`}
+                    onClick={() => setFuelSubFilter('benzin')}
+                  >
+                    <Fuel size={14} />
+                    Benzin
+                  </button>
+                  <button
+                    className={`sub-filter-pill elektr ${fuelSubFilter === 'elektr' ? 'active' : ''}`}
+                    onClick={() => setFuelSubFilter('elektr')}
+                  >
+                    <Zap size={14} />
+                    Elektr
+                  </button>
+                </div>
+                
+                {/* SORTING TABS (Turtinchi qator) */}
+                {/* SORTING TABS (Turtinchi qator) */}
+                <div className={`home-sort-filters-wrapper ${fuelSubFilter !== 'all' ? 'expanded' : 'collapsed'}`}>
+                  <div className="home-sort-filters layout-padding mt-2 mb-2">
+                    <button 
+                      className={`sort-pill ${fuelSortBy === 'nearest' ? 'active' : ''}`}
+                      onClick={() => setFuelSortBy('nearest')}
+                    >
+                      Eng yaqini
+                    </button>
+                    <button 
+                      className={`sort-pill ${fuelSortBy === 'nearest_cheap' ? 'active' : ''}`}
+                      onClick={() => setFuelSortBy('nearest_cheap')}
+                    >
+                      Eng yaqin va arzoni
+                    </button>
+                    <button 
+                      className={`sort-pill ${fuelSortBy === 'cheapest' ? 'active' : ''}`}
+                      onClick={() => setFuelSortBy('cheapest')}
+                    >
+                      Eng arzoni
+                    </button>
+                    <button 
+                      className={`sort-pill ${fuelSortBy === 'nearest_best' ? 'active' : ''}`}
+                      onClick={() => setFuelSortBy('nearest_best')}
+                    >
+                      Eng yaqin va sifatligi
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* ===== TAB CONTENT ===== */}
+
+        {/* HOME */}
+        {activeTab === 'home' && (
+          <div className="tab-view fade-in">
+            {/* Barchasi tanlanganda ixcham xarita ko'rsatiladi */}
+            {activeCategory === 'all' && (
+              <div className="compact-home-map-wrapper layout-padding mt-3">
+                <div className="compact-home-map-container">
+                  <MapView />
+                </div>
+              </div>
+            )}
+
+            <div className="cards-stream-container layout-padding mt-4">
+              {filteredStations.map(st => (
+                <StationCard
+                  key={st.id}
+                  station={st}
+                  userDistance={st.calculatedDistance}
+                  isFavorite={favorites.includes(st.id)}
+                  onToggleFavorite={handleToggleFavorite}
+                  onSelectStation={(s) => setDetailStation(s)}
+                  onNavigate={handleNavigate}
+                />
+              ))}
+              {filteredStations.length === 0 && (
+                <div className="empty-home-state">
+                  <Fuel size={48} className="empty-icon" />
+                  <p>Hozircha ma'lumot yo'q</p>
+                  <span>Tez orada zapravkalar qo'shiladi!</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* SEARCH */}
+        {activeTab === 'search' && (
+          <div className="tab-view fade-in layout-padding">
+            <div className="search-page-header mt-4">
+              <div className="search-input-box">
+                <input
+                  type="text"
+                  placeholder="Zapravka nomini yozing..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="search-full-input"
+                />
+              </div>
+            </div>
+            <div className="cards-stream-container mt-4">
+              {filteredStations.map(st => (
+                <StationCard
+                  key={st.id}
+                  station={st}
+                  userDistance={st.calculatedDistance}
+                  isFavorite={favorites.includes(st.id)}
+                  onToggleFavorite={handleToggleFavorite}
+                  onSelectStation={(s) => setDetailStation(s)}
+                  onNavigate={handleNavigate}
+                />
+              ))}
+              {filteredStations.length === 0 && (
+                <div className="empty-home-state">
+                  <Fuel size={48} className="empty-icon" />
+                  <p>Natija topilmadi</p>
+                  <span>Boshqa nom bilan qidirib ko'ring</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* MAP */}
+        {activeTab === 'map' && (
+          <div className="tab-view fade-in">
+             <div className="map-full-container">
+               <MapView />
+             </div>
+          </div>
+        )}
+
+        {/* MY (PROFILE) */}
+        {activeTab === 'my' && (
+          <div className="tab-view fade-in layout-padding">
+            {/* Profil kartochkasi */}
+            <div className="profile-page-card mt-4">
+              <div className="profile-header-banner">
+                <div className="profile-names-block">
+                  <h3>{user.firstName} {user.lastName}</h3>
+                  <span className="profile-user-phone">{user.phoneNumber}</span>
+                </div>
+                <div
+                  className="profile-avatar-box clickable"
+                  onClick={() => setShowProfileDetail(true)}
+                >
+                  {user.avatar && !user.avatar.includes('dicebear') ? (
+                    <img src={user.avatar} alt={user.firstName} />
+                  ) : (
+                    <User size={28} />
+                  )}
+                  <div className="profile-avatar-arrow">
+                    <ChevronRight size={14} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Mening manzillarim ro'yxati (tepada) */}
+            {myStations.length > 0 && (
+              <div className="my-stations-list mt-4">
+                <h4 className="my-stations-title">Mening manzillarim</h4>
+                {myStations.map(st => {
+                  const fuelLabel = (st.type || []).map(t => {
+                    if (t === 'metan') return 'Gaz';
+                    if (t === 'propan') return 'Propan';
+                    if (t === 'benzin') return 'Benzin';
+                    if (t === 'elektr') return 'Elektr';
+                    return t;
+                  }).join(', ');
+
+                  return (
+                    <div 
+                      key={st.id} 
+                      className="my-station-card-v2 clickable-card"
+                      onClick={() => handleEditStation(st)}
+                    >
+                      {/* Chap: Ma'lumotlar */}
+                      <div className="my-st-left">
+                        <h5 className="my-st-name">{st.name}</h5>
+                        <span className="my-st-type">
+                          <Fuel size={12} /> {fuelLabel || 'Yoqilg\'i shahobchasi'}
+                        </span>
+
+                        {/* Yulduzcha reyting */}
+                        <div className="my-st-rating">
+                          {[1, 2, 3, 4, 5].map(i => (
+                            <Star key={i} size={13} fill={i <= (st.rating || 0) ? '#f59e0b' : 'none'} color={i <= (st.rating || 0) ? '#f59e0b' : '#cbd5e1'} />
+                          ))}
+                          <span className="my-st-rating-num">{st.rating || '—'}</span>
+                        </div>
+
+                        {st.phone && (
+                          <span className="my-st-phone">
+                            <Phone size={12} /> {st.phone}
+                          </span>
+                        )}
+
+                        {/* Ochiq / Yopiq */}
+                        <div className="my-st-status-row">
+                          <div className="status-toggle-group">
+                            <button
+                              className={`status-toggle-btn ${st.isOpen ? 'active-open' : ''}`}
+                              onClick={(e) => handleSetStatus(e, st.id, true)}
+                            >
+                              Ochiq
+                            </button>
+                            <button
+                              className={`status-toggle-btn ${!st.isOpen ? 'active-closed' : ''}`}
+                              onClick={(e) => handleSetStatus(e, st.id, false)}
+                            >
+                              Yopiq
+                            </button>
+                          </div>
+                          {!st.isOpen && st.reopenTime && (
+                            <span className="my-st-reopen">
+                              <Clock size={11} /> {st.reopenTime} gacha
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Narxlar */}
+                        {st.prices && Object.keys(st.prices).length > 0 && (
+                          <div className="my-st-prices">
+                            {Object.entries(st.prices).map(([key, val]) => (
+                              <span key={key} className="my-st-price-badge">
+                                <strong>{key === 'metan' ? 'Gaz' : key}:</strong> {val} so'm
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* O'ng: Rasm */}
+                      <div className="my-st-right">
+                        {st.image ? (
+                          <img src={st.image} alt={st.name} className="my-st-thumb" />
+                        ) : (
+                          <div className="my-st-thumb-empty"><Fuel size={20} /></div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Joylashuv qo'shish tugmasi (pastda) */}
+            <button
+              className="my-add-station-btn mt-4"
+              onClick={() => { setEditingStation(null); setShowAddStation(true); }}
+            >
+              <div className="my-add-icon-circle">
+                <Plus size={20} />
+              </div>
+              <span>Joylashuv qo'shish</span>
+            </button>
+          </div>
+        )}
+
+      </main>
+
+      {/* Profile Detail Modal */}
+      <ProfileDetailModal
+        user={user}
+        isOpen={showProfileDetail}
+        onClose={() => setShowProfileDetail(false)}
+        onUpdateUser={setUser}
+        onLogout={handleLogout}
+      />
+
+      {/* Add / Edit Station Modal */}
+      <AddStationModal
+        isOpen={showAddStation}
+        onClose={() => { setShowAddStation(false); setEditingStation(null); }}
+        onSave={handleSaveStation}
+        editStation={editingStation}
+      />
+
+      <StationDetailModal
+        station={detailStation}
+        userDistance={detailStation ? calculateDistance(userCoords.lat, userCoords.lng, detailStation.lat, detailStation.lng) : 0}
+        onClose={() => setDetailStation(null)}
+        onStartNavigation={(target) => setNavigationTarget(target)}
+        onRateStation={handleRateStation}
+      />
+
+      {/* Yopish vaqti Modali */}
+      {reopenModal.isOpen && (
+        <div className="add-station-overlay" onClick={() => setReopenModal({ isOpen: false, stationId: null })}>
+          <div className="reopen-modal-sheet" onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-primary)', marginBottom: '10px' }}>
+              Qachon ochiladi?
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+              Foydalanuvchilarga ma'lumot berish uchun taxminiy vaqtni yozing.
+            </p>
+            <input 
+              type="text" 
+              placeholder="Masalan: 08:00, Ertaga ertalab" 
+              value={reopenTimeInput}
+              onChange={e => setReopenTimeInput(e.target.value)}
+              className="add-st-input"
+              style={{ marginBottom: '16px' }}
+              autoFocus
+            />
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                className="add-st-submit-btn" 
+                style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', boxShadow: 'none' }}
+                onClick={() => setReopenModal({ isOpen: false, stationId: null })}
+              >
+                Bekor qilish
+              </button>
+              <button className="add-st-submit-btn" onClick={submitReopenTime}>
+                Tasdiqlash
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+    </div>
+  );
+}
