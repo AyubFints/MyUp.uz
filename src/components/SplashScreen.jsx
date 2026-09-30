@@ -24,6 +24,9 @@ export default function SplashScreen({ onComplete }) {
 
   return (
     <div className={`splash-screen ${phase === 'exiting' ? 'fade-out' : ''}`}>
+      {/* Blurred background logo */}
+      <div className="splash-background-image" style={{ backgroundImage: 'url(https://i.postimg.cc/VNHPnzHt/myup-orgg.jpg)' }}></div>
+      
       {/* Orqa fondagi harakatlanuvchi katta shakllar */}
       <div className="splash-shape shape-1"></div>
       <div className="splash-shape shape-2"></div>
@@ -31,12 +34,15 @@ export default function SplashScreen({ onComplete }) {
       <div className="splash-shape shape-4"></div>
       <div className="splash-shape shape-5"></div>
       
-      <div className="splash-content">
+      <div className="splash-content" style={{ zIndex: 2, position: 'relative' }}>
         {/* Yozuv animatsiyasi */}
-        <div className={`splash-logo ${phase === 'scaling' ? 'scale-up' : 'bounce-in'}`}>
-          <span className="splash-brand-my">My</span>
-          <span className="splash-brand-up">Up</span>
-          <span className="splash-brand-dot">.uz</span>
+        <div className={`splash-logo ${phase === 'scaling' ? 'scale-up' : 'bounce-in'}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px' }}>
+          <img src="https://i.postimg.cc/VNHPnzHt/myup-orgg.jpg" alt="MyUp Logo" className="brand-logo-icon" style={{ width: '72px', height: '72px', borderRadius: '16px' }} />
+          <div>
+            <span className="splash-brand-my">My</span>
+            <span className="splash-brand-up">Up</span>
+            <span className="splash-brand-dot">.uz</span>
+          </div>
         </div>
         
         {/* Aylanuvchi nuqtalar */}

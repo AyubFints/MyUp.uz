@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, Calendar, Phone, MessageSquare, ArrowRight, CheckCircle2, AlertCircle, Fuel } from 'lucide-react';
+import { User, Lock, Calendar, Phone, MessageSquare, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function AuthScreen({ onLoginSuccess }) {
-  const [step, setStep] = useState(1); // 1: Registration Form, 2: SMS Verification
+  const [step, setStep] = useState(1);
   const [errorMsg, setErrorMsg] = useState('');
   
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     password: '',
-    birthDate: '',
+    bDay: '',
+    bMonth: '',
+    bYear: '',
     phone: '+998 '
   });
 
@@ -26,38 +28,23 @@ export default function AuthScreen({ onLoginSuccess }) {
   }, [step, otpTimer]);
 
   const handlePhoneChange = (val) => {
-    // Keep only numbers and plus
     let cleaned = val.replace(/[^\d+]/g, '');
-    
-    // Ensure it starts with +998
-    if (!cleaned.startsWith('+998')) {
-      cleaned = '+998' + cleaned.replace('+', '');
-    }
-
-    // Format strictly to +998 XX XXX XX XX
+    if (!cleaned.startsWith('+998')) cleaned = '+998' + cleaned.replace('+', '');
     let formatted = '+998 ';
-    const numbersOnly = cleaned.slice(4); // get digits after +998
-    
+    const numbersOnly = cleaned.slice(4);
     for (let i = 0; i < numbersOnly.length; i++) {
-      if (i === 2 || i === 5 || i === 7) {
-        formatted += ' ';
-      }
+      if (i === 2 || i === 5 || i === 7) formatted += ' ';
       formatted += numbersOnly[i];
     }
-    
-    if (formatted.length > 17) {
-      formatted = formatted.slice(0, 17);
-    }
-
+    if (formatted.length > 17) formatted = formatted.slice(0, 17);
     setFormData({ ...formData, phone: formatted });
   };
 
   const handleStep1Submit = (e) => {
     e.preventDefault();
     setErrorMsg('');
-    
-    if (!formData.firstName.trim() || !formData.lastName.trim() || !formData.password || !formData.birthDate) {
-      setErrorMsg("Iltimos, barcha maydonlarni to'ldiring!");
+    if (!formData.firstName.trim() || !formData.lastName.trim() || !formData.password || !formData.bDay || !formData.bMonth || !formData.bYear) {
+      setErrorMsg("Barcha maydonlarni to'ldiring!");
       return;
     }
     if (formData.password.length < 4) {
@@ -66,11 +53,9 @@ export default function AuthScreen({ onLoginSuccess }) {
     }
     const cleanPhone = formData.phone.replace(/\s+/g, '');
     if (cleanPhone.length < 13) {
-      setErrorMsg("Telefon raqamingizni to'liq kiriting!");
+      setErrorMsg("Telefon raqam noto'g'ri!");
       return;
     }
-
-    // Move to step 2 (SMS)
     const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(randomOtp);
     setOtpTimer(60);
@@ -81,184 +66,136 @@ export default function AuthScreen({ onLoginSuccess }) {
     e.preventDefault();
     setErrorMsg('');
     if (otpCode !== generatedOtp && otpCode !== '123456') {
-      setErrorMsg("Kiritilgan SMS kodi noto'g'ri!");
+      setErrorMsg("SMS kodi noto'g'ri!");
       return;
     }
-
     const newUser = {
       id: 'usr_' + Date.now(),
       firstName: formData.firstName,
       lastName: formData.lastName,
       phoneNumber: formData.phone,
-      birthDate: formData.birthDate,
+      birthDate: `${formData.bYear}-${String(formData.bMonth).padStart(2, '0')}-${String(formData.bDay).padStart(2, '0')}`,
       registeredAt: new Date().toISOString(),
       avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${formData.firstName}`,
     };
-
     localStorage.setItem('myup_user', JSON.stringify(newUser));
     onLoginSuccess(newUser);
   };
 
-  // Generate Date dropdowns data
-  const days = Array.from({ length: 31 }, (_, i) => i + 1);
-  const months = [
-    { value: '01', label: 'Yanvar' }, { value: '02', label: 'Fevral' },
-    { value: '03', label: 'Mart' }, { value: '04', label: 'Aprel' },
-    { value: '05', label: 'May' }, { value: '06', label: 'Iyun' },
-    { value: '07', label: 'Iyul' }, { value: '08', label: 'Avgust' },
-    { value: '09', label: 'Sentabr' }, { value: '10', label: 'Oktabr' },
-    { value: '11', label: 'Noyabr' }, { value: '12', label: 'Dekabr' }
-  ];
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
+  const isFormValid = formData.firstName && formData.lastName && formData.password.length >= 4 && formData.phone.length >= 17;
 
   return (
-    <div className="auth-screen-container">
-      <div className="auth-screen-card">
-        
-        {/* Logo / Branding */}
-        <div className="auth-brand-header">
-          <h1 className="home-brand-title" style={{textAlign:'center', fontSize:'2.2rem'}}>
-            <span className="brand-my">My</span><span className="brand-up">Up</span><span className="brand-dot">.uz</span>
-          </h1>
+    <div className="auth-neu-container">
+      {/* Wireframe background pattern similar to screenshot */}
+      <div className="auth-neu-bg"></div>
+
+      <div className="auth-neu-card">
+        <div className="auth-neu-header">
+          <div style={{display:'flex', justifyContent:'center', alignItems:'center', gap:'10px'}}>
+             <img src="https://i.postimg.cc/VNHPnzHt/myup-orgg.jpg" alt="Logo" style={{width:'32px', height:'32px', borderRadius:'8px'}} />
+             <h2>MyUp<span style={{color:'#94a3b8', fontSize:'18px'}}>.uz</span></h2>
+          </div>
           <p>Tizimga kirish uchun ro'yxatdan o'ting</p>
         </div>
 
         {errorMsg && (
-          <div className="auth-error-badge">
-            <AlertCircle size={18} />
+          <div className="auth-neu-error">
+            <AlertCircle size={16} />
             <span>{errorMsg}</span>
           </div>
         )}
 
-        {/* STEP 1: Main Form */}
         {step === 1 && (
-          <form onSubmit={handleStep1Submit} className="auth-screen-form">
-            <div className="form-group">
+          <form onSubmit={handleStep1Submit} className="auth-neu-form">
+            <div className="neu-form-group">
               <label>Ismingiz</label>
-              <div className="input-icon-wrapper">
-                <User size={18} className="input-icon" />
-                <input
-                  type="text"
-                  placeholder="Ismingiz"
-                  value={formData.firstName}
-                  onChange={e => setFormData({...formData, firstName: e.target.value})}
-                  required
-                />
+              <div className="neu-input-wrapper">
+                <User className="neu-icon" size={18} />
+                <input type="text" placeholder="Ismingiz" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value.replace(/[0-9]/g, '')})} required />
               </div>
             </div>
 
-            <div className="form-group">
+            <div className="neu-form-group">
               <label>Familiyangiz</label>
-              <div className="input-icon-wrapper">
-                <User size={18} className="input-icon" />
-                <input
-                  type="text"
-                  placeholder="Familiyangiz"
-                  value={formData.lastName}
-                  onChange={e => setFormData({...formData, lastName: e.target.value})}
-                  required
-                />
+              <div className="neu-input-wrapper">
+                <User className="neu-icon" size={18} />
+                <input type="text" placeholder="Familiyangiz" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value.replace(/[0-9]/g, '')})} required />
               </div>
             </div>
 
-            <div className="form-group">
+            <div className="neu-form-group">
               <label>Parol</label>
-              <div className="input-icon-wrapper">
-                <Lock size={18} className="input-icon" />
-                <input
-                  type="password"
-                  placeholder="Parolni o'ylab toping"
-                  value={formData.password}
-                  onChange={e => setFormData({...formData, password: e.target.value})}
-                  required
-                />
+              <div className="neu-input-wrapper">
+                <Lock className="neu-icon" size={18} />
+                <input type="password" placeholder="********" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} required />
               </div>
             </div>
 
-            <div className="form-group">
+            <div className="neu-form-group">
               <label>Tug'ilgan sanangiz</label>
-              <div className="input-icon-wrapper">
-                <Calendar size={18} className="input-icon" />
-                <input
-                  type="date"
-                  className="auth-date-input"
-                  value={formData.birthDate}
-                  onChange={e => setFormData({...formData, birthDate: e.target.value})}
-                  required
-                />
+              <div className="neu-dob-row">
+                <div className="neu-input-wrapper dob-box">
+                  <input type="number" placeholder="Kun (mas.." value={formData.bDay} onChange={e => setFormData({...formData, bDay: e.target.value})} min="1" max="31" required />
+                </div>
+                <div className="neu-input-wrapper dob-box">
+                  <input type="number" placeholder="Oy (mas.." value={formData.bMonth} onChange={e => setFormData({...formData, bMonth: e.target.value})} min="1" max="12" required />
+                </div>
+                <div className="neu-input-wrapper dob-box" style={{flex: 1.2}}>
+                  <input type="number" placeholder="Yil (masalan: 19..." value={formData.bYear} onChange={e => setFormData({...formData, bYear: e.target.value})} min="1900" max="2026" required />
+                </div>
               </div>
             </div>
 
-            <div className="form-group">
+            <div className="neu-form-group">
               <label>Telefon raqam</label>
-              <div className="input-icon-wrapper">
-                <Phone size={18} className="input-icon" />
-                <input
-                  type="tel"
-                  placeholder="+998 77 278 18 08"
-                  value={formData.phone}
-                  onChange={e => handlePhoneChange(e.target.value)}
-                  required
-                />
+              <div className="neu-input-wrapper">
+                <Phone className="neu-icon" size={18} />
+                <input type="tel" placeholder="+998 00 000 00 00" value={formData.phone} onChange={e => handlePhoneChange(e.target.value)} required />
               </div>
             </div>
 
-            <button type="submit" className="auth-submit-btn mt-4">
+            <button type="submit" className="neu-submit-btn" disabled={!isFormValid}>
               <span>Kiritish</span>
               <ArrowRight size={18} />
             </button>
           </form>
         )}
 
-        {/* STEP 2: SMS Verification */}
         {step === 2 && (
-          <form onSubmit={handleVerifyOtp} className="auth-screen-form">
-            <div className="sms-sim-banner">
-              <MessageSquare size={16} />
-              <span>Yangi SMS (MyUp.uz) kodingiz: <strong>{generatedOtp}</strong></span>
-            </div>
-
-            <div className="form-group">
-              <label>SMS kodni kiriting</label>
-              <div className="input-icon-wrapper">
-                <Lock size={18} className="input-icon" />
-                <input
-                  type="text"
-                  maxLength={6}
-                  placeholder="6 xonali kod"
-                  className="otp-input-field"
-                  value={otpCode}
-                  onChange={e => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                  required
-                />
-              </div>
-              <div className="otp-timer-box">
-                {otpTimer > 0 ? (
-                  <span>Qayta yuborish: {otpTimer}s</span>
-                ) : (
-                  <button type="button" className="text-cyan-400 font-bold" onClick={() => {
-                    const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
-                    setGeneratedOtp(randomOtp);
-                    setOtpTimer(60);
-                  }}>Kodni qayta jo'natish</button>
-                )}
+          <form onSubmit={handleVerifyOtp} className="auth-neu-form">
+            <div className="neu-form-group">
+              <label>SMS kodingiz: {generatedOtp}</label>
+              <div className="neu-input-wrapper">
+                <Lock className="neu-icon" size={18} />
+                <input type="text" maxLength={6} placeholder="6 xonali SMS kodni yozing" value={otpCode} onChange={e => setOtpCode(e.target.value.replace(/\D/g, ''))} required style={{letterSpacing: '2px', textAlign: 'center'}} />
               </div>
             </div>
 
-            <div className="flex gap-2 mt-4">
-              <button type="button" className="auth-secondary-btn" onClick={() => setStep(1)}>
+            <div style={{textAlign: 'center', margin: '10px 0'}}>
+              {otpTimer > 0 ? (
+                <span style={{color: '#64748b', fontSize: '14px'}}>Qayta yuborish: {otpTimer}s</span>
+              ) : (
+                <button type="button" onClick={() => {
+                  const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
+                  setGeneratedOtp(randomOtp);
+                  setOtpTimer(60);
+                }} style={{background:'transparent', border:'none', color:'#0ea5e9', cursor:'pointer', fontWeight:'bold'}}>Kodni qayta jo'natish</button>
+              )}
+            </div>
+
+            <div style={{display: 'flex', gap: '12px'}}>
+              <button type="button" className="neu-secondary-btn" onClick={() => setStep(1)}>
                 Orqaga
               </button>
-              <button type="submit" className="auth-submit-btn flex-1">
+              <button type="submit" className="neu-submit-btn" style={{flex: 1}}>
                 <CheckCircle2 size={18} />
-                <span>Tasdiqlash va Kirish</span>
+                <span>Tasdiqlash</span>
               </button>
             </div>
           </form>
         )}
-
       </div>
     </div>
   );
 }
+

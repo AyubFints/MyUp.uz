@@ -119,8 +119,15 @@
   z-index: 1;
   position: relative;
   width: 100%;
-  max-width: 1200px;
+  max-width: 1440px;
+  padding: 0 16px;
   margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+  .content-area {
+    padding: 0 50px;
+  }
 }
 
 .pb-20 {
@@ -2086,4 +2093,522 @@
   color: #fff; 
   border-color: transparent;
   box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+}
+/* =======================================================
+   NEUMORPHISM AUTH SCREEN (USER IMAGE DESIGN)
+   ======================================================= */
+.auth-neu-container {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 99999;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  background-color: #f0f3f6;
+}
+
+/* A very simple SVG repeating background to mimic the wireframes */
+.auth-neu-bg {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0l100 100M100 0L0 100' stroke='rgba(148, 163, 184, 0.1)' stroke-width='0.5' fill='none'/%3E%3C/svg%3E");
+  background-size: 150px;
+}
+
+.auth-neu-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  background: #f0f3f6;
+  border-radius: 40px;
+  padding: 40px 30px;
+  /* Neumorphic Extrude Shadow */
+  box-shadow: 18px 18px 36px #d1d5db, 
+             -18px -18px 36px #ffffff;
+}
+
+.auth-neu-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.auth-neu-header h2 {
+  color: #0f172a;
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.auth-neu-header p {
+  color: #64748b;
+  font-size: 13px;
+  margin: 8px 0 0 0;
+}
+
+.auth-neu-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.neu-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.neu-form-group label {
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
+  padding-left: 14px;
+}
+
+.neu-input-wrapper {
+  display: flex;
+  align-items: center;
+  background: #f0f3f6;
+  border-radius: 50px;
+  padding: 4px 16px;
+  /* Neumorphic Inset Shadow */
+  box-shadow: inset 5px 5px 10px #d1d5db, 
+              inset -5px -5px 10px #ffffff;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.neu-input-wrapper:focus-within {
+  border: 2px solid rgba(14, 165, 233, 0.3);
+}
+
+.neu-icon {
+  color: #94a3b8;
+  margin-right: 10px;
+}
+
+.neu-input-wrapper input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 12px 0;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 500;
+  width: 100%;
+}
+
+.neu-input-wrapper input::placeholder {
+  color: #94a3b8;
+}
+
+.neu-dob-row {
+  display: flex;
+  gap: 10px;
+}
+
+.dob-box {
+  flex: 1;
+  padding: 2px 10px;
+}
+
+.dob-box input {
+  text-align: center;
+  font-size: 13px;
+}
+
+.neu-submit-btn {
+  margin-top: 10px;
+  background: #0284c7; /* Blue color matching the image */
+  color: #fff;
+  border: none;
+  border-radius: 50px;
+  padding: 16px;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  /* Extrude Shadow for the button */
+  box-shadow: 6px 6px 12px #d1d5db, 
+             -6px -6px 12px #ffffff;
+  transition: all 0.2s ease;
+}
+
+.neu-submit-btn:hover:not(:disabled) {
+  background: #0369a1;
+}
+
+.neu-submit-btn:active:not(:disabled) {
+  box-shadow: inset 4px 4px 8px rgba(0,0,0,0.2), inset -4px -4px 8px rgba(255,255,255,0.1);
+  transform: translateY(2px);
+}
+
+.neu-submit-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.neu-secondary-btn {
+  flex: 0.4;
+  background: #f0f3f6;
+  color: #475569;
+  border: none;
+  border-radius: 50px;
+  padding: 16px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 6px 6px 12px #d1d5db, 
+             -6px -6px 12px #ffffff;
+  transition: all 0.2s ease;
+}
+
+.neu-secondary-btn:active {
+  box-shadow: inset 4px 4px 8px #d1d5db, inset -4px -4px 8px #ffffff;
+}
+
+.auth-neu-error {
+  color: #ef4444;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 15px;
+  justify-content: center;
+}
+
+
+/* ADJUSTMENTS FOR DESKTOP WIDTH & MOBILE HEIGHT (NO SCROLL CHANGES) */
+.auth-neu-card {
+  max-width: 420px !important; /* Kompyuter uchun chiroyli kenglik */
+  padding: 25px 20px !important; /* Telefon uchun uzunlikdan olish */
+}
+.auth-neu-form {
+  gap: 10px !important; /* Telefon uchun inputlar orasini biroz qisqartirish */
+}
+.auth-neu-header {
+  margin-bottom: 20px !important; /* Telefon uchun tepadan qisqartirish */
+}
+
+@media (min-width: 768px) {
+  .auth-neu-card {
+    padding: 45px 40px !important;
+  }
+  .auth-neu-form {
+    gap: 16px !important;
+  }
+  .auth-neu-header {
+    margin-bottom: 30px !important;
+  }
+}
+
+
+
+/* ==========================================
+   NEUMORPHISM FOR ADD STATION MODAL 
+   ========================================== */
+.add-station-overlay {
+  background-color: rgba(240, 243, 246, 0.4) !important;
+  
+  
+  backdrop-filter: blur(15px) !important;
+}
+
+.add-station-sheet {
+  background: #f0f3f6 !important;
+  border-radius: 40px !important;
+  padding: 40px 30px !important;
+  box-shadow: 18px 18px 36px #d1d5db, -18px -18px 36px #ffffff !important;
+  border: none !important;
+  max-width: 420px !important;
+  max-height: 95vh !important;
+}
+
+.add-station-header h2 {
+  color: #0f172a !important;
+  text-align: center !important;
+  width: 100%;
+}
+.add-station-header .close-btn {
+  position: absolute;
+  top: 25px;
+  right: 25px;
+  background: #f0f3f6 !important;
+  box-shadow: 4px 4px 8px #d1d5db, -4px -4px 8px #ffffff !important;
+  border-radius: 50% !important;
+  padding: 8px !important;
+  color: #ef4444 !important;
+}
+
+.add-st-label {
+  font-size: 12px !important;
+  color: #475569 !important;
+  font-weight: 500 !important;
+  padding-left: 14px !important;
+  margin-bottom: 6px !important;
+  display: block;
+}
+
+.add-st-input-group,
+.add-st-textarea,
+.add-st-map-box,
+.add-st-fuel-btn,
+.add-st-price-item {
+  background: #f0f3f6 !important;
+  border-radius: 30px !important;
+  box-shadow: inset 5px 5px 10px #d1d5db, inset -5px -5px 10px #ffffff !important;
+  border: 2px solid transparent !important;
+  transition: all 0.2s ease !important;
+}
+
+.add-st-input-group {
+  padding: 4px 16px !important;
+}
+.add-st-textarea {
+  padding: 16px !important;
+  border-radius: 20px !important;
+}
+
+.add-st-input {
+  background: transparent !important;
+  border: none !important;
+  color: #334155 !important;
+}
+.add-st-input::placeholder { color: #94a3b8 !important; }
+
+.add-st-fuel-types {
+  gap: 10px !important;
+}
+.add-st-fuel-btn {
+  border-radius: 50px !important;
+  padding: 10px 15px !important;
+  color: #475569 !important;
+  box-shadow: 4px 4px 8px #d1d5db, -4px -4px 8px #ffffff !important;
+}
+.add-st-fuel-btn.active {
+  box-shadow: inset 4px 4px 8px rgba(0,0,0,0.2) !important;
+  color: #fff !important;
+}
+
+.add-st-submit-btn,
+.add-st-confirm-loc-btn {
+  background: #0284c7 !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 50px !important;
+  padding: 16px !important;
+  box-shadow: 6px 6px 12px #d1d5db, -6px -6px 12px #ffffff !important;
+  width: 100% !important;
+  font-weight: 600 !important;
+  margin-top: 20px !important;
+}
+
+.add-st-toggle-row {
+  background: #f0f3f6 !important;
+  border-radius: 50px !important;
+  box-shadow: inset 5px 5px 10px #d1d5db, inset -5px -5px 10px #ffffff !important;
+  padding: 4px !important;
+}
+.add-st-toggle-btn {
+  border-radius: 50px !important;
+  color: #475569 !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+.add-st-toggle-btn.active-yes {
+  background: #10b981 !important;
+  color: #fff !important;
+  box-shadow: 4px 4px 8px #d1d5db !important;
+}
+.add-st-toggle-btn.active-no {
+  background: #ef4444 !important;
+  color: #fff !important;
+  box-shadow: 4px 4px 8px #d1d5db !important;
+}
+
+.add-st-images-grid { gap: 10px !important; }
+.add-st-img-thumb, .add-st-img-add {
+  border-radius: 20px !important;
+  box-shadow: 4px 4px 8px #d1d5db, -4px -4px 8px #ffffff !important;
+  border: none !important;
+  background: #f0f3f6 !important;
+}
+
+@media (max-width: 768px) {
+  .desktop-nav { display: none !important; }
+  .add-station-sheet {
+    padding: 25px 20px !important;
+    border-radius: 30px !important;
+  }
+}
+
+/* WIZARD ANIMATIONS */
+.step-enter {
+  animation: slideInRight 0.3s forwards;
+}
+.step-exit {
+  animation: slideOutLeft 0.3s forwards;
+}
+.slide-in-down {
+  animation: slideInDown 0.4s ease forwards;
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideOutLeft {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(-30px); }
+}
+@keyframes slideInDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+.neu-submit-btn:disabled {
+  background: #f0f3f6 !important;
+  color: #94a3b8 !important;
+  box-shadow: 6px 6px 12px #d1d5db, -6px -6px 12px #ffffff !important;
+  cursor: not-allowed !important;
+}
+
+/* HEADER NEUMORPHISM */
+.app-header {
+  background: #f0f3f6 !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
+  border-bottom: none !important;
+}
+
+/* DESKTOP NAVIGATION (Next to Logo) */
+.desktop-nav {
+  display: flex;
+  align-items: center;
+  background: #f0f3f6;
+  border-radius: 40px;
+  box-shadow: 5px 5px 10px #d1d5db, -5px -5px 10px #ffffff;
+  padding: 4px;
+  margin-left: 20px;
+  gap: 5px;
+}
+.desktop-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 30px;
+  padding: 8px 16px;
+  cursor: pointer;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 11px;
+  transition: all 0.2s ease;
+}
+.desktop-nav-item.active {
+  background: #e0f2fe;
+  color: #0ea5e9;
+  box-shadow: inset 3px 3px 6px #bae6fd, inset -3px -3px 6px #ffffff;
+}
+.desktop-nav-icon {
+  margin-bottom: 2px;
+}
+
+/* Hide BottomNav on Desktop, Hide DesktopNav on Mobile */
+@media (min-width: 769px) {
+  .bottom-nav-bar {
+    display: none !important;
+  }
+}
+
+
+/* MOBILE RESPONSIVE HEADER NAV */
+@media (max-width: 768px) {
+  .home-brand-bar {
+    padding: 8px 10px !important;
+    margin: 10px 5px !important;
+    border-radius: 20px !important;
+  }
+  .brand-logo-icon {
+    width: 32px !important;
+    height: 32px !important;
+  }
+  .home-brand-title {
+    font-size: 1.1rem !important;
+  }
+  .desktop-nav {
+    margin-left: 5px !important;
+    padding: 2px !important;
+    gap: 2px !important;
+  }
+  .desktop-nav-item {
+    padding: 6px 8px !important;
+    font-size: 9px !important;
+    border-radius: 20px !important;
+  }
+  .desktop-nav-icon {
+    width: 16px !important;
+    height: 16px !important;
+    margin-bottom: 2px !important;
+  }
+  
+  
+}
+
+/* EXPAND MOBILE CONTENT TO EDGES */
+@media (max-width: 768px) {
+  .content-area {
+    padding: 0 8px !important;
+  }
+  .layout-padding {
+    padding: 0 4px !important;
+  }
+  .home-brand-bar {
+    padding: 8px 10px !important;
+    margin: 10px 2px !important;
+  }
+}
+
+/* SHORTER MAP ON MOBILE */
+@media (max-width: 768px) {
+  .compact-home-map-container {
+    height: 140px !important;
+  }
+}
+
+/* MOBILE NEUMORPHIC BOTTOM NAV */
+@media (max-width: 768px) {
+  .bottom-nav-bar {
+    background: #f0f3f6 !important;
+    box-shadow: 8px 8px 16px #d1d5db, -8px -8px 16px #ffffff !important;
+    border: none !important;
+    border-radius: 30px !important;
+    padding: 6px !important;
+    height: auto !important;
+    bottom: 15px !important;
+  }
+  .bottom-nav-item {
+    color: #64748b !important;
+    font-weight: 600 !important;
+    border-radius: 25px !important;
+    padding: 8px 12px !important;
+    background: transparent !important;
+    transition: all 0.2s ease !important;
+  }
+  .bottom-nav-item.active {
+    background: #e0f2fe !important;
+    color: #0ea5e9 !important;
+    box-shadow: inset 3px 3px 6px #bae6fd, inset -3px -3px 6px #ffffff !important;
+  }
 }

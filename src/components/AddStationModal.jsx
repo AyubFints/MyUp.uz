@@ -1,13 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  X, Fuel, Flame, Droplets, Zap, MapPin, Camera, Check,
-  Phone, Type, FileText, ChevronDown, Plus, Trash2, Star
+  MapPin, Check, Plus, Trash2, Camera, Phone, User, Droplets, Zap, Flame, Fuel, ChevronRight, ChevronLeft, Info, HelpCircle, Type
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Foydalanuvchi joylashuvi markeri
 const locationIcon = L.divIcon({
   className: 'add-station-marker',
   html: `<div style="width:32px;height:32px;border-radius:50%;background:#0ea5e9;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;">
@@ -17,7 +15,6 @@ const locationIcon = L.divIcon({
   iconAnchor: [16, 32],
 });
 
-// Xaritada bosish uchun komponent
 function MapClickHandler({ onLocationSelect }) {
   useMapEvents({
     click(e) {
@@ -27,7 +24,6 @@ function MapClickHandler({ onLocationSelect }) {
   return null;
 }
 
-// Xaritani joylashuvga olib borish
 function FlyToPos({ position }) {
   const map = useMap();
   useEffect(() => {
@@ -36,15 +32,11 @@ function FlyToPos({ position }) {
   return null;
 }
 
-// Reverse geocoding (OpenStreetMap Nominatim)
 async function reverseGeocode(lat, lng) {
   try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=uz`
-    );
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=uz`);
     const data = await res.json();
     if (data?.display_name) {
-      // Qisqartirilgan manzil
       const parts = data.display_name.split(',').slice(0, 4).map(s => s.trim());
       return {
         full: parts.join(', '),
@@ -66,79 +58,68 @@ const FUEL_TYPES = [
 ];
 
 export default function AddStationModal({ isOpen, onClose, onSave, editStation }) {
-  const defaultCenter = [41.311081, 69.240562];
+  const [step, setStep] = useState(1);
+  const [animating, setAnimating] = useState(false);
 
+  // Form states
+  const [stationType, setStationType] = useState('');
   const [name, setName] = useState('');
-  const [phone, setPhone] = useState('+998 ');
   const [selectedTypes, setSelectedTypes] = useState([]);
-  const [prices, setPrices] = useState({});
+  const [phone, setPhone] = useState('+998 ');
+  
+  // Map states
   const [mapPos, setMapPos] = useState(null);
   const [address, setAddress] = useState(null);
+  const [locating, setLocating] = useState(false);
   const [locationConfirmed, setLocationConfirmed] = useState(false);
-  const [dailyNotif, setDailyNotif] = useState(true);
+  const [isAddressCorrect, setIsAddressCorrect] = useState(null);
+  
+  // Final states
   const [description, setDescription] = useState('');
   const [images, setImages] = useState([]);
-  const [mainImageIdx, setMainImageIdx] = useState(0);
-  const [locating, setLocating] = useState(true);
+  const [q1, setQ1] = useState(null);
+  const [q2, setQ2] = useState(null);
+  
   const imgInputRef = useRef(null);
 
-  // Tahrirlash rejimi — eski ma'lumotlarni yuklash
   useEffect(() => {
-    if (editStation) {
-      setName(editStation.name || '');
-      setPhone(editStation.phone || '+998 ');
-      setSelectedTypes(editStation.type || []);
-      setPrices(editStation.prices || {});
-      setMapPos([editStation.lat, editStation.lng]);
-      setAddress({ full: editStation.address, city: '', road: '' });
-      setLocationConfirmed(true);
-      setDailyNotif(editStation.dailyNotification ?? true);
-      setDescription(editStation.description || '');
-      setImages(editStation.images || []);
-      setMainImageIdx(editStation.mainImageIndex || 0);
-      setLocating(false);
-    } else {
-      resetForm();
-    }
-  }, [editStation, isOpen]);
-
-  // GPS joylashuvni aniqlash
-  useEffect(() => {
-    if (!isOpen || editStation) return;
-    setLocating(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
+    if (isOpen) {
+      setStep(1);
+      setStationType('');
+      setName('');
+      setSelectedTypes([]);
+      setPhone('+998 ');
+      setMapPos([41.311081, 69.240562]); // Default Tashkent
+      setAddress(null);
+      setLocationConfirmed(false);
+      setIsAddressCorrect(null);
+      setDescription('');
+      setImages([]);
+      setQ1(null);
+      setQ2(null);
+      
+      // Auto locate
+      if (navigator.geolocation) {
+        setLocating(true);
+        navigator.geolocation.getCurrentPosition(async (pos) => {
           const coords = [pos.coords.latitude, pos.coords.longitude];
           setMapPos(coords);
           const addr = await reverseGeocode(coords[0], coords[1]);
           setAddress(addr);
           setLocating(false);
-        },
-        () => {
-          setMapPos(defaultCenter);
-          setLocating(false);
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    } else {
-      setMapPos(defaultCenter);
-      setLocating(false);
+        }, () => { setLocating(false); });
+      }
     }
-  }, [isOpen, editStation]);
+  }, [isOpen]);
 
-  const resetForm = () => {
-    setName('');
-    setPhone('+998 ');
-    setSelectedTypes([]);
-    setPrices({});
-    setMapPos(null);
-    setAddress(null);
-    setLocationConfirmed(false);
-    setDailyNotif(true);
-    setDescription('');
-    setImages([]);
-    setMainImageIdx(0);
+  if (!isOpen) return null;
+
+  const goToStep = (nextStep) => {
+    setAnimating(true);
+    setTimeout(() => {
+      setStep(nextStep);
+      setAnimating(false);
+    }, 300); // 300ms transition
   };
 
   const handlePhoneChange = (val) => {
@@ -156,9 +137,6 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation }
   const toggleType = (typeId) => {
     if (selectedTypes.includes(typeId)) {
       setSelectedTypes(selectedTypes.filter(t => t !== typeId));
-      const newPrices = { ...prices };
-      delete newPrices[typeId];
-      setPrices(newPrices);
     } else {
       setSelectedTypes([...selectedTypes, typeId]);
     }
@@ -167,326 +145,340 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation }
   const handleMapClick = async (pos) => {
     setMapPos(pos);
     setLocationConfirmed(false);
+    setIsAddressCorrect(null);
     const addr = await reverseGeocode(pos[0], pos[1]);
     setAddress(addr);
   };
 
-  const handleConfirmLocation = () => {
-    setLocationConfirmed(true);
-  };
-
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files || []);
-    if (images.length + files.length > 6) {
-      alert("Eng ko'pi bilan 6 ta rasm yuklash mumkin!");
+    if (images.length + files.length > 5) {
+      alert("Eng ko'pi bilan 5 ta rasm yuklash mumkin!");
       return;
     }
     files.forEach(file => {
       const reader = new FileReader();
-      reader.onload = (ev) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const maxSize = 600;
-          let w = img.width, h = img.height;
-          if (w > h) { h = (h / w) * maxSize; w = maxSize; }
-          else { w = (w / h) * maxSize; h = maxSize; }
-          canvas.width = w;
-          canvas.height = h;
-          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-          const compressed = canvas.toDataURL('image/jpeg', 0.7);
-          setImages(prev => [...prev, compressed]);
-        };
-        img.src = ev.target.result;
+      reader.onload = () => {
+        setImages(prev => [...prev, reader.result]);
       };
       reader.readAsDataURL(file);
     });
-    e.target.value = '';
   };
-
+  
   const removeImage = (idx) => {
-    setImages(prev => prev.filter((_, i) => i !== idx));
-    if (mainImageIdx >= idx && mainImageIdx > 0) setMainImageIdx(mainImageIdx - 1);
+    setImages(images.filter((_, i) => i !== idx));
   };
 
   const handleSubmit = () => {
-    if (!name.trim()) { alert("Shahobcha nomini kiriting!"); return; }
-    if (selectedTypes.length === 0) { alert("Yoqilg'i turini tanlang!"); return; }
-    if (!mapPos) { alert("Joylashuvni aniqlang!"); return; }
-
-    const station = {
-      id: editStation?.id || 'st_' + Date.now(),
-      name: name.trim(),
-      phone: phone,
-      category: 'fuel',
+    const newStation = {
+      id: Date.now().toString(),
+      name,
       type: selectedTypes,
-      prices: prices,
+      phone,
       lat: mapPos[0],
       lng: mapPos[1],
-      address: address?.full || '',
-      description: description.trim(),
-      images: images,
-      mainImageIndex: mainImageIdx,
-      image: images[mainImageIdx] || '',
-      dailyNotification: dailyNotif,
-      isOpen: editStation?.isOpen ?? true,
-      createdAt: editStation?.createdAt || new Date().toISOString(),
+      address: address?.full || 'Noma\'lum manzil',
+      description,
+      images,
+      prices: {},
+      gasPressure: '',
+      dailyNotification: q1,
+      priceUpdate: q2
     };
-
-    onSave(station);
-    resetForm();
+    onSave(newStation);
     onClose();
   };
 
-  if (!isOpen) return null;
+  // Validation logic
+  const isStep2Valid = stationType === 'fuel' && name.trim().length > 2;
+  const isStep3Valid = selectedTypes.length > 0 && phone.replace(/\s/g, '').length >= 13;
+  const isStep4Valid = isAddressCorrect === true;
+  const isStep5Valid = images.length > 0;
+  const isStep6Valid = q1 !== null && q2 !== null;
 
   return (
-    <div className="add-station-overlay" onClick={onClose}>
-      <div className="add-station-sheet" onClick={e => e.stopPropagation()}>
-
-        {/* Header */}
-        <div className="add-station-header">
-          <h2>{editStation ? "Shahobchani tahrirlash" : "Manzil yaratish"}</h2>
-          <button className="add-station-close-btn" onClick={onClose}>
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Kategoriya tanlash */}
-        <div className="add-st-section">
-          <label className="add-st-label">Qanday turdagi manzil?</label>
-          <div className="add-st-category-row">
-            <button className="add-st-cat-btn active">
-              <Fuel size={16} />
-              Yoqilg'i shahobchasi
-            </button>
-            {/* Keyinchalik qo'shiladi */}
-          </div>
-        </div>
-
-        {/* Nom */}
-        <div className="add-st-section">
-          <label className="add-st-label">Shahobcha nomi</label>
-          <div className="add-st-input-wrap">
-            <Type size={16} className="add-st-input-icon" />
-            <input
-              type="text"
-              placeholder="Masalan: MegaGaz Chilonzor"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              className="add-st-input"
-            />
-          </div>
-        </div>
-
-        {/* Telefon */}
-        <div className="add-st-section">
-          <label className="add-st-label">Telefon raqami</label>
-          <div className="add-st-input-wrap">
-            <Phone size={16} className="add-st-input-icon" />
-            <input
-              type="tel"
-              value={phone}
-              onChange={e => handlePhoneChange(e.target.value)}
-              className="add-st-input"
-            />
-          </div>
-        </div>
-
-        {/* Yoqilg'i turi */}
-        <div className="add-st-section">
-          <label className="add-st-label">Yoqilg'i turi (tanlang)</label>
-          <div className="add-st-fuel-types">
-            {FUEL_TYPES.map(ft => {
-              const Icon = ft.icon;
-              const isActive = selectedTypes.includes(ft.id);
-              return (
-                <button
-                  key={ft.id}
-                  className={`add-st-fuel-btn ${isActive ? 'active' : ''}`}
-                  style={isActive ? { background: ft.color, borderColor: ft.color } : {}}
-                  onClick={() => toggleType(ft.id)}
-                >
-                  <Icon size={15} />
-                  {ft.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Narxlar */}
-        {selectedTypes.length > 0 && (
-          <div className="add-st-section">
-            <label className="add-st-label">Narxlari (so'm)</label>
-            <div className="add-st-prices-grid">
-              {selectedTypes.map(typeId => {
-                const ft = FUEL_TYPES.find(f => f.id === typeId);
-                return (
-                  <div key={typeId} className="add-st-price-item">
-                    <span style={{ color: ft.color, fontWeight: 700, fontSize: '0.82rem' }}>
-                      {ft.label}
-                    </span>
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={prices[typeId] || ''}
-                      onChange={e => setPrices({ ...prices, [typeId]: e.target.value })}
-                      className="add-st-price-input"
-                    />
-                    <span className="add-st-price-som">so'm</span>
-                  </div>
-                );
-              })}
+    <div className="add-station-overlay" style={{
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999,
+      display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px',
+      backgroundColor: 'rgba(240, 243, 246, 0.7)', backdropFilter: 'blur(10px)',
+      overflowY: 'auto'
+    }}>
+      <div className={`auth-neu-card ${animating ? 'step-exit' : 'step-enter'}`} style={{margin: 'auto'}}>
+        
+        {step === 1 && (
+          <div className="wizard-step">
+            <div className="auth-neu-header">
+              <div style={{display:'flex', justifyContent:'center', alignItems:'center', gap:'10px'}}>
+                <MapPin color="#0ea5e9" size={28} />
+                <h2>Joylashuv qo'shish</h2>
+              </div>
+              <p>O'zingizga tegishli yoki xaritada mavjud bo'lmagan yangi joylashuvni dasturga qo'shishingiz mumkin.</p>
+            </div>
+            
+            <h3 style={{textAlign:'center', color:'#334155', margin:'30px 0'}}>Joylashuv qo'shmoqchimisiz?</h3>
+            
+            <div style={{display:'flex', gap:'15px', justifyContent:'center'}}>
+              <button className="neu-secondary-btn" style={{flex:1}} onClick={onClose}>
+                Yo'q
+              </button>
+              <button className="neu-submit-btn" style={{flex:1, marginTop:0}} onClick={() => goToStep(2)}>
+                Ha
+              </button>
             </div>
           </div>
         )}
 
-        {/* Joylashuv */}
-        <div className="add-st-section">
-          <label className="add-st-label">
-            <MapPin size={15} /> Joylashuv
-          </label>
-
-          {!locationConfirmed ? (
-            <div className="add-st-map-box">
-              {mapPos && (
-                <div className="add-st-map-container">
-                  <MapContainer
-                    center={mapPos}
-                    zoom={16}
-                    zoomControl={false}
-                    style={{ width: '100%', height: '100%' }}
-                  >
-                    <TileLayer
-                      url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                      maxZoom={19}
-                    />
-                    <Marker position={mapPos} icon={locationIcon} />
-                    <MapClickHandler onLocationSelect={handleMapClick} />
-                    <FlyToPos position={mapPos} />
-                  </MapContainer>
-                </div>
-              )}
-              {locating && (
-                <div className="add-st-map-loading">📡 Joylashuv aniqlanmoqda...</div>
-              )}
-              {address && (
-                <div className="add-st-address-preview">
-                  <MapPin size={14} />
-                  <span>{address.full}</span>
-                </div>
-              )}
-              {mapPos && !locating && (
-                <button className="add-st-confirm-loc-btn" onClick={handleConfirmLocation}>
-                  <Check size={16} />
-                  Joylashuvni tasdiqlash
-                </button>
-              )}
+        {step === 2 && (
+          <div className="wizard-step">
+            <div className="auth-neu-header">
+              <h2>Manzil turi</h2>
+              <p>Joylashuv qanday turdagi manzil?</p>
             </div>
-          ) : (
-            <div className="add-st-address-confirmed">
-              <div className="add-st-address-text">
-                <MapPin size={16} />
-                <div>
-                  <strong>{address?.city || 'Shahar'}</strong>
-                  <span>{address?.road || address?.full}</span>
+
+            <div className="neu-form-group" style={{marginBottom:'20px'}}>
+              <div 
+                className="neu-input-wrapper" 
+                style={{cursor:'pointer', padding:'15px', display:'flex', alignItems:'center', gap:'10px',
+                background: stationType === 'fuel' ? '#e2e8f0' : '#f0f3f6',
+                boxShadow: stationType === 'fuel' ? 'inset 5px 5px 10px #cbd5e1, inset -5px -5px 10px #ffffff' : '5px 5px 10px #d1d5db, -5px -5px 10px #ffffff',
+                border: '2px solid transparent'}}
+                onClick={() => setStationType('fuel')}
+              >
+                <Fuel color={stationType === 'fuel' ? '#0ea5e9' : '#94a3b8'} />
+                <span style={{fontWeight:'bold', color: stationType === 'fuel' ? '#0ea5e9' : '#334155'}}>Yoqilg'i shahobchasi</span>
+              </div>
+              
+              <div style={{marginTop:'15px', textAlign:'center'}}>
+                <span style={{color:'#334155', fontSize: '13px', fontWeight: '500'}}>Boshqa manzillar ustida ishlanmoqda...</span>
+              </div>
+            </div>
+
+            {stationType === 'fuel' && (
+              <div className="neu-form-group slide-in-down" style={{marginBottom:'20px'}}>
+                <label>Yoqilg'i shahobchasi nomi</label>
+                <div className="neu-input-wrapper">
+                  <Type className="neu-icon" size={18} />
+                  <input type="text" placeholder="Masalan: Mustang, UzGazOil..." value={name} onChange={e => setName(e.target.value)} />
                 </div>
               </div>
-              <button className="add-st-change-loc" onClick={() => setLocationConfirmed(false)}>
-                O'zgartirish
+            )}
+
+            <div style={{display:'flex', gap:'15px'}}>
+              <button className="neu-secondary-btn" onClick={() => goToStep(1)}>Orqaga</button>
+              <button className="neu-submit-btn" style={{flex:1, marginTop:0}} disabled={!isStep2Valid} onClick={() => goToStep(3)}>
+                Keyingisi <ChevronRight size={18}/>
               </button>
             </div>
-          )}
-        </div>
-
-        {/* Har kuni savol */}
-        <div className="add-st-section">
-          <label className="add-st-label">
-            Har kuni "Ochiqmiz/Yopiqmiz" savoli smartfoningizga kelishiga rozimisiz?
-          </label>
-          <div className="add-st-toggle-row">
-            <button
-              className={`add-st-toggle-btn ${dailyNotif ? 'active-yes' : ''}`}
-              onClick={() => setDailyNotif(true)}
-            >
-              ✅ Ha, roziman
-            </button>
-            <button
-              className={`add-st-toggle-btn ${!dailyNotif ? 'active-no' : ''}`}
-              onClick={() => setDailyNotif(false)}
-            >
-              ❌ Yo'q
-            </button>
           </div>
-        </div>
+        )}
 
-        {/* Tavsif */}
-        <div className="add-st-section">
-          <label className="add-st-label">
-            <FileText size={15} /> Shahobchangiz haqida yozing
-          </label>
-          <textarea
-            className="add-st-textarea"
-            placeholder="Foydalanuvchilar ko'rishi uchun gap yozib qo'ying..."
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            maxLength={500}
-            rows={3}
-          />
-        </div>
+        {step === 3 && (
+          <div className="wizard-step">
+            <div className="auth-neu-header">
+              <h2>Yoqilg'i turlari</h2>
+              <p>Avval yoqilg'i shahobchangizda qanday turdagi yoqilg'i sotiladi?</p>
+            </div>
 
-        {/* Rasmlar */}
-        <div className="add-st-section">
-          <label className="add-st-label">
-            <Camera size={15} /> Rasmlar (6 tagacha)
-          </label>
-          <div className="add-st-images-grid">
-            {images.map((img, idx) => (
-              <div
-                key={idx}
-                className={`add-st-img-thumb ${idx === mainImageIdx ? 'main-selected' : ''}`}
-                onClick={() => setMainImageIdx(idx)}
-              >
-                <img src={img} alt={`Rasm ${idx + 1}`} />
-                {idx === mainImageIdx && (
-                  <div className="add-st-main-badge">
-                    <Star size={10} fill="#fff" />
+            <div className="neu-form-group" style={{marginBottom:'25px'}}>
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'12px'}}>
+                {FUEL_TYPES.map(ft => {
+                  const Icon = ft.icon;
+                  const isActive = selectedTypes.includes(ft.id);
+                  return (
+                    <div 
+                      key={ft.id}
+                      className="neu-input-wrapper"
+                      style={{
+                        cursor:'pointer', padding:'12px', display:'flex', justifyContent:'center', alignItems:'center', gap:'8px',
+                        boxShadow: isActive ? 'inset 5px 5px 10px #d1d5db, inset -5px -5px 10px #ffffff' : '5px 5px 10px #d1d5db, -5px -5px 10px #ffffff',
+                        background: isActive ? ft.color : 'transparent',
+                        color: isActive ? '#fff' : '#475569'
+                      }}
+                      onClick={() => toggleType(ft.id)}
+                    >
+                      <Icon size={18} />
+                      <span style={{fontWeight:'bold', fontSize:'13px'}}>{ft.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="neu-form-group" style={{marginBottom:'25px'}}>
+              <label>Ish boshqaruvchi (menejer) telefon raqami</label>
+              <div className="neu-input-wrapper">
+                <Phone className="neu-icon" size={18} />
+                <input type="tel" value={phone} onChange={e => handlePhoneChange(e.target.value)} />
+              </div>
+            </div>
+
+            <div style={{display:'flex', gap:'15px'}}>
+              <button className="neu-secondary-btn" onClick={() => goToStep(2)}>Orqaga</button>
+              <button className="neu-submit-btn" style={{flex:1, marginTop:0}} disabled={!isStep3Valid} onClick={() => goToStep(4)}>
+                Keyingisi <ChevronRight size={18}/>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="wizard-step">
+            <div className="auth-neu-header">
+              <h2>Aniq manzil</h2>
+              <p>Yoqilg'i shahobchangizni aniq manzilini kiriting</p>
+            </div>
+
+            {isAddressCorrect !== true ? (
+              <>
+                <div style={{height: '250px', borderRadius: '20px', overflow: 'hidden', boxShadow: 'inset 5px 5px 10px #d1d5db, inset -5px -5px 10px #ffffff', marginBottom: '15px'}}>
+                  {mapPos && (
+                    <MapContainer center={mapPos} zoom={15} zoomControl={false} style={{ width: '100%', height: '100%' }}>
+                      <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
+                      <Marker position={mapPos} icon={locationIcon} />
+                      <MapClickHandler onLocationSelect={handleMapClick} />
+                      <FlyToPos position={mapPos} />
+                    </MapContainer>
+                  )}
+                </div>
+                
+                <div className="neu-input-wrapper" style={{padding:'15px', marginBottom:'15px', textAlign:'center', cursor:'pointer'}} onClick={() => setLocationConfirmed(true)}>
+                  <MapPin color="#0ea5e9" size={18} style={{marginRight:'8px'}}/>
+                  <span style={{fontWeight:'bold', color:'#0ea5e9'}}>Joylashuvni tasdiqlash</span>
+                </div>
+
+                {locationConfirmed && address && (
+                  <div className="slide-in-down">
+                    <div style={{textAlign:'center', marginBottom:'15px'}}>
+                      <p style={{fontSize:'13px', color:'#64748b', marginBottom:'5px'}}>Tanlangan manzil:</p>
+                      <h4 style={{color:'#334155'}}>{address.full}</h4>
+                    </div>
+                    <div style={{textAlign:'center', marginBottom:'15px'}}>
+                      <p style={{fontWeight:'bold', color:'#334155', marginBottom:'10px'}}>Shu to'g'rimi?</p>
+                      <div style={{display:'flex', gap:'10px', justifyContent:'center'}}>
+                        <button className="neu-secondary-btn" style={{flex:1}} onClick={() => { setLocationConfirmed(false); setIsAddressCorrect(false); }}>Yo'q</button>
+                        <button className="neu-submit-btn" style={{flex:1, marginTop:0}} onClick={() => setIsAddressCorrect(true)}>Ha</button>
+                      </div>
+                    </div>
                   </div>
                 )}
-                <button
-                  className="add-st-img-remove"
-                  onClick={(e) => { e.stopPropagation(); removeImage(idx); }}
-                >
-                  <Trash2 size={12} />
-                </button>
+              </>
+            ) : (
+              <div className="slide-in-down" style={{textAlign:'center', marginBottom:'25px'}}>
+                <div className="neu-input-wrapper" style={{padding:'20px', display:'flex', flexDirection:'column', gap:'10px', alignItems:'center'}}>
+                  <Check color="#10b981" size={40} />
+                  <h3 style={{color:'#334155', margin:0}}>Manzil tasdiqlandi</h3>
+                  <p style={{color:'#64748b', fontSize:'13px', margin:0}}>{address?.full}</p>
+                  <button className="neu-secondary-btn" style={{padding:'8px 15px', fontSize:'12px', marginTop:'10px'}} onClick={() => setIsAddressCorrect(false)}>
+                    O'zgartirish
+                  </button>
+                </div>
               </div>
-            ))}
-            {images.length < 6 && (
-              <button className="add-st-img-add" onClick={() => imgInputRef.current?.click()}>
-                <Plus size={22} />
-              </button>
             )}
-          </div>
-          <input
-            ref={imgInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            style={{ display: 'none' }}
-            onChange={handleImageUpload}
-          />
-          {images.length > 0 && (
-            <p className="add-st-img-hint">⭐ Asosiy rasm tanlash uchun bosing</p>
-          )}
-        </div>
 
-        {/* Submit */}
-        <button className="add-st-submit-btn" onClick={handleSubmit}>
-          <Check size={18} />
-          {editStation ? "O'zgarishlarni saqlash" : "Tasdiqlash va qo'shish"}
-        </button>
+            <div style={{display:'flex', gap:'15px', marginTop:'20px'}}>
+              <button className="neu-secondary-btn" onClick={() => goToStep(3)}>Orqaga</button>
+              <button className="neu-submit-btn" style={{flex:1, marginTop:0}} disabled={!isStep4Valid} onClick={() => goToStep(5)}>
+                Keyingisi <ChevronRight size={18}/>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 5 && (
+          <div className="wizard-step">
+            <div className="auth-neu-header">
+              <h2>Ma'lumotlar</h2>
+              <p>Shahobchangiz haqida yozing</p>
+            </div>
+
+            <div className="neu-form-group" style={{marginBottom:'20px'}}>
+              <div className="neu-input-wrapper" style={{padding:'0'}}>
+                <textarea 
+                  placeholder="Foydalanuvchilar ko'rishi uchun qisqacha ma'lumot..." 
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  style={{width:'100%', background:'transparent', border:'none', outline:'none', padding:'15px', minHeight:'80px', color:'#334155', resize:'none'}}
+                />
+              </div>
+            </div>
+
+            <div className="neu-form-group" style={{marginBottom:'20px'}}>
+              <label>Rasmlar (5 tagacha rasm qo'yish mumkin)</label>
+              <div style={{display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'10px'}}>
+                {images.map((img, idx) => (
+                  <div key={idx} style={{position:'relative', aspectRatio:'1', borderRadius:'15px', overflow:'hidden', boxShadow:'4px 4px 8px #d1d5db, -4px -4px 8px #ffffff'}}>
+                    <img src={img} alt="" style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                    <button onClick={() => removeImage(idx)} style={{position:'absolute', top:'5px', right:'5px', background:'rgba(255,255,255,0.8)', border:'none', borderRadius:'50%', padding:'5px', cursor:'pointer', color:'#ef4444'}}>
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))}
+                {images.length < 5 && (
+                  <div 
+                    onClick={() => imgInputRef.current?.click()}
+                    style={{aspectRatio:'1', borderRadius:'15px', display:'flex', justifyContent:'center', alignItems:'center', cursor:'pointer',
+                    boxShadow:'5px 5px 10px #d1d5db, -5px -5px 10px #ffffff', color:'#94a3b8'}}
+                  >
+                    <Plus size={24} />
+                  </div>
+                )}
+              </div>
+              <input ref={imgInputRef} type="file" accept="image/*" multiple style={{display:'none'}} onChange={handleImageUpload} />
+            </div>
+
+            <div style={{display:'flex', gap:'15px'}}>
+              <button className="neu-secondary-btn" onClick={() => goToStep(4)}>Orqaga</button>
+              {isStep5Valid ? (
+                <button className="neu-submit-btn slide-in-down" style={{flex:1, marginTop:0}} onClick={() => goToStep(6)}>
+                  <Check size={18} /> Ma'lumotlarni tasdiqlash
+                </button>
+              ) : (
+                <button className="neu-submit-btn" style={{flex:1, marginTop:0}} disabled>
+                  Keyingisi <ChevronRight size={18}/>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {step === 6 && (
+          <div className="wizard-step">
+            <div className="auth-neu-header">
+              <h2>So'nggi qadam</h2>
+              <p>Iltimos, quyidagi savollarga javob bering</p>
+            </div>
+
+            <div className="neu-form-group" style={{marginBottom:'25px'}}>
+              <label style={{fontSize:'13px', lineHeight:'1.4', marginBottom:'10px'}}>
+                Har kuni yoqilg'i shahobchangiz ochiq yoki yopiqligini tasdiqlab tura olasizmi?
+              </label>
+              <div style={{display:'flex', gap:'10px'}}>
+                <button className="neu-secondary-btn" style={{flex:1, background: q1 === true ? '#10b981' : '', color: q1 === true ? '#fff' : ''}} onClick={() => setQ1(true)}>Ha</button>
+                <button className="neu-secondary-btn" style={{flex:1, background: q1 === false ? '#ef4444' : '', color: q1 === false ? '#fff' : ''}} onClick={() => setQ1(false)}>Yo'q</button>
+              </div>
+            </div>
+
+            <div className="neu-form-group" style={{marginBottom:'25px'}}>
+              <label style={{fontSize:'13px', lineHeight:'1.4', marginBottom:'10px'}}>
+                Yoqilg'i narxi tushayotgan yoki ko'tarilayotgan bo'lsa, aniq narxlarni har kuni yozib yura olasizmi?
+              </label>
+              <div style={{display:'flex', gap:'10px'}}>
+                <button className="neu-secondary-btn" style={{flex:1, background: q2 === true ? '#10b981' : '', color: q2 === true ? '#fff' : ''}} onClick={() => setQ2(true)}>Ha</button>
+                <button className="neu-secondary-btn" style={{flex:1, background: q2 === false ? '#ef4444' : '', color: q2 === false ? '#fff' : ''}} onClick={() => setQ2(false)}>Yo'q</button>
+              </div>
+            </div>
+
+            <div style={{display:'flex', gap:'15px', marginTop:'30px'}}>
+              <button className="neu-secondary-btn" onClick={() => goToStep(5)}>Orqaga</button>
+              <button className="neu-submit-btn" style={{flex:1, marginTop:0}} disabled={!isStep6Valid} onClick={handleSubmit}>
+                <Check size={18} /> Tasdiqlash
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
 }
+

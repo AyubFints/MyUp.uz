@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   Search, MapPin, Moon, Sun, User as UserIcon, PlusCircle, 
-  Fuel, Sparkles, Navigation, Bookmark, Heart
+  Fuel, Sparkles, Navigation, Bookmark, Heart, Home, Map, User
 } from 'lucide-react';
 import { CITIES } from '../data/mockData';
 
@@ -26,7 +26,7 @@ export default function Header({
     <header className="app-header">
       <div className="header-container">
         {/* LOGO BRAND */}
-        <div className="brand-section" onClick={() => setActiveTab('fuel')} style={{ cursor: 'pointer' }}>
+        <div className="brand-section" onClick={() => setActiveTab('home')} style={{ cursor: 'pointer' }}>
           <div className="brand-logo-icon">
             <Fuel size={24} className="fuel-icon-glow" />
             <span className="logo-pulse"></span>
@@ -39,6 +39,39 @@ export default function Header({
             <span className="brand-tagline">Eng yaqin zapravka va xizmatlar</span>
           </div>
         </div>
+
+        {/* DESKTOP NAVIGATION */}
+        <nav className="desktop-nav">
+          <button 
+            className={`desktop-nav-item ${activeTab === 'home' ? 'active' : ''}`}
+            onClick={() => setActiveTab('home')}
+          >
+            <Home size={20} className="desktop-nav-icon" />
+            <span>Home</span>
+          </button>
+          <button 
+            className={`desktop-nav-item ${activeTab === 'search' ? 'active' : ''}`}
+            onClick={() => setActiveTab('search')}
+          >
+            <Search size={20} className="desktop-nav-icon" />
+            <span>Qidiruv</span>
+          </button>
+          <button 
+            className={`desktop-nav-item ${activeTab === 'map' ? 'active' : ''}`}
+            onClick={() => setActiveTab('map')}
+          >
+            <Map size={20} className="desktop-nav-icon" />
+            <span>Xarita</span>
+          </button>
+          <button 
+            className={`desktop-nav-item ${activeTab === 'my' ? 'active' : ''}`}
+            onClick={() => setActiveTab('my')}
+          >
+            <User size={20} className="desktop-nav-icon" />
+            <span>My</span>
+          </button>
+        </nav>
+
 
         {/* SEARCH BAR */}
         <div className="header-search-wrapper">

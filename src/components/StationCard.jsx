@@ -1,6 +1,6 @@
 import React from 'react';
 import { 
-  Navigation, Clock, MapPin, Heart, Star
+  Navigation, Clock, MapPin, Heart, Star, Zap
 } from 'lucide-react';
 import { formatDistance } from '../utils/distance';
 
@@ -56,6 +56,26 @@ export default function StationCard({
           </span>
         )}
       </div>
+
+      {station.gasPressure && (
+        <div style={{ 
+          marginTop: '10px', 
+          fontSize: '0.9rem', 
+          color: '#082f49', 
+          backgroundColor: '#e0f2fe', 
+          padding: '8px 12px',
+          borderRadius: '12px',
+          fontWeight: '700', 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '6px',
+          border: '1px solid #bae6fd'
+        }}>
+          <Zap size={16} color="#0284c7" /> 
+          <span style={{ flex: 1 }}>Hozirgi gaz bosimi:</span>
+          <span style={{color: '#0284c7', fontSize: '1rem'}}>{station.gasPressure} atm</span>
+        </div>
+      )}
 
       {station.category === 'fuel' && station.prices && (
         <div className="hsc-prices">

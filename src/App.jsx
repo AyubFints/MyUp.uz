@@ -10,7 +10,7 @@ import NavigationMode from './components/NavigationMode';
 import SplashScreen from './components/SplashScreen';
 import { CITIES, INITIAL_STATIONS } from './data/mockData';
 import { calculateDistance } from './utils/distance';
-import { Fuel, Flame, Droplets, Zap, User, ChevronRight, Plus, Edit3, MapPin, Star, Clock, Phone } from 'lucide-react';
+import { Fuel, Flame, Droplets, Zap, User, ChevronRight, Plus, Edit3, MapPin, Star, Clock, Phone, Settings, Home, Search, Map } from 'lucide-react';
 import './App.css';
 
 export default function App() {
@@ -41,6 +41,27 @@ export default function App() {
   };
 
   const [activeTab, setActiveTab] = useState('home');
+
+  // Telefon ortga tugmasi uchun (Back Button)
+  useEffect(() => {
+    window.history.replaceState({ tab: 'home' }, '');
+    const handlePopState = (e) => {
+      if (e.state && e.state.tab) {
+        setActiveTab(e.state.tab);
+      } else {
+        setActiveTab('home');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const handleTabChange = (newTab) => {
+    if (newTab === activeTab) return;
+    window.history.pushState({ tab: newTab }, '');
+    setActiveTab(newTab);
+  };
+
   const [stations, setStations] = useState(INITIAL_STATIONS);
   const [favorites, setFavorites] = useState(() => {
     try {
@@ -61,11 +82,17 @@ export default function App() {
     }
   });
   const [showAddStation, setShowAddStation] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [editingStation, setEditingStation] = useState(null);
   
   // Custom Reopen Modal
   const [reopenModal, setReopenModal] = useState({ isOpen: false, stationId: null });
   const [reopenTimeInput, setReopenTimeInput] = useState('');
+
+  // Quick Gas Pressure Edit
+  const [editingPressureId, setEditingPressureId] = useState(null);
+  const [tempPressure, setTempPressure] = useState('');
 
   // In-App Navigation State
   const [navigationTarget, setNavigationTarget] = useState(null);
@@ -134,7 +161,7 @@ export default function App() {
 
   // Shahobcha saqlash / tahrirlash
   const handleSaveStation = (station) => {
-    station.createdBy = user.id;
+    station.createdBy = user?.id;
     const exists = myStations.find(s => s.id === station.id);
     if (exists) {
       setMyStations(myStations.map(s => s.id === station.id ? station : s));
@@ -146,6 +173,19 @@ export default function App() {
   const handleEditStation = (station) => {
     setEditingStation(station);
     setShowAddStation(true);
+  };
+
+  const handleSaveQuickPressure = (e, stId) => {
+    e.stopPropagation();
+    if (confirm(`Gaz bosimini ${tempPressure} atm ga o'zgartiraylikmi?`)) {
+      let p = parseInt(tempPressure);
+      if (p > 210) p = 210;
+      if (p < 0) p = 0;
+      setMyStations(myStations.map(s => 
+        s.id === stId ? { ...s, gasPressure: p || null } : s
+      ));
+      setEditingPressureId(null);
+    }
   };
 
   const handleSetStatus = (e, stationId, makeOpen) => {
@@ -236,10 +276,7 @@ export default function App() {
     return result;
   }, [stations, myStations, searchQuery, activeCategory, fuelSubFilter, fuelSortBy, userCoords]);
 
-  // Auth gate
-  if (!user) {
-    return <AuthScreen onLoginSuccess={setUser} />;
-  }
+
 
   if (navigationTarget) {
     return (
@@ -262,10 +299,59 @@ export default function App() {
       <main className="content-area pb-20">
 
         {/* ===== GLOBAL TOP: MyUp branding (hamma tabda ko'rinadi) ===== */}
-        <div className="home-brand-bar">
-          <h1 className="home-brand-title">
-            <span className="brand-my">My</span><span className="brand-up">Up</span><span className="brand-dot">.uz</span>
-          </h1>
+        <div className="home-brand-bar" style={{ 
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+            padding: '10px 20px', margin: '15px 20px', 
+            background: '#f0f3f6', borderRadius: '25px',
+            boxShadow: '8px 8px 16px #d1d5db, -8px -8px 16px #ffffff',
+            position: 'relative', zIndex: 10
+          }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => handleTabChange('home')}>
+            <img src="https://i.postimg.cc/VNHPnzHt/myup-orgg.jpg" alt="MyUp Logo" className="brand-logo-icon" style={{ width: '42px', height: '42px', borderRadius: '8px' }} />
+            <h1 className="home-brand-title" style={{ margin: 0 }}>
+              <span className="brand-my">My</span><span className="brand-up">Up</span><span className="brand-dot">.uz</span>
+            </h1>
+          </div>
+            {/* DESKTOP NAVIGATION */}
+            <nav className="desktop-nav">
+              <button 
+                className={`desktop-nav-item ${activeTab === 'home' ? 'active' : ''}`}
+                onClick={() => handleTabChange('home')}
+              >
+                <Home size={20} className="desktop-nav-icon" />
+                <span>Home</span>
+              </button>
+              <button 
+                className={`desktop-nav-item ${activeTab === 'search' ? 'active' : ''}`}
+                onClick={() => handleTabChange('search')}
+              >
+                <Search size={20} className="desktop-nav-icon" />
+                <span>Qidiruv</span>
+              </button>
+              <button 
+                className={`desktop-nav-item ${activeTab === 'map' ? 'active' : ''}`}
+                onClick={() => handleTabChange('map')}
+              >
+                <Map size={20} className="desktop-nav-icon" />
+                <span>Xarita</span>
+              </button>
+              <button 
+                className={`desktop-nav-item ${activeTab === 'my' ? 'active' : ''}`}
+                onClick={() => handleTabChange('my')}
+              >
+                <User size={20} className="desktop-nav-icon" />
+                <span>My</span>
+              </button>
+            </nav>
+
+          {activeTab === 'my' && (
+            <button 
+              onClick={() => setShowSettingsModal(true)}
+              style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '10px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#475569', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', transition: 'all 0.2s ease' }}
+            >
+              <Settings size={24} />
+            </button>
+          )}
         </div>
 
         {/* ===== GLOBAL: Category Tabs (faqat Home va Qidiruvda) ===== */}
@@ -447,21 +533,32 @@ export default function App() {
         )}
 
         {/* MY (PROFILE) */}
-        {activeTab === 'my' && (
+          {activeTab === 'my' && !user && (
+            <div className="tab-view fade-in layout-padding" style={{height: '100vh', paddingBottom: '70px', overflowY: 'auto'}}>
+              <AuthScreen onLoginSuccess={setUser} />
+            </div>
+          )}
+          {activeTab === 'my' && user && (
           <div className="tab-view fade-in layout-padding">
+            
+            {/* Header */}
+            <div style={{ marginTop: '16px' }}>
+              <h2 style={{ fontSize: '1.2rem', color: 'var(--text-primary)', margin: 0, fontWeight: '700' }}>Profil</h2>
+            </div>
+
             {/* Profil kartochkasi */}
-            <div className="profile-page-card mt-4">
+            <div className="profile-page-card mt-3">
               <div className="profile-header-banner">
                 <div className="profile-names-block">
-                  <h3>{user.firstName} {user.lastName}</h3>
-                  <span className="profile-user-phone">{user.phoneNumber}</span>
+                  <h3>{user?.firstName} {user?.lastName}</h3>
+                  <span className="profile-user-phone">{user?.phoneNumber}</span>
                 </div>
                 <div
                   className="profile-avatar-box clickable"
                   onClick={() => setShowProfileDetail(true)}
                 >
-                  {user.avatar && !user.avatar.includes('dicebear') ? (
-                    <img src={user.avatar} alt={user.firstName} />
+                  {user?.avatar && !user?.avatar.includes('dicebear') ? (
+                    <img src={user?.avatar} alt={user?.firstName} />
                   ) : (
                     <User size={28} />
                   )}
@@ -545,6 +642,67 @@ export default function App() {
                             ))}
                           </div>
                         )}
+
+                        {/* Quick Edit Gas Pressure */}
+                        {(st.type || []).includes('metan') && (
+                          <div className="my-st-quick-pressure" onClick={e => e.stopPropagation()}>
+                            {editingPressureId === st.id ? (
+                              <div className="flex items-center gap-2 mt-3" style={{ background: '#e0f2fe', padding: '8px', borderRadius: '12px', border: '1px solid #bae6fd' }}>
+                                <input 
+                                  type="number" 
+                                  value={tempPressure} 
+                                  onChange={e => setTempPressure(e.target.value)} 
+                                  autoFocus
+                                  max={210}
+                                  className="search-full-input"
+                                  style={{ width: '70px', padding: '4px 8px', height: '32px', border: '1px solid #0ea5e9' }}
+                                />
+                                <button className="status-toggle-btn active-open" style={{padding:'4px 8px', minHeight:'32px'}} onClick={(e) => handleSaveQuickPressure(e, st.id)}>Saqlash</button>
+                                <button className="status-toggle-btn" style={{padding:'4px 8px', minHeight:'32px'}} onClick={(e) => { e.stopPropagation(); setEditingPressureId(null); }}>Bekor</button>
+                              </div>
+                            ) : (
+                              <div className="mt-2" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', padding: '8px 10px', borderRadius: '14px', border: '1px solid #bae6fd', boxShadow: '0 2px 8px rgba(2, 132, 199, 0.08)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <div style={{ background: '#bae6fd', padding: '5px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Zap size={14} color="#0284c7" />
+                                  </div>
+                                  <span style={{ fontSize: '0.8rem', color: '#082f49', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                    Gaz bosimi: <strong style={{ color: '#0284c7', fontSize: '0.85rem', marginLeft: '2px' }}>{st.gasPressure || '—'} atm</strong>
+                                  </span>
+                                </div>
+                                <button 
+                                  style={{ 
+                                    fontSize: '0.75rem', 
+                                    padding: '6px 10px',
+                                    background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
+                                    color: 'white',
+                                    fontWeight: 'bold',
+                                    borderRadius: '16px',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 2px 8px rgba(14, 165, 233, 0.3)',
+                                    transition: 'all 0.2s ease',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    whiteSpace: 'nowrap',
+                                    flexShrink: 0
+                                  }}
+                                  onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                                  onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    setEditingPressureId(st.id); 
+                                    setTempPressure(st.gasPressure || ''); 
+                                  }}
+                                >
+                                  <Edit3 size={12} />
+                                  O'zgartirish
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {/* O'ng: Rasm */}
@@ -601,6 +759,63 @@ export default function App() {
         onRateStation={handleRateStation}
       />
 
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="add-station-overlay" onClick={() => setShowSettingsModal(false)}>
+          <div className="reopen-modal-sheet" onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-primary)', marginBottom: '16px' }}>
+              Sozlamalar
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button 
+                className="add-st-submit-btn" 
+                style={{ background: '#fee2e2', color: '#ef4444', boxShadow: 'none' }}
+                onClick={() => { setShowSettingsModal(false); setShowLogoutConfirm(true); }}
+              >
+                Dasturdan chiqish
+              </button>
+              <button 
+                className="add-st-submit-btn" 
+                style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', boxShadow: 'none' }}
+                onClick={() => setShowSettingsModal(false)}
+              >
+                Yopish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logout Confirm Modal */}
+      {showLogoutConfirm && (
+        <div className="add-station-overlay" onClick={() => setShowLogoutConfirm(false)}>
+          <div className="reopen-modal-sheet" onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontFamily: 'var(--font-heading)', color: 'var(--text-primary)', marginBottom: '10px' }}>
+              Tizimdan chiqish
+            </h3>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+              Rostdan ham tizimdan (dasturdan) chiqmoqchimisiz?
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                className="add-st-submit-btn" 
+                style={{ background: 'var(--bg-input)', color: 'var(--text-primary)', boxShadow: 'none' }}
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                Yo'q
+              </button>
+              <button 
+                className="add-st-submit-btn" 
+                style={{ background: '#ef4444', color: 'white', boxShadow: '0 4px 12px rgba(239,68,68,0.3)' }}
+                onClick={() => { setShowLogoutConfirm(false); handleLogout(); }}
+              >
+                Ha, chiqish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Yopish vaqti Modali */}
       {reopenModal.isOpen && (
         <div className="add-station-overlay" onClick={() => setReopenModal({ isOpen: false, stationId: null })}>
@@ -636,7 +851,9 @@ export default function App() {
         </div>
       )}
 
-      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <BottomNav activeTab={activeTab} setActiveTab={handleTabChange} />
     </div>
   );
 }
+
+

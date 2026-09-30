@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  X, Navigation, Phone, MapPin, Star, ChevronLeft, ChevronRight
+  X, Navigation, Phone, MapPin, Star, ChevronLeft, ChevronRight, Zap
 } from 'lucide-react';
 import { formatDistance } from '../utils/distance';
 
@@ -80,6 +80,26 @@ export default function StationDetailModal({
               <a href={`tel:${station.phone}`} className="sd-phone-link">
                 {station.phone}
               </a>
+            </div>
+          )}
+
+          {station.gasPressure && (
+            <div style={{ 
+              marginTop: '12px', 
+              fontSize: '1rem', 
+              color: '#082f49', 
+              backgroundColor: '#e0f2fe', 
+              padding: '12px 16px',
+              borderRadius: '16px',
+              fontWeight: '700', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px',
+              border: '1px solid #bae6fd'
+            }}>
+              <Zap size={20} color="#0284c7" /> 
+              <span style={{ flex: 1 }}>Hozirgi gaz bosimi:</span>
+              <span style={{color: '#0284c7', fontSize: '1.15rem'}}>{station.gasPressure} atm</span>
             </div>
           )}
         </div>
