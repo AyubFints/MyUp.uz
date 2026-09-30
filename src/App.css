@@ -2612,3 +2612,304 @@
     box-shadow: inset 3px 3px 6px #bae6fd, inset -3px -3px 6px #ffffff !important;
   }
 }
+
+/* ADJUST MOBILE HEADER HEIGHT AND TOP MARGIN */
+@media (max-width: 768px) {
+  .home-brand-bar {
+    padding: 14px 12px !important;
+    margin: 18px 2px 10px 2px !important;
+  }
+}
+
+/* HIDE MOBILE SETTINGS BTN ON DESKTOP */
+@media (min-width: 769px) {
+  .mobile-settings-btn {
+    display: none !important;
+  }
+}
+
+/* DESKTOP HEADER STICKY AND WIDER */
+@media (min-width: 769px) {
+  .home-brand-bar {
+    position: sticky !important;
+    top: 15px !important;
+    margin: 15px 5px !important;
+    z-index: 100 !important;
+  }
+}
+
+/* ADD EXTRA SPACE AT BOTTOM ON MOBILE SO LAST ITEM IS NOT HIDDEN BY NAV */
+@media (max-width: 768px) {
+  .content-area {
+    padding-bottom: 130px !important;
+  }
+}
+
+/* APPLY NEUMORPHIC STYLES TO CATEGORY AND FILTER BUTTONS */
+.home-cat-btn, .gas-type-btn, .sort-btn {
+  background: #f0f3f6 !important;
+  box-shadow: 5px 5px 10px #d1d5db, -5px -5px 10px #ffffff !important;
+  border: none !important;
+  color: #64748b !important;
+  transition: all 0.2s ease !important;
+}
+
+.home-cat-btn.active, .gas-type-btn.active, .sort-btn.active {
+  background: #e0f2fe !important;
+  color: #0ea5e9 !important;
+  box-shadow: inset 3px 3px 6px #bae6fd, inset -3px -3px 6px #ffffff !important;
+}
+
+/* ENHANCED ANIMATIONS FOR MAP AND FILTERS */
+.smooth-transition {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.4s ease-out, opacity 0.4s ease-out, padding 0.4s ease-out, margin 0.4s ease-out;
+  opacity: 0;
+  pointer-events: none;
+}
+.smooth-transition > div.transition-inner {
+  overflow: hidden;
+}
+.smooth-transition.show {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  pointer-events: auto;
+}
+.fuel-filters-wrapper.smooth-transition.show {
+  transition-delay: 0.2s; /* wait for map */
+}
+
+/* ==========================================================================
+   STATION CARD - NEUMORPHIC (Matches exact image)
+   ========================================================================== */
+.home-station-card-neu {
+  background: #f0f3f6;
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 8px 8px 16px #d1d5db, -8px -8px 16px #ffffff;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border: none;
+}
+
+.hsc-neu-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.hsc-neu-info-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hsc-neu-visual-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  width: 120px;
+}
+
+.hsc-neu-name {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0;
+}
+
+.hsc-neu-fav-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f0f3f6;
+  box-shadow: inset 3px 3px 6px #d1d5db, inset -3px -3px 6px #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+}
+
+.hsc-neu-rating {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+  color: #1e293b;
+  font-size: 0.95rem;
+}
+
+.hsc-neu-address {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #475569;
+  line-height: 1.3;
+}
+
+.hsc-neu-distance {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.hsc-neu-icon-shrink {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.hsc-neu-status-wrapper {
+  margin-top: 4px;
+}
+.hsc-neu-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.hsc-neu-status.open {
+  background: #bbf7d0;
+  color: #166534;
+}
+.hsc-neu-status.closed {
+  background: #fecaca;
+  color: #991b1b;
+}
+
+/* Mini map ring */
+.hsc-neu-minimap-ring {
+  width: 100px;
+  height: 100px;
+  /* Organic blob shape matching the image */
+  border-radius: 30% 70% 35% 65% / 55% 35% 65% 45%;
+  /* 3D bezel gradient */
+  background: linear-gradient(145deg, #ffffff, #e2e8f0);
+  /* Outer pop shadow and inner rim highlight */
+  box-shadow: 
+    5px 5px 12px rgba(166, 175, 195, 0.5), 
+    -5px -5px 12px #ffffff,
+    inset 2px 2px 4px rgba(255, 255, 255, 0.9),
+    inset -2px -2px 4px rgba(0, 0, 0, 0.05);
+  padding: 7px; /* thickness of the bezel */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(-15deg); /* Slight rotation to match the dynamic feel */
+}
+.hsc-neu-minimap-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+  /* Deep inset shadow to make the map look recessed inside the ring */
+  box-shadow: inset 4px 4px 8px rgba(0, 0, 0, 0.2), inset -3px -3px 6px rgba(255, 255, 255, 0.8);
+  background: #cbd5e1;
+  position: relative;
+}
+.hsc-neu-minimap-inner img {
+  width: 150%;
+  height: 150%;
+  object-fit: cover;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(15deg); /* Counter-rotate the image so it's upright */
+  opacity: 0.95;
+}
+
+.hsc-neu-action-btn {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+  cursor: pointer;
+}
+
+.hsc-neu-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.hsc-neu-rating-fav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.hsc-neu-address-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #334155;
+  line-height: 1.4;
+  margin-top: -4px;
+}
+.hsc-neu-split-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 10px;
+}
+.hsc-neu-split-left {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+.hsc-neu-distance-stacked {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.hsc-neu-dist-text {
+  font-size: 0.9rem;
+  color: #475569;
+  line-height: 1.3;
+}
+.hsc-neu-split-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.hsc-neu-prices-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+.hsc-neu-price-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0f3f6;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #334155;
+  box-shadow: 4px 4px 8px #d1d5db, -4px -4px 8px #ffffff;
+}
+.hsc-neu-price-pill.gaz { color: #0ea5e9; }
+.hsc-neu-price-pill.propan { color: #a855f7; }
+.hsc-neu-price-pill.benzin { color: #f59e0b; }
+.hsc-neu-price-pill.elektr { color: #10b981; }

@@ -65,6 +65,7 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation }
   const [stationType, setStationType] = useState('');
   const [name, setName] = useState('');
   const [selectedTypes, setSelectedTypes] = useState([]);
+    const [fuelPrices, setFuelPrices] = useState({});
   const [phone, setPhone] = useState('+998 ');
   
   // Map states
@@ -88,6 +89,7 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation }
       setStationType('');
       setName('');
       setSelectedTypes([]);
+        setFuelPrices({});
       setPhone('+998 ');
       setMapPos([41.311081, 69.240562]); // Default Tashkent
       setAddress(null);
@@ -174,7 +176,12 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation }
       id: Date.now().toString(),
       name,
       type: selectedTypes,
-      phone,
+        prices: Object.fromEntries(
+          Object.entries(fuelPrices)
+            .map(([k, v]) => [k, parseInt(v)])
+            .filter(([k, v]) => !isNaN(v) && v > 0)
+        ),
+        phone,
       lat: mapPos[0],
       lng: mapPos[1],
       address: address?.full || 'Noma\'lum manzil',
@@ -302,9 +309,31 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation }
                   );
                 })}
               </div>
-            </div>
+              </div>
 
-            <div className="neu-form-group" style={{marginBottom:'25px'}}>
+              {selectedTypes.length > 0 && (
+                <div style={{marginTop:'20px', marginBottom: '20px'}}>
+                  <h4 style={{fontSize:'14px', color:'#334155', marginBottom:'10px'}}>Yoqilg'i narxlarini kiriting:</h4>
+                  {selectedTypes.map(typeId => {
+                    const label = FUEL_TYPES.find(f => f.id === typeId)?.label || typeId;
+                    return (
+                      <div key={typeId} className="neu-form-group" style={{marginBottom:'10px'}}>
+                        <div className="neu-input-wrapper">
+                          <input 
+                            type="number" 
+                            className="neu-input" 
+                            placeholder={`${label} narxi (so'm)`}
+                            value={fuelPrices[typeId] || ''}
+                            onChange={(e) => setFuelPrices({...fuelPrices, [typeId]: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="neu-form-group" style={{marginBottom:'25px'}}>
               <label>Ish boshqaruvchi (menejer) telefon raqami</label>
               <div className="neu-input-wrapper">
                 <Phone className="neu-icon" size={18} />

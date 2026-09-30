@@ -9,7 +9,7 @@ export default function BottomNav({ activeTab, setActiveTab }) {
         onClick={() => setActiveTab('home')}
       >
         <Home size={22} className="nav-icon" />
-        <span>Home</span>
+        <span>Asosiy</span>
       </button>
 
       <button 
@@ -33,7 +33,7 @@ export default function BottomNav({ activeTab, setActiveTab }) {
         onClick={() => setActiveTab('my')}
       >
         <User size={22} className="nav-icon" />
-        <span>My</span>
+        <span>Profilim</span>
       </button>
     </nav>
   );

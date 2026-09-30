@@ -92,7 +92,12 @@ export default function App() {
 
   // Quick Gas Pressure Edit
   const [editingPressureId, setEditingPressureId] = useState(null);
-  const [tempPressure, setTempPressure] = useState('');
+    const [tempPressure, setTempPressure] = useState('');
+    
+    // Quick Price Edit
+    const [editingPriceId, setEditingPriceId] = useState(null);
+    const [editingPriceType, setEditingPriceType] = useState(null);
+    const [tempPrice, setTempPrice] = useState('');
 
   // In-App Navigation State
   const [navigationTarget, setNavigationTarget] = useState(null);
@@ -176,17 +181,33 @@ export default function App() {
   };
 
   const handleSaveQuickPressure = (e, stId) => {
-    e.stopPropagation();
-    if (confirm(`Gaz bosimini ${tempPressure} atm ga o'zgartiraylikmi?`)) {
-      let p = parseInt(tempPressure);
-      if (p > 210) p = 210;
-      if (p < 0) p = 0;
-      setMyStations(myStations.map(s => 
-        s.id === stId ? { ...s, gasPressure: p || null } : s
-      ));
-      setEditingPressureId(null);
-    }
-  };
+      e.stopPropagation();
+      if (editingPressureId === stId) {
+        const p = parseInt(tempPressure);
+        setMyStations(myStations.map(s => 
+          s.id === stId ? { ...s, gasPressure: p || null } : s
+        ));
+        setEditingPressureId(null);
+      }
+    };
+
+    const handleSaveQuickPrice = (e, stId) => {
+      e.stopPropagation();
+      if (editingPriceId === stId && editingPriceType) {
+        const p = parseInt(tempPrice);
+        setMyStations(myStations.map(s => {
+          if (s.id === stId) {
+            const updatedPrices = { ...(s.prices || {}) };
+            if (!isNaN(p) && p > 0) updatedPrices[editingPriceType] = p;
+            else delete updatedPrices[editingPriceType];
+            return { ...s, prices: updatedPrices };
+          }
+          return s;
+        }));
+        setEditingPriceId(null);
+        setEditingPriceType(null);
+      }
+    };
 
   const handleSetStatus = (e, stationId, makeOpen) => {
     e.stopPropagation();
@@ -319,7 +340,7 @@ export default function App() {
                 onClick={() => handleTabChange('home')}
               >
                 <Home size={20} className="desktop-nav-icon" />
-                <span>Home</span>
+                <span>Asosiy</span>
               </button>
               <button 
                 className={`desktop-nav-item ${activeTab === 'search' ? 'active' : ''}`}
@@ -340,18 +361,24 @@ export default function App() {
                 onClick={() => handleTabChange('my')}
               >
                 <User size={20} className="desktop-nav-icon" />
-                <span>My</span>
+                <span>Profilim</span>
+              </button>
+              <button 
+                className="desktop-nav-item"
+                onClick={() => alert('Hozircha ustida ishlamoqdamiz')}
+              >
+                <Settings size={20} className="desktop-nav-icon" />
+                <span>Nastroyka</span>
               </button>
             </nav>
 
-          {activeTab === 'my' && (
-            <button 
-              onClick={() => setShowSettingsModal(true)}
-              style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '10px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#475569', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', transition: 'all 0.2s ease' }}
-            >
-              <Settings size={24} />
-            </button>
-          )}
+          <button 
+                className="mobile-settings-btn"
+                onClick={() => setShowSettingsModal(true)}
+                style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '10px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#475569', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', transition: 'all 0.2s ease' }}
+              >
+                <Settings size={24} />
+              </button>
         </div>
 
         {/* ===== GLOBAL: Category Tabs (faqat Home va Qidiruvda) ===== */}
@@ -375,9 +402,9 @@ export default function App() {
             </div>
 
             {/* Sub-filters (faqat Yoqilg'i shahobchasi tanlanganda) */}
-            {activeCategory === 'fuel' && (
-              <>
-                <div className="home-sub-filters layout-padding">
+            <div className={`fuel-filters-wrapper smooth-transition ${activeCategory === 'fuel' ? 'show' : 'hide'}`}>
+              <div className="transition-inner">
+              <div className="home-sub-filters layout-padding">
                   <button
                     className={`sub-filter-pill ${fuelSubFilter === 'all' ? 'active' : ''}`}
                     onClick={() => setFuelSubFilter('all')}
@@ -444,8 +471,8 @@ export default function App() {
                     </button>
                   </div>
                 </div>
-              </>
-            )}
+              </div>
+            </div>
           </>
         )}
 
@@ -455,13 +482,11 @@ export default function App() {
         {activeTab === 'home' && (
           <div className="tab-view fade-in">
             {/* Barchasi tanlanganda ixcham xarita ko'rsatiladi */}
-            {activeCategory === 'all' && (
-              <div className="compact-home-map-wrapper layout-padding mt-3">
-                <div className="compact-home-map-container">
+            <div className={`compact-home-map-wrapper layout-padding smooth-transition ${activeCategory === 'all' ? 'show mt-3' : 'hide'}`}>
+                <div className="transition-inner"><div className="compact-home-map-container">
                   <MapView />
-                </div>
+                </div></div>
               </div>
-            )}
 
             <div className="cards-stream-container layout-padding mt-4">
               {filteredStations.map(st => (
@@ -703,6 +728,58 @@ export default function App() {
                             )}
                           </div>
                         )}
+
+                          {/* Quick Edit Price */}
+                          {st.type && (st.type.includes('metan') || st.type.includes('propan')) && (
+                            <div className="my-st-quick-price mt-2" onClick={e => e.stopPropagation()}>
+                              {['metan', 'propan'].filter(t => st.type.includes(t)).map(fuelType => (
+                                <div key={fuelType} className="mb-2">
+                                  {editingPriceId === st.id && editingPriceType === fuelType ? (
+                                    <div className="flex items-center gap-2 mt-1" style={{ background: '#f8fafc', padding: '8px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                      <input 
+                                        type="number" 
+                                        value={tempPrice} 
+                                        onChange={e => setTempPrice(e.target.value)} 
+                                        autoFocus
+                                        className="search-full-input"
+                                        style={{ width: '90px', padding: '4px 8px', height: '32px', border: '1px solid #94a3b8', borderRadius: '8px', outline: 'none' }}
+                                        placeholder="Narx"
+                                      />
+                                      <button className="status-toggle-btn active-open" style={{padding:'4px 8px', minHeight:'32px', border: 'none', background: '#3b82f6', color: 'white', borderRadius: '8px', cursor: 'pointer'}} onClick={(e) => handleSaveQuickPrice(e, st.id)}>Saqlash</button>
+                                      <button className="status-toggle-btn" style={{padding:'4px 8px', minHeight:'32px', border: '1px solid #cbd5e1', background: 'transparent', borderRadius: '8px', cursor: 'pointer'}} onClick={(e) => { e.stopPropagation(); setEditingPriceId(null); setEditingPriceType(null); }}>Bekor</button>
+                                    </div>
+                                  ) : (
+                                    <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: fuelType === 'metan' ? 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)' : 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)', padding: '8px 10px', borderRadius: '14px', border: fuelType === 'metan' ? '1px solid #bae6fd' : '1px solid #e9d5ff', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <div style={{ background: fuelType === 'metan' ? '#bae6fd' : '#e9d5ff', padding: '5px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                          {fuelType === 'metan' ? <Flame size={14} color="#0284c7" /> : <Droplets size={14} color="#9333ea" />}
+                                        </div>
+                                        <span style={{ fontSize: '0.8rem', color: fuelType === 'metan' ? '#082f49' : '#3b0764', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                                          {fuelType === 'metan' ? 'Metan' : 'Propan'}: <strong style={{ color: fuelType === 'metan' ? '#0284c7' : '#9333ea', fontSize: '0.85rem', marginLeft: '2px' }}>{st.prices?.[fuelType] ? `${st.prices[fuelType].toLocaleString()} so'm` : '—'}</strong>
+                                        </span>
+                                      </div>
+                                      <button 
+                                        style={{ 
+                                          fontSize: '0.75rem', padding: '6px 10px',
+                                          background: fuelType === 'metan' ? 'linear-gradient(135deg, #0ea5e9, #0284c7)' : 'linear-gradient(135deg, #a855f7, #9333ea)',
+                                          color: 'white', fontWeight: 'bold', borderRadius: '16px', border: 'none', cursor: 'pointer',
+                                          display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0
+                                        }}
+                                        onClick={(e) => { 
+                                          e.stopPropagation(); 
+                                          setEditingPriceId(st.id); 
+                                          setEditingPriceType(fuelType);
+                                          setTempPrice(st.prices?.[fuelType] || ''); 
+                                        }}
+                                      >
+                                        <Edit3 size={12} /> O'zgartirish
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                       </div>
 
                       {/* O'ng: Rasm */}
