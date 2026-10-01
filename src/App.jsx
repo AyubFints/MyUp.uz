@@ -487,9 +487,20 @@ export default function App() {
         {/* HOME */}
         {activeTab === 'home' && (
           <div className="tab-view fade-in">
-            {/* Barchasi tanlanganda ixcham xarita ko'rsatiladi */}
-            <div className={`compact-home-map-wrapper layout-padding smooth-transition ${activeCategory === 'all' ? 'show mt-3' : 'hide'}`}>
-                <div className="transition-inner">
+            <div className="cards-stream-container layout-padding mt-4">
+              {filteredStations.map((st, index) => (
+                <React.Fragment key={st.id}>
+                  <StationCard
+                    station={st}
+                    userDistance={st.calculatedDistance}
+                    isFavorite={favorites.includes(st.id)}
+                    onToggleFavorite={handleToggleFavorite}
+                    onSelectStation={(s) => setDetailStation(s)}
+                    onNavigate={handleNavigate}
+                  />
+                  {(index === 2 || (filteredStations.length < 3 && index === filteredStations.length - 1)) && (
+                    <div className={`compact-home-map-wrapper smooth-transition ${activeCategory === 'all' ? 'show my-3' : 'hide'}`}>
+                  <div className="transition-inner">
                     <div 
                       className="compact-home-map-container" 
                       onClick={() => handleTabChange('map')} 
@@ -497,23 +508,26 @@ export default function App() {
                     >
                       <img src="/map-preview.jpg" alt="Xarita" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} />
                       <div className="desktop-only-map-text">Harita</div>
-                      
                     </div>
                   </div>
-              </div>
-
-            <div className="cards-stream-container layout-padding mt-4">
-              {filteredStations.map(st => (
-                <StationCard
-                  key={st.id}
-                  station={st}
-                  userDistance={st.calculatedDistance}
-                  isFavorite={favorites.includes(st.id)}
-                  onToggleFavorite={handleToggleFavorite}
-                  onSelectStation={(s) => setDetailStation(s)}
-                  onNavigate={handleNavigate}
-                />
+                </div>
+                  )}
+                </React.Fragment>
               ))}
+              {filteredStations.length === 0 && (
+                <div className={`compact-home-map-wrapper smooth-transition ${activeCategory === 'all' ? 'show my-3' : 'hide'}`}>
+                  <div className="transition-inner">
+                    <div 
+                      className="compact-home-map-container" 
+                      onClick={() => handleTabChange('map')} 
+                      style={{ cursor: 'pointer', overflow: 'hidden', backgroundColor: '#0b1329' }}
+                    >
+                      <img src="/map-preview.jpg" alt="Xarita" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} />
+                      <div className="desktop-only-map-text">Harita</div>
+                    </div>
+                  </div>
+                </div>
+              )}
               {filteredStations.length === 0 && (
                 <div className="empty-home-state">
                   <Fuel size={48} className="empty-icon" />
