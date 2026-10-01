@@ -2794,22 +2794,15 @@
 /* Mini map ring */
 .hsc-neu-minimap-ring {
   width: 100px;
-  height: 140px;
-  /* Organic blob shape matching the image */
-  border-radius: 16px;
-  /* 3D bezel gradient */
+  height: 100px;
+  border-radius: 30% 70% 35% 65% / 55% 35% 65% 45%;
   background: linear-gradient(145deg, #ffffff, #e2e8f0);
-  /* Outer pop shadow and inner rim highlight */
-  box-shadow: 
-    5px 5px 12px rgba(166, 175, 195, 0.5), 
-    -5px -5px 12px #ffffff,
-    inset 2px 2px 4px rgba(255, 255, 255, 0.9),
-    inset -2px -2px 4px rgba(0, 0, 0, 0.05);
-  padding: 7px; /* thickness of the bezel */
+  box-shadow: 5px 5px 12px rgba(166, 175, 195, 0.5), -5px -5px 12px #ffffff, inset 2px 2px 4px rgba(255, 255, 255, 0.9), inset -2px -2px 4px rgba(0, 0, 0, 0.05);
+  padding: 7px;
   display: flex;
   align-items: center;
   justify-content: center;
-   /* Slight rotation to match the dynamic feel */
+  transform: rotate(-15deg);
 }
 .hsc-neu-minimap-inner {
   width: 100%;
@@ -2828,7 +2821,7 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%); /* Counter-rotate the image so it's upright */
+  transform: translate(-50%, -50%) rotate(15deg); /* Counter-rotate the image so it's upright */
   opacity: 0.95;
 }
 
