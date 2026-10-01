@@ -499,7 +499,7 @@ export default function App() {
                     onNavigate={handleNavigate}
                   />
                   {(index === 2 || (filteredStations.length < 3 && index === filteredStations.length - 1)) && (
-                    <div className={`compact-home-map-wrapper smooth-transition ${activeCategory === 'all' ? 'show my-3' : 'hide'}`}>
+                    <div className={`compact-home-map-wrapper smooth-transition ${activeCategory === 'all' ? 'show' : 'hide'}`}>
                   <div className="transition-inner">
                     <div 
                       className="compact-home-map-container" 
@@ -515,7 +515,7 @@ export default function App() {
                 </React.Fragment>
               ))}
               {filteredStations.length === 0 && (
-                <div className={`compact-home-map-wrapper smooth-transition ${activeCategory === 'all' ? 'show my-3' : 'hide'}`}>
+                <div className={`compact-home-map-wrapper smooth-transition ${activeCategory === 'all' ? 'show' : 'hide'}`}>
                   <div className="transition-inner">
                     <div 
                       className="compact-home-map-container" 
