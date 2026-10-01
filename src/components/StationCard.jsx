@@ -86,12 +86,12 @@ export default function StationCard({
             <div className="hsc-neu-minimap-inner">
               <MapContainer 
                 center={[station.lat || 41.311081, station.lng || 69.240562]} 
-                zoom={13} 
+                zoom={14} 
                 zoomControl={false} 
-                dragging={false} 
-                scrollWheelZoom={false} 
-                touchZoom={false} 
-                doubleClickZoom={false}
+                dragging={true} 
+                scrollWheelZoom={true} 
+                touchZoom={true} 
+                doubleClickZoom={true}
                 style={{ height: '100%', width: '100%' }}
                 attributionControl={false}
               >
