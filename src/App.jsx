@@ -496,9 +496,7 @@ export default function App() {
                       style={{ cursor: 'pointer', overflow: 'hidden', backgroundColor: '#0b1329' }}
                     >
                       <img src="/map-preview.jpg" alt="Xarita" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} />
-                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'rgba(0,0,0,0.5)', padding: '10px 20px', borderRadius: '20px', color: 'white', fontWeight: 'bold' }}>
-                        Xaritada ko'rish
-                      </div>
+                      
                     </div>
                   </div>
               </div>
