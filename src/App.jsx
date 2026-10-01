@@ -496,6 +496,7 @@ export default function App() {
                       style={{ cursor: 'pointer', overflow: 'hidden', backgroundColor: '#0b1329' }}
                     >
                       <img src="/map-preview.jpg" alt="Xarita" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} />
+                      <div className="desktop-only-map-text">Harita</div>
                       
                     </div>
                   </div>
