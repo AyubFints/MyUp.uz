@@ -489,9 +489,18 @@ export default function App() {
           <div className="tab-view fade-in">
             {/* Barchasi tanlanganda ixcham xarita ko'rsatiladi */}
             <div className={`compact-home-map-wrapper layout-padding smooth-transition ${activeCategory === 'all' ? 'show mt-3' : 'hide'}`}>
-                <div className="transition-inner"><div className="compact-home-map-container">
-                  <MapView />
-                </div></div>
+                <div className="transition-inner">
+                    <div 
+                      className="compact-home-map-container" 
+                      onClick={() => handleTabChange('map')} 
+                      style={{ cursor: 'pointer', overflow: 'hidden' }}
+                    >
+                      <img src="/map-preview.jpg" alt="Xarita" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'rgba(0,0,0,0.5)', padding: '10px 20px', borderRadius: '20px', color: 'white', fontWeight: 'bold' }}>
+                        Xaritada ko'rish
+                      </div>
+                    </div>
+                  </div>
               </div>
 
             <div className="cards-stream-container layout-padding mt-4">
