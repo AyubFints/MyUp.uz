@@ -2927,3 +2927,8 @@
     pointer-events: none;
   }
 }
+
+
+.compact-home-map-wrapper {
+  grid-column: 1 / -1;
+}
