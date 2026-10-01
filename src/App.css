@@ -2931,3 +2931,26 @@
 .compact-home-map-wrapper {
   grid-column: 1 / -1;
 }
+
+.map-overlay-title {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 1rem;
+  font-weight: 600;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 5;
+}
+
+@media (min-width: 769px) {
+  .map-overlay-title {
+    display: none !important;
+  }
+}

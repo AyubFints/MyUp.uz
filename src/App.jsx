@@ -510,7 +510,7 @@ export default function App() {
                         <source media="(min-width: 769px)" srcSet="/map-preview-desktop.png" />
                         <img src="/map-preview.jpg" alt="Xarita" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} />
                       </picture>
-                      {/* Text overlays are no longer needed as desktop image has it baked in */}
+                      <div className="map-overlay-title">Harita</div>
                     </div>
                   </div>
                 </div>
@@ -529,7 +529,7 @@ export default function App() {
                         <source media="(min-width: 769px)" srcSet="/map-preview-desktop.png" />
                         <img src="/map-preview.jpg" alt="Xarita" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} />
                       </picture>
-                      {/* Text overlays are no longer needed as desktop image has it baked in */}
+                      <div className="map-overlay-title">Harita</div>
                     </div>
                   </div>
                 </div>
