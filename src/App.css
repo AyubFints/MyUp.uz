@@ -601,7 +601,7 @@
 }
 
 .compact-home-map-container {
-  height: 200px;
+  height: 100px;
   width: 100%;
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -2583,7 +2583,7 @@
 /* SHORTER MAP ON MOBILE */
 @media (max-width: 768px) {
   .compact-home-map-container {
-    height: 140px !important;
+    height: 100px !important;
   }
 }
 
@@ -2595,7 +2595,7 @@
     border: none !important;
     border-radius: 30px !important;
     padding: 6px !important;
-    height: 140px !important;
+    height: 100px !important;
     bottom: 15px !important;
   }
   .bottom-nav-item {
