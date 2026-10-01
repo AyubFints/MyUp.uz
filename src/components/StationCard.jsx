@@ -84,10 +84,20 @@ export default function StationCard({
         <div className="hsc-neu-split-right" style={{ transform: "translateY(-5px)" }}>
           <div className="hsc-neu-minimap-ring" onClick={(e) => e.stopPropagation()}>
             <div className="hsc-neu-minimap-inner">
-              <img 
-                src="/map-preview.jpg" 
-                alt="Mini Map" 
-              />
+              <MapContainer 
+                center={[station.lat || 41.311081, station.lng || 69.240562]} 
+                zoom={13} 
+                zoomControl={false} 
+                dragging={false} 
+                scrollWheelZoom={false} 
+                touchZoom={false} 
+                doubleClickZoom={false}
+                style={{ height: '100%', width: '100%' }}
+                attributionControl={false}
+              >
+                <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
+                <Marker position={[station.lat || 41.311081, station.lng || 69.240562]} />
+              </MapContainer>
             </div>
           </div>
         </div>
