@@ -601,7 +601,8 @@
 }
 
 .compact-home-map-container {
-  height: 220px;
+  height: 260px;
+  margin-top: 20px;
   width: 100%;
   border-radius: var(--radius-lg);
   overflow: hidden;
