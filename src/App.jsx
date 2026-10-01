@@ -493,7 +493,7 @@ export default function App() {
                     <div 
                       className="compact-home-map-container" 
                       onClick={() => handleTabChange('map')} 
-                      style={{ cursor: 'pointer', overflow: 'hidden', height: '100%', backgroundColor: '#0b1329' }}
+                      style={{ cursor: 'pointer', overflow: 'hidden', backgroundColor: '#0b1329' }}
                     >
                       <img src="/map-preview.jpg" alt="Xarita" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} />
                       <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'rgba(0,0,0,0.5)', padding: '10px 20px', borderRadius: '20px', color: 'white', fontWeight: 'bold' }}>
