@@ -506,8 +506,11 @@ export default function App() {
                       onClick={() => handleTabChange('map')} 
                       style={{ cursor: 'pointer', overflow: 'hidden', backgroundColor: '#0b1329' }}
                     >
-                      <img src="/map-preview.jpg" alt="Xarita" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} />
-                      <div className="desktop-only-map-text">Harita</div>
+                      <picture style={{ display: "block", width: "100%", height: "100%" }}>
+                        <source media="(min-width: 769px)" srcSet="/map-preview-desktop.png" />
+                        <img src="/map-preview.jpg" alt="Xarita" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} />
+                      </picture>
+                      {/* Text overlays are no longer needed as desktop image has it baked in */}
                     </div>
                   </div>
                 </div>
@@ -522,8 +525,11 @@ export default function App() {
                       onClick={() => handleTabChange('map')} 
                       style={{ cursor: 'pointer', overflow: 'hidden', backgroundColor: '#0b1329' }}
                     >
-                      <img src="/map-preview.jpg" alt="Xarita" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} />
-                      <div className="desktop-only-map-text">Harita</div>
+                      <picture style={{ display: "block", width: "100%", height: "100%" }}>
+                        <source media="(min-width: 769px)" srcSet="/map-preview-desktop.png" />
+                        <img src="/map-preview.jpg" alt="Xarita" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} />
+                      </picture>
+                      {/* Text overlays are no longer needed as desktop image has it baked in */}
                     </div>
                   </div>
                 </div>
