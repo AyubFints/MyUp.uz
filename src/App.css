@@ -2584,7 +2584,7 @@
 /* SHORTER MAP ON MOBILE */
 @media (max-width: 768px) {
   .compact-home-map-container {
-    height: 140px !important;
+    height: 65px !important;
   }
 }
 
@@ -2596,7 +2596,7 @@
     border: none !important;
     border-radius: 30px !important;
     padding: 6px !important;
-    height: 140px !important;
+    height: 65px !important;
     bottom: 15px !important;
   }
   .bottom-nav-item {
