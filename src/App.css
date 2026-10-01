@@ -601,7 +601,7 @@
 }
 
 .compact-home-map-container {
-  height: 100px;
+  height: 140px;
   width: 100%;
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -2045,11 +2045,11 @@
     border-radius: 14px;
   }
   .my-st-thumb {
-    width: 100px; height: 100px;
+    width: 100px; height: 140px;
     border-radius: 16px;
   }
   .my-st-thumb-empty {
-    width: 100px; height: 100px;
+    width: 100px; height: 140px;
     border-radius: 16px;
   }
 }
@@ -2583,7 +2583,7 @@
 /* SHORTER MAP ON MOBILE */
 @media (max-width: 768px) {
   .compact-home-map-container {
-    height: 100px !important;
+    height: 140px !important;
   }
 }
 
@@ -2595,7 +2595,7 @@
     border: none !important;
     border-radius: 30px !important;
     padding: 6px !important;
-    height: 100px !important;
+    height: 140px !important;
     bottom: 15px !important;
   }
   .bottom-nav-item {
@@ -2793,7 +2793,7 @@
 /* Mini map ring */
 .hsc-neu-minimap-ring {
   width: 100px;
-  height: 100px;
+  height: 140px;
   /* Organic blob shape matching the image */
   border-radius: 30% 70% 35% 65% / 55% 35% 65% 45%;
   /* 3D bezel gradient */
