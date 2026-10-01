@@ -2949,8 +2949,4 @@
   z-index: 5;
 }
 
-@media (min-width: 769px) {
-  .map-overlay-title {
-    display: none !important;
-  }
-}
+
