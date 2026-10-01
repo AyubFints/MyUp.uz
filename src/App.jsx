@@ -263,35 +263,41 @@ export default function App() {
       };
 
       if (fuelSortBy === 'nearest') {
-        result.sort((a, b) => a.calculatedDistance - b.calculatedDistance);
+        result.sort((a, b) => (a.calculatedDistance || 0) - (b.calculatedDistance || 0));
       } else if (fuelSortBy === 'cheapest') {
         result.sort((a, b) => {
-          const diff = getPrice(a) - getPrice(b);
-          return diff !== 0 ? diff : a.calculatedDistance - b.calculatedDistance;
+          const pA = getPrice(a);
+          const pB = getPrice(b);
+          if (pA < pB) return -1;
+          if (pA > pB) return 1;
+          return (a.calculatedDistance || 0) - (b.calculatedDistance || 0);
         });
       } else if (fuelSortBy === 'nearest_cheap') {
         result.sort((a, b) => {
-          const aNear = a.calculatedDistance <= 20;
-          const bNear = b.calculatedDistance <= 20;
+          const aNear = (a.calculatedDistance || 0) <= 20;
+          const bNear = (b.calculatedDistance || 0) <= 20;
           if (aNear && !bNear) return -1;
           if (!aNear && bNear) return 1;
-          const diff = getPrice(a) - getPrice(b);
-          return diff !== 0 ? diff : a.calculatedDistance - b.calculatedDistance;
+          const pA = getPrice(a);
+          const pB = getPrice(b);
+          if (pA < pB) return -1;
+          if (pA > pB) return 1;
+          return (a.calculatedDistance || 0) - (b.calculatedDistance || 0);
         });
       } else if (fuelSortBy === 'nearest_best') {
         result.sort((a, b) => {
-          const aNear = a.calculatedDistance <= 28;
-          const bNear = b.calculatedDistance <= 28;
+          const aNear = (a.calculatedDistance || 0) <= 28;
+          const bNear = (b.calculatedDistance || 0) <= 28;
           if (aNear && !bNear) return -1;
           if (!aNear && bNear) return 1;
           const rA = a.rating || 0;
           const rB = b.rating || 0;
           if (rA !== rB) return rB - rA;
-          return a.calculatedDistance - b.calculatedDistance;
+          return (a.calculatedDistance || 0) - (b.calculatedDistance || 0);
         });
       }
     } else {
-      result.sort((a, b) => a.calculatedDistance - b.calculatedDistance);
+      result.sort((a, b) => (a.calculatedDistance || 0) - (b.calculatedDistance || 0));
     }
     
     return result;

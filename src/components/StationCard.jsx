@@ -53,7 +53,7 @@ export default function StationCard({
              if (key === 'elektr') label = 'Elektr';
              return (
                <div key={key} style={{ display: 'inline-block', marginRight: '15px' }}>
-                 {label}: <strong style={{color: '#0ea5e9'}}>{value.toLocaleString()} so'm</strong>
+                 {label}: <strong style={{color: '#0ea5e9'}}>{value ? Number(value).toLocaleString() : '—'} so'm</strong>
                </div>
              );
           })}
@@ -84,18 +84,10 @@ export default function StationCard({
         <div className="hsc-neu-split-right" style={{ transform: "translateY(-5px)" }}>
           <div className="hsc-neu-minimap-ring" onClick={(e) => e.stopPropagation()}>
             <div className="hsc-neu-minimap-inner">
-              <MapContainer
-                center={[station.lat || 41.311081, station.lng || 69.240562]}
-                zoom={14}
-                zoomControl={false}
-                attributionControl={false}
-                scrollWheelZoom={true}
-                dragging={true}
-                style={{ width: '130%', height: '130%', position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(15deg)' }}
-              >
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                <Marker position={[station.lat || 41.311081, station.lng || 69.240562]} />
-              </MapContainer>
+              <img 
+                src={`https://static-maps.yandex.ru/1.x/?ll=${station.lng || 69.240562},${station.lat || 41.311081}&size=150,150&z=14&l=map&pt=${station.lng || 69.240562},${station.lat || 41.311081},pm2bll`} 
+                alt="Mini Map" 
+              />
             </div>
           </div>
         </div>
