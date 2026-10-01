@@ -85,7 +85,7 @@ export default function StationCard({
           <div className="hsc-neu-minimap-ring" onClick={(e) => e.stopPropagation()}>
             <div className="hsc-neu-minimap-inner">
               <img 
-                src={`https://static-maps.yandex.ru/1.x/?ll=${station.lng || 69.240562},${station.lat || 41.311081}&size=150,150&z=14&l=map&pt=${station.lng || 69.240562},${station.lat || 41.311081},pm2bll`} 
+                src="/map-preview.jpg" 
                 alt="Mini Map" 
               />
             </div>
