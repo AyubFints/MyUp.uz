@@ -604,9 +604,6 @@
   height: 260px;
   margin-top: 20px;
   width: 100%;
-  max-width: 800px;
-  margin-left: auto;
-  margin-right: auto;
   border-radius: var(--radius-lg);
   overflow: hidden;
   border: 1px solid var(--border-color);
