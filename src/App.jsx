@@ -8,9 +8,10 @@ import AddStationModal from "./components/AddStationModal";
 import MapView from "./components/MapView";
 import NavigationMode from "./components/NavigationMode";
 import SplashScreen from "./components/SplashScreen";
-import { Menu, CITIES, INITIAL_STATIONS } from "./data/mockData";
+import { CITIES, INITIAL_STATIONS } from "./data/mockData";
 import { calculateDistance } from "./utils/distance";
 import {
+  Menu,
   Fuel,
   Flame,
   Droplets,
