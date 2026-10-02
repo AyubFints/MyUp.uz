@@ -8,7 +8,7 @@ import AddStationModal from "./components/AddStationModal";
 import MapView from "./components/MapView";
 import NavigationMode from "./components/NavigationMode";
 import SplashScreen from "./components/SplashScreen";
-import { CITIES, INITIAL_STATIONS } from "./data/mockData";
+import { Menu, CITIES, INITIAL_STATIONS } from "./data/mockData";
 import { calculateDistance } from "./utils/distance";
 import {
   Fuel,
@@ -388,25 +388,34 @@ export default function App() {
           onClick={() => handleTabChange("home")}
           style={{ cursor: "pointer" }}
         >
-          <h1>myup.uz</h1>
+          <h1>
+            myup.<span style={{ color: "#38bdf8" }}>uz</span>
+          </h1>
         </div>
         <nav className="desktop-nav">
           <button
-            className="desktop-nav-item"
+            className={`desktop-nav-item ${activeTab === "search" ? "active" : ""}`}
             onClick={() => handleTabChange("search")}
           >
             <Search size={18} className="desktop-nav-icon" />
             <span>Qidiruv</span>
           </button>
           <button
-            className="desktop-nav-item"
+            className={`desktop-nav-item ${activeTab === "map" ? "active" : ""}`}
             onClick={() => handleTabChange("map")}
           >
             <Map size={18} className="desktop-nav-icon" />
             <span>Xarita</span>
           </button>
           <button
-            className="desktop-nav-item"
+            className={`desktop-nav-item ${activeTab === "services" ? "active" : ""}`}
+            onClick={() => alert("Xizmatlar hozircha tayyor emas")}
+          >
+            <Menu size={18} className="desktop-nav-icon" />
+            <span>Xizmatlar</span>
+          </button>
+          <button
+            className={`desktop-nav-item ${activeTab === "my" ? "active" : ""}`}
             onClick={() => handleTabChange("my")}
           >
             <User size={18} className="desktop-nav-icon" />

@@ -2920,36 +2920,32 @@
 .desktop-nav {
   display: flex;
   align-items: center;
-  background: #f0f3f6;
-  border-radius: 40px;
-  box-shadow:
-    5px 5px 10px #d1d5db,
-    -5px -5px 10px #ffffff;
-  padding: 4px;
-  margin-left: 20px;
-  gap: 5px;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  margin-left: 0;
+  gap: 4px;
 }
 .desktop-nav-item {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
   background: transparent;
   border: none;
-  border-radius: 30px;
-  padding: 8px 16px;
+  border-radius: 8px;
+  padding: 8px 14px;
   cursor: pointer;
-  color: #64748b;
-  font-weight: 600;
-  font-size: 11px;
+  color: #e2e8f0;
+  font-weight: 500;
+  font-size: 0.88rem;
+  gap: 6px;
   transition: all 0.2s ease;
 }
 .desktop-nav-item.active {
-  background: #e0f2fe;
-  color: #0ea5e9;
-  box-shadow:
-    inset 3px 3px 6px #bae6fd,
-    inset -3px -3px 6px #ffffff;
+  color: #38bdf8 !important;
+  background-color: transparent !important;
 }
 .desktop-nav-icon {
   margin-bottom: 2px;
@@ -3431,8 +3427,8 @@
 
 .top-header {
   height: 60px;
-  background-color: #0e0e10;
-  border-bottom: 1px solid #333336;
+  background-color: #1a1a1c !important;
+  border-bottom: 1px solid #2a2a2c !important;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3440,6 +3436,7 @@
   position: sticky;
   top: 0;
   z-index: 1000;
+  box-shadow: none !important;
 }
 
 .logo h1 {
@@ -3469,8 +3466,8 @@
   transition: all 0.2s;
 }
 .desktop-nav-item:hover {
-  color: #ffffff;
-  background-color: #1a1a1c;
+  color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.06) !important;
 }
 
 .dark-theme-home .app-content {
@@ -3569,22 +3566,22 @@
   }
 }
 
-/* MODERN BOTTOM NAV (Light rounded style from screenshot) */
+/* ===== MODERN BOTTOM NAV (matches screenshot 2) ===== */
 .modern-bottom-nav.bottom-nav-bar {
-  background: #f0f4f8; /* very light blue/grey */
+  background: #f0f4f8;
   border: 1px solid #e2e8f0;
-  border-radius: 30px;
-  padding: 8px 16px;
+  border-radius: 999px;
+  padding: 10px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   position: fixed;
-  bottom: 20px;
+  bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
-  width: 90%;
-  max-width: 400px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  width: calc(100% - 32px);
+  max-width: 480px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
   z-index: 1000;
   height: auto;
 }
@@ -3594,62 +3591,139 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
   background: none;
   border: none;
-  color: #718096; /* grey-blue */
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-.modern-bottom-nav .bottom-nav-item.active {
-  color: #38bdf8;
-}
-.modern-bottom-nav .bottom-nav-item.active::before {
-  display: none; /* remove old dot */
-}
-.modern-bottom-nav .nav-icon {
-  stroke-width: 1.5;
-}
-
-.bottom-nav-settings-wrapper {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.bottom-nav-settings-btn {
-  background: none;
-  border: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  color: #718096;
-  font-size: 0.75rem;
+  color: #94a3b8;
+  font-size: 0.7rem;
   font-weight: 500;
   cursor: pointer;
-  transform: translateY(-20px); /* Lift it up */
+  padding: 4px 8px;
+  border-radius: 12px;
+  transition: all 0.2s;
+  min-width: 48px;
 }
 
-.bottom-nav-settings-btn .floating-circle {
-  width: 50px;
-  height: 50px;
-  background: #ffffff;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.modern-bottom-nav .bottom-nav-item:hover {
+  color: #64748b;
+}
+
+.modern-bottom-nav .bottom-nav-item.active {
+  color: #0ea5e9;
+}
+
+.modern-bottom-nav .bottom-nav-item.active::before {
+  display: none;
+}
+
+.modern-bottom-nav .nav-icon {
+  stroke-width: 1.75;
+}
+
+/* === HEADER OVERRIDE (force dark, no pill nav) === */
+.top-header {
+  background-color: #0e0e10 !important;
+  border-bottom: 1px solid #333336 !important;
+  box-shadow: none !important;
+}
+.top-header .desktop-nav {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+.desktop-nav-item:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* ===== FINAL BOTTOM NAV OVERRIDE (pill style - screenshot 2) ===== */
+.modern-bottom-nav.bottom-nav-bar {
+  background: #f0f4f8 !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 999px !important;
+  padding: 8px 16px !important;
+  display: flex !important;
+  justify-content: space-around !important;
+  align-items: center !important;
+  position: fixed !important;
+  bottom: 16px !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  width: auto !important;
+  min-width: 300px !important;
+  max-width: calc(100% - 32px) !important;
   box-shadow:
-    0 -4px 10px rgba(0, 0, 0, 0.05),
-    0 4px 10px rgba(0, 0, 0, 0.1);
-  margin-bottom: 4px;
+    0 8px 30px rgba(0, 0, 0, 0.15),
+    0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  z-index: 1000 !important;
+  height: auto !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  gap: 4px !important;
 }
 
-.bottom-nav-settings-btn .floating-icon {
-  color: #0ea5e9; /* bright blue */
-  fill: #0ea5e9;
-  transform: rotate(
-    45deg
-  ); /* To make it look like a paper plane/navigation if it's the send icon, but lucide Navigation is already angled. We will not rotate Navigation, Navigation looks right naturally. Wait, let's leave rotation 0 for now. */
+.modern-bottom-nav .bottom-nav-item {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  background: none !important;
+  border: none !important;
+  color: #94a3b8 !important;
+  font-size: 0.68rem !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  padding: 6px 12px !important;
+  border-radius: 12px !important;
+  transition: color 0.2s !important;
+  min-width: 52px !important;
+  box-shadow: none !important;
+}
+
+.modern-bottom-nav .bottom-nav-item:hover {
+  color: #475569 !important;
+  background: none !important;
+}
+
+.modern-bottom-nav .bottom-nav-item.active {
+  color: #0ea5e9 !important;
+  background: none !important;
+}
+
+.modern-bottom-nav .bottom-nav-item.active::before {
+  display: none !important;
+}
+
+.modern-bottom-nav .nav-icon {
+  stroke-width: 1.75 !important;
+  width: 20px !important;
+  height: 20px !important;
+}
+
+/* ===== BOTTOM NAV: DESKTOP DA YASHIR, TELEFON DA QORA ===== */
+@media (min-width: 769px) {
+  .modern-bottom-nav.bottom-nav-bar {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .modern-bottom-nav.bottom-nav-bar {
+    background: rgba(20, 20, 22, 0.92) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+  }
+  .modern-bottom-nav .bottom-nav-item {
+    color: rgba(255, 255, 255, 0.5) !important;
+  }
+  .modern-bottom-nav .bottom-nav-item.active {
+    color: #38bdf8 !important;
+  }
+  .modern-bottom-nav .bottom-nav-item:hover {
+    color: rgba(255, 255, 255, 0.8) !important;
+  }
 }
