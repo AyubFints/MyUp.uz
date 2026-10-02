@@ -383,7 +383,11 @@ export default function App() {
 
       {/* NEW GLOBAL DARK HEADER */}
       <header className="top-header">
-        <div className="logo">
+        <div
+          className="logo"
+          onClick={() => handleTabChange("home")}
+          style={{ cursor: "pointer" }}
+        >
           <h1>myup.uz</h1>
         </div>
         <nav className="desktop-nav">
@@ -1373,7 +1377,11 @@ export default function App() {
         </div>
       )}
 
-      <BottomNav activeTab={activeTab} setActiveTab={handleTabChange} />
+      <BottomNav
+        activeTab={activeTab}
+        setActiveTab={handleTabChange}
+        onOpenSettings={() => setShowSettingsModal(true)}
+      />
     </div>
   );
 }

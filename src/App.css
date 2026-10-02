@@ -3568,3 +3568,88 @@
     width: 100%;
   }
 }
+
+/* MODERN BOTTOM NAV (Light rounded style from screenshot) */
+.modern-bottom-nav.bottom-nav-bar {
+  background: #f0f4f8; /* very light blue/grey */
+  border: 1px solid #e2e8f0;
+  border-radius: 30px;
+  padding: 8px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  height: auto;
+}
+
+.modern-bottom-nav .bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: #718096; /* grey-blue */
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.modern-bottom-nav .bottom-nav-item.active {
+  color: #38bdf8;
+}
+.modern-bottom-nav .bottom-nav-item.active::before {
+  display: none; /* remove old dot */
+}
+.modern-bottom-nav .nav-icon {
+  stroke-width: 1.5;
+}
+
+.bottom-nav-settings-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.bottom-nav-settings-btn {
+  background: none;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: #718096;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transform: translateY(-20px); /* Lift it up */
+}
+
+.bottom-nav-settings-btn .floating-circle {
+  width: 50px;
+  height: 50px;
+  background: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 -4px 10px rgba(0, 0, 0, 0.05),
+    0 4px 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 4px;
+}
+
+.bottom-nav-settings-btn .floating-icon {
+  color: #0ea5e9; /* bright blue */
+  fill: #0ea5e9;
+  transform: rotate(
+    45deg
+  ); /* To make it look like a paper plane/navigation if it's the send icon, but lucide Navigation is already angled. We will not rotate Navigation, Navigation looks right naturally. Wait, let's leave rotation 0 for now. */
+}
