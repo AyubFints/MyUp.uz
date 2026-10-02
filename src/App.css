@@ -2951,316 +2951,162 @@
 
 
 
-/* NEW DARK STYLES */
-﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-:root {
-  --dark-bg: #0E0E10;
+
+.dark-theme-home {
+  --bg-color: #0E0E10;
   --panel-bg: #1A1A1C;
   --card-bg: #222225;
-  --dark-text-main: #FFFFFF;
-  --dark-text-muted: #A0A0A5;
+  --text-main: #FFFFFF;
+  --text-muted: #A0A0A5;
   --accent-blue: #38bdf8;
   --accent-green: #34d399;
   --accent-red: #ef4444;
   --border-color: #333336;
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-
-body {
-  /* Restored from old CSS */
-}
-.app-content {
-  font-family: 'Inter', sans-serif;
-  background-color: var(--dark-bg);
-  color: var(--dark-text-main);
-}
-.top-header {
-  background-color: var(--dark-bg);
-}
-
-
-/* APP LAYOUT */
-.app-container {
+  
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
 }
 
-/* HEADER */
-.top-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 20px;
-  background-color: var(--dark-bg);
+.dark-theme-home .top-header {
+  height: 60px;
+  background-color: var(--bg-color);
   border-bottom: 1px solid var(--border-color);
-  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
-.logo-text {
-  font-size: 24px;
+.dark-theme-home .logo h1 {
+  font-size: 1.5rem;
   font-weight: 700;
-  color: #fff;
-  letter-spacing: -0.5px;
+  margin: 0;
+  color: var(--text-main);
 }
 
-.desktop-nav {
-  display: none;
+.dark-theme-home .desktop-nav {
+  display: flex;
   gap: 20px;
 }
-.desktop-nav-item {
+
+.dark-theme-home .desktop-nav-item {
   background: none;
   border: none;
-  color: var(--dark-text-muted);
-  font-size: 14px;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   cursor: pointer;
-  transition: color 0.2s;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: all 0.2s;
 }
-.desktop-nav-item:hover, .desktop-nav-item.active {
-  color: var(--dark-text-main);
-}
-.mobile-profile-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--card-bg);
-  color: var(--dark-text-muted);
-  border: none;
+.dark-theme-home .desktop-nav-item:hover {
+  color: var(--text-main);
+  background-color: var(--panel-bg);
 }
 
-/* MAIN CONTENT */
-.app-content {
-  flex: 1;
+.dark-theme-home .app-content {
   display: flex;
-  overflow: hidden;
-  position: relative;
+  flex: 1;
+  height: calc(100vh - 60px);
 }
 
-.left-panel {
-  flex: 1;
+.dark-theme-home .left-panel {
+  width: 380px;
+  background-color: var(--bg-color);
+  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  padding: 20px;
-  max-width: 100%;
+  height: 100%;
 }
 
-.right-panel-map {
-  display: none; /* hidden on mobile */
+.dark-theme-home .right-panel-map {
   flex: 1;
-  border-left: 1px solid var(--border-color);
+  height: 100%;
   position: relative;
 }
 
-/* FUEL TYPE FILTERS */
-.fuel-filters-grid {
+.dark-theme-home .fuel-filter-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-  margin-bottom: 20px;
+  padding: 20px;
+  border-bottom: 1px solid var(--border-color);
 }
-.fuel-btn {
+
+.dark-theme-home .fuel-btn {
+  background-color: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: 12px;
+  padding: 12px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  background-color: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 12px 16px;
-  color: var(--dark-text-muted);
-  font-size: 15px;
+  gap: 8px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
+  justify-content: flex-start;
 }
-.fuel-btn.active {
+.dark-theme-home .fuel-btn:hover {
+  background-color: var(--card-bg);
+  border-color: #444;
+}
+.dark-theme-home .fuel-btn.active {
+  background-color: var(--card-bg);
   border-color: var(--accent-blue);
-  color: var(--dark-text-main);
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
 }
-.fuel-icon {
-  color: var(--dark-text-muted);
+
+.dark-theme-home .fuel-icon {
+  color: var(--text-muted);
 }
-.fuel-btn.active .fuel-icon {
+.dark-theme-home .fuel-btn.active .fuel-icon {
   color: var(--accent-blue);
-  filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.4));
 }
 
-/* SORT PILLS */
-.sort-pills-scroll {
-  display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 10px;
-  margin-bottom: 15px;
-  scrollbar-width: none;
-}
-.sort-pills-scroll::-webkit-scrollbar { display: none; }
-.sort-pill {
-  background-color: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--dark-text-muted);
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 14px;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.sort-pill.active {
-  background-color: var(--accent-blue);
-  color: #000;
-  border-color: var(--accent-blue);
-  font-weight: 600;
-}
-
-/* STATION LIST */
-.station-list {
+.dark-theme-home .station-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding-bottom: 80px; /* space for bottom nav */
 }
 
-/* STATION CARD */
-.station-card-dark {
-  background-color: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.sc-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-.sc-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--dark-text-main);
-}
-.sc-status {
-  font-size: 13px;
-  font-weight: 500;
-}
-.sc-status.open { color: var(--accent-green); }
-.sc-status.closed { color: var(--accent-red); }
-
-.sc-distance {
-  font-size: 13px;
-  color: var(--dark-text-muted);
-  margin-top: -8px;
+/* Make sure the original main map container spans correctly */
+.map-full-container {
+  height: 100%;
 }
 
-.sc-details {
-  font-size: 13px;
-  color: var(--dark-text-muted);
-  line-height: 1.5;
-}
-
-.sc-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 4px;
-}
-.btn-details {
-  background-color: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--dark-text-main);
-  border-radius: 10px;
-  padding: 10px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-}
-.btn-navigate {
-  background-color: var(--accent-blue);
-  border: none;
-  color: #000;
-  border-radius: 10px;
-  padding: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-
-/* MOBILE MAP PREVIEW (At the bottom of list) */
-.mobile-map-preview {
-  background-color: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 16px;
-  margin-top: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-}
-.mmp-text h3 {
-  font-size: 16px;
-  margin-bottom: 4px;
-}
-.mmp-text p {
-  font-size: 13px;
-  color: var(--dark-text-muted);
-}
-.mmp-image {
-  width: 80px;
-  height: 60px;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-/* DESKTOP MEDIA QUERY */
-@media (min-width: 1024px) {
-  .desktop-nav {
-    display: flex;
-  }
-  .mobile-profile-btn {
+@media (max-width: 1023px) {
+  .dark-theme-home .desktop-nav {
     display: none;
   }
-  .left-panel {
-    max-width: 450px;
-    padding: 24px;
+  .dark-theme-home .left-panel {
+    width: 100%;
+    border-right: none;
   }
-  .right-panel-map {
-    display: block;
-  }
-  .mobile-map-preview {
+  .dark-theme-home .right-panel-map {
     display: none;
-  }
-  .station-list {
-    padding-bottom: 20px;
   }
 }
 
 @media (min-width: 1024px) {
-  .app-content {
+  .dark-theme-home .app-content {
     max-width: 1400px;
     margin: 0 auto;
     border-left: 1px solid var(--border-color);
     border-right: 1px solid var(--border-color);
+    width: 100%;
   }
 }
