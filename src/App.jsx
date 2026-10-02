@@ -380,44 +380,46 @@ export default function App() {
       <div className="ambient-glow-bottom"></div>
 
       {/* NEW DARK HOME SPLIT LAYOUT */}
+
+      {/* NEW GLOBAL DARK HEADER */}
+      <header className="top-header">
+        <div className="logo">
+          <h1>myup.uz</h1>
+        </div>
+        <nav className="desktop-nav">
+          <button
+            className="desktop-nav-item"
+            onClick={() => handleTabChange("search")}
+          >
+            <Search size={18} className="desktop-nav-icon" />
+            <span>Qidiruv</span>
+          </button>
+          <button
+            className="desktop-nav-item"
+            onClick={() => handleTabChange("map")}
+          >
+            <Map size={18} className="desktop-nav-icon" />
+            <span>Xarita</span>
+          </button>
+          <button
+            className="desktop-nav-item"
+            onClick={() => handleTabChange("my")}
+          >
+            <User size={18} className="desktop-nav-icon" />
+            <span>Profil</span>
+          </button>
+          <button
+            className="desktop-nav-item"
+            onClick={() => setShowSettingsModal(true)}
+          >
+            <Settings size={18} className="desktop-nav-icon" />
+            <span>Sozlamalar</span>
+          </button>
+        </nav>
+      </header>
+
       {activeTab === "home" && (
         <div className="dark-theme-home">
-          <header className="top-header">
-            <div className="logo">
-              <h1>myup.uz</h1>
-            </div>
-            <nav className="desktop-nav">
-              <button
-                className="desktop-nav-item"
-                onClick={() => handleTabChange("search")}
-              >
-                <Search size={18} className="desktop-nav-icon" />
-                <span>Qidiruv</span>
-              </button>
-              <button
-                className="desktop-nav-item"
-                onClick={() => handleTabChange("map")}
-              >
-                <Map size={18} className="desktop-nav-icon" />
-                <span>Xarita</span>
-              </button>
-              <button
-                className="desktop-nav-item"
-                onClick={() => handleTabChange("my")}
-              >
-                <User size={18} className="desktop-nav-icon" />
-                <span>Profil</span>
-              </button>
-              <button
-                className="desktop-nav-item"
-                onClick={() => setShowSettingsModal(true)}
-              >
-                <Settings size={18} className="desktop-nav-icon" />
-                <span>Sozlamalar</span>
-              </button>
-            </nav>
-          </header>
-
           <div className="app-content">
             {/* LEFT PANEL */}
             <div className="left-panel">
@@ -472,103 +474,6 @@ export default function App() {
 
       {activeTab !== "home" && (
         <main className="content-area pb-20">
-          {/* ===== GLOBAL TOP: MyUp branding (hamma tabda ko'rinadi) ===== */}
-          <div
-            className="home-brand-bar"
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "10px 20px",
-              margin: "15px 20px",
-              background: "#f0f3f6",
-              borderRadius: "25px",
-              boxShadow: "8px 8px 16px #d1d5db, -8px -8px 16px #ffffff",
-              position: "relative",
-              zIndex: 10,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                cursor: "pointer",
-              }}
-              onClick={() => handleTabChange("home")}
-            >
-              <img
-                src="https://i.postimg.cc/VNHPnzHt/myup-orgg.jpg"
-                alt="MyUp Logo"
-                className="brand-logo-icon"
-                style={{ width: "42px", height: "42px", borderRadius: "8px" }}
-              />
-              <h1 className="home-brand-title" style={{ margin: 0 }}>
-                <span className="brand-my">My</span>
-                <span className="brand-up">Up</span>
-                <span className="brand-dot">.uz</span>
-              </h1>
-            </div>
-            {/* DESKTOP NAVIGATION */}
-            <nav className="desktop-nav">
-              <button
-                className={`desktop-nav-item ${activeTab === "home" ? "active" : ""}`}
-                onClick={() => handleTabChange("home")}
-              >
-                <Home size={20} className="desktop-nav-icon" />
-                <span>Asosiy</span>
-              </button>
-              <button
-                className={`desktop-nav-item ${activeTab === "search" ? "active" : ""}`}
-                onClick={() => handleTabChange("search")}
-              >
-                <Search size={20} className="desktop-nav-icon" />
-                <span>Qidiruv</span>
-              </button>
-              <button
-                className={`desktop-nav-item ${activeTab === "map" ? "active" : ""}`}
-                onClick={() => handleTabChange("map")}
-              >
-                <Map size={20} className="desktop-nav-icon" />
-                <span>Xarita</span>
-              </button>
-              <button
-                className={`desktop-nav-item ${activeTab === "my" ? "active" : ""}`}
-                onClick={() => handleTabChange("my")}
-              >
-                <User size={20} className="desktop-nav-icon" />
-                <span>Profilim</span>
-              </button>
-              <button
-                className="desktop-nav-item"
-                onClick={() => alert("Hozircha ustida ishlamoqdamiz")}
-              >
-                <Settings size={20} className="desktop-nav-icon" />
-                <span>Nastroyka</span>
-              </button>
-            </nav>
-
-            <button
-              className="mobile-settings-btn"
-              onClick={() => setShowSettingsModal(true)}
-              style={{
-                background: "#f1f5f9",
-                border: "1px solid #e2e8f0",
-                padding: "10px",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                color: "#475569",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-                transition: "all 0.2s ease",
-              }}
-            >
-              <Settings size={24} />
-            </button>
-          </div>
-
           {/* ===== GLOBAL: Category Tabs (faqat Home va Qidiruvda) ===== */}
           {activeTab === "search" && (
             <>
