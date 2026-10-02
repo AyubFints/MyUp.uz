@@ -426,7 +426,283 @@ export default function App() {
         </div>
       </div>
       
-      {/* MY (PROFILE) */}
+      return (
+    <div className="app-container">
+      {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
+      
+      {/* Ambient background light */}
+      <div className="ambient-glow-top"></div>
+      <div className="ambient-glow-bottom"></div>
+
+      <main className="content-area pb-20">
+
+        {/* ===== GLOBAL TOP: MyUp branding (hamma tabda ko'rinadi) ===== */}
+        <div className="home-brand-bar" style={{ 
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+            padding: '10px 20px', margin: '15px 20px', 
+            background: '#f0f3f6', borderRadius: '25px',
+            boxShadow: '8px 8px 16px #d1d5db, -8px -8px 16px #ffffff',
+            position: 'relative', zIndex: 10
+          }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => handleTabChange('home')}>
+            <img src="https://i.postimg.cc/VNHPnzHt/myup-orgg.jpg" alt="MyUp Logo" className="brand-logo-icon" style={{ width: '42px', height: '42px', borderRadius: '8px' }} />
+            <h1 className="home-brand-title" style={{ margin: 0 }}>
+              <span className="brand-my">My</span><span className="brand-up">Up</span><span className="brand-dot">.uz</span>
+            </h1>
+          </div>
+            {/* DESKTOP NAVIGATION */}
+            <nav className="desktop-nav">
+              <button 
+                className={`desktop-nav-item ${activeTab === 'home' ? 'active' : ''}`}
+                onClick={() => handleTabChange('home')}
+              >
+                <Home size={20} className="desktop-nav-icon" />
+                <span>Asosiy</span>
+              </button>
+              <button 
+                className={`desktop-nav-item ${activeTab === 'search' ? 'active' : ''}`}
+                onClick={() => handleTabChange('search')}
+              >
+                <Search size={20} className="desktop-nav-icon" />
+                <span>Qidiruv</span>
+              </button>
+              <button 
+                className={`desktop-nav-item ${activeTab === 'map' ? 'active' : ''}`}
+                onClick={() => handleTabChange('map')}
+              >
+                <Map size={20} className="desktop-nav-icon" />
+                <span>Xarita</span>
+              </button>
+              <button 
+                className={`desktop-nav-item ${activeTab === 'my' ? 'active' : ''}`}
+                onClick={() => handleTabChange('my')}
+              >
+                <User size={20} className="desktop-nav-icon" />
+                <span>Profilim</span>
+              </button>
+              <button 
+                className="desktop-nav-item"
+                onClick={() => alert('Hozircha ustida ishlamoqdamiz')}
+              >
+                <Settings size={20} className="desktop-nav-icon" />
+                <span>Nastroyka</span>
+              </button>
+            </nav>
+
+          <button 
+                className="mobile-settings-btn"
+                onClick={() => setShowSettingsModal(true)}
+                style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '10px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#475569', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', transition: 'all 0.2s ease' }}
+              >
+                <Settings size={24} />
+              </button>
+        </div>
+
+        {/* ===== GLOBAL: Category Tabs (faqat Home va Qidiruvda) ===== */}
+        {(activeTab === 'home' || activeTab === 'search') && (
+          <>
+            <div className="home-category-tabs layout-padding">
+              <button
+                className={`home-cat-btn ${activeCategory === 'all' ? 'active' : ''}`}
+                onClick={() => { setActiveCategory('all'); setFuelSubFilter('all'); }}
+              >
+                Barchasi
+              </button>
+              <button
+                className={`home-cat-btn ${activeCategory === 'fuel' ? 'active' : ''}`}
+                onClick={() => setActiveCategory('fuel')}
+              >
+                <Fuel size={16} />
+                Yoqilg'i shahobchasi
+              </button>
+              {/* Keyinchalik boshqa kategoriyalar shu yerga qo'shiladi */}
+            </div>
+
+            {/* Sub-filters (faqat Yoqilg'i shahobchasi tanlanganda) */}
+            <div className={`fuel-filters-wrapper smooth-transition ${activeCategory === 'fuel' ? 'show' : 'hide'}`}>
+              <div className="transition-inner">
+              <div className="home-sub-filters layout-padding">
+                  <button
+                    className={`sub-filter-pill ${fuelSubFilter === 'all' ? 'active' : ''}`}
+                    onClick={() => setFuelSubFilter('all')}
+                  >
+                    Barchasi
+                  </button>
+                  <button
+                    className={`sub-filter-pill gaz ${fuelSubFilter === 'metan' ? 'active' : ''}`}
+                    onClick={() => setFuelSubFilter('metan')}
+                  >
+                    <Flame size={14} />
+                    Gaz (Metan)
+                  </button>
+                  <button
+                    className={`sub-filter-pill propan ${fuelSubFilter === 'propan' ? 'active' : ''}`}
+                    onClick={() => setFuelSubFilter('propan')}
+                  >
+                    <Droplets size={14} />
+                    Propan
+                  </button>
+                  <button
+                    className={`sub-filter-pill benzin ${fuelSubFilter === 'benzin' ? 'active' : ''}`}
+                    onClick={() => setFuelSubFilter('benzin')}
+                  >
+                    <Fuel size={14} />
+                    Benzin
+                  </button>
+                  <button
+                    className={`sub-filter-pill elektr ${fuelSubFilter === 'elektr' ? 'active' : ''}`}
+                    onClick={() => setFuelSubFilter('elektr')}
+                  >
+                    <Zap size={14} />
+                    Elektr
+                  </button>
+                </div>
+                
+                {/* SORTING TABS (Turtinchi qator) */}
+                {/* SORTING TABS (Turtinchi qator) */}
+                <div className={`home-sort-filters-wrapper ${fuelSubFilter !== 'all' ? 'expanded' : 'collapsed'}`}>
+                  <div className="home-sort-filters layout-padding mt-2 mb-2">
+                    <button 
+                      className={`sort-pill ${fuelSortBy === 'nearest' ? 'active' : ''}`}
+                      onClick={() => setFuelSortBy('nearest')}
+                    >
+                      Eng yaqini
+                    </button>
+                    <button 
+                      className={`sort-pill ${fuelSortBy === 'nearest_cheap' ? 'active' : ''}`}
+                      onClick={() => setFuelSortBy('nearest_cheap')}
+                    >
+                      Eng yaqin va arzoni
+                    </button>
+                    <button 
+                      className={`sort-pill ${fuelSortBy === 'cheapest' ? 'active' : ''}`}
+                      onClick={() => setFuelSortBy('cheapest')}
+                    >
+                      Eng arzoni
+                    </button>
+                    <button 
+                      className={`sort-pill ${fuelSortBy === 'nearest_best' ? 'active' : ''}`}
+                      onClick={() => setFuelSortBy('nearest_best')}
+                    >
+                      Eng yaqin va sifatligi
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ===== TAB CONTENT ===== */}
+
+        {/* HOME */}
+        {activeTab === 'home' && (
+          <div className="tab-view fade-in">
+            <div className="cards-stream-container layout-padding mt-4">
+              {filteredStations.map((st, index) => (
+                <React.Fragment key={st.id}>
+                  <StationCard
+                    station={st}
+                    userDistance={st.calculatedDistance}
+                    isFavorite={favorites.includes(st.id)}
+                    onToggleFavorite={handleToggleFavorite}
+                    onSelectStation={(s) => setDetailStation(s)}
+                    onNavigate={handleNavigate}
+                  />
+                  {(index === 2 || (filteredStations.length < 3 && index === filteredStations.length - 1)) && (
+                    <div className={`compact-home-map-wrapper smooth-transition ${activeCategory === 'all' ? 'show' : 'hide'}`}>
+                  <div className="transition-inner">
+                    <div 
+                      className="compact-home-map-container" 
+                      onClick={() => handleTabChange('map')} 
+                      style={{ cursor: 'pointer', overflow: 'hidden', backgroundColor: '#0b1329' }}
+                    >
+                      <picture style={{ display: "block", width: "100%", height: "100%" }}>
+                        <source media="(min-width: 769px)" srcSet="/map-preview-desktop.png" />
+                        <img src="/map-preview.jpg" alt="Xarita" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} />
+                      </picture>
+                      <div className="map-overlay-title">Harita</div>
+                    </div>
+                  </div>
+                </div>
+                  )}
+                </React.Fragment>
+              ))}
+              {filteredStations.length === 0 && (
+                <div className={`compact-home-map-wrapper smooth-transition ${activeCategory === 'all' ? 'show' : 'hide'}`}>
+                  <div className="transition-inner">
+                    <div 
+                      className="compact-home-map-container" 
+                      onClick={() => handleTabChange('map')} 
+                      style={{ cursor: 'pointer', overflow: 'hidden', backgroundColor: '#0b1329' }}
+                    >
+                      <picture style={{ display: "block", width: "100%", height: "100%" }}>
+                        <source media="(min-width: 769px)" srcSet="/map-preview-desktop.png" />
+                        <img src="/map-preview.jpg" alt="Xarita" style={{ width: '100%', height: '100%', display: 'block', objectFit: 'cover' }} />
+                      </picture>
+                      <div className="map-overlay-title">Harita</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {filteredStations.length === 0 && (
+                <div className="empty-home-state">
+                  <Fuel size={48} className="empty-icon" />
+                  <p>Hozircha ma'lumot yo'q</p>
+                  <span>Tez orada zapravkalar qo'shiladi!</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* SEARCH */}
+        {activeTab === 'search' && (
+          <div className="tab-view fade-in layout-padding">
+            <div className="search-page-header mt-4">
+              <div className="search-input-box">
+                <input
+                  type="text"
+                  placeholder="Zapravka nomini yozing..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="search-full-input"
+                />
+              </div>
+            </div>
+            <div className="cards-stream-container mt-4">
+              {filteredStations.map(st => (
+                <StationCard
+                  key={st.id}
+                  station={st}
+                  userDistance={st.calculatedDistance}
+                  isFavorite={favorites.includes(st.id)}
+                  onToggleFavorite={handleToggleFavorite}
+                  onSelectStation={(s) => setDetailStation(s)}
+                  onNavigate={handleNavigate}
+                />
+              ))}
+              {filteredStations.length === 0 && (
+                <div className="empty-home-state">
+                  <Fuel size={48} className="empty-icon" />
+                  <p>Natija topilmadi</p>
+                  <span>Boshqa nom bilan qidirib ko'ring</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* MAP */}
+        {activeTab === 'map' && (
+          <div className="tab-view fade-in">
+             <div className="map-full-container">
+               <MapView />
+             </div>
+          </div>
+        )}
+
+        {/* MY (PROFILE) */}
           {activeTab === 'my' && !user && (
             <div className="tab-view fade-in layout-padding" style={{height: '100vh', paddingBottom: '70px', overflowY: 'auto'}}>
               <AuthScreen onLoginSuccess={setUser} />
