@@ -139,11 +139,7 @@ export default function MapView() {
           background: #e8e0d8;
           font-family: inherit;
         }
-        .locate-me-btn {
-          position: absolute;
-          bottom: 24px;
-          right: 16px;
-          z-index: 1000;
+        .locate-me-btn { position: absolute; bottom: 24px; right: 16px; z-index: 900;
           width: 48px;
           height: 48px;
           border-radius: 50%;
@@ -174,7 +170,7 @@ export default function MapView() {
           top: 12px;
           left: 50%;
           transform: translateX(-50%);
-          z-index: 1000;
+          z-index: 900;
           background: rgba(15, 23, 42, 0.88);
           backdrop-filter: blur(8px);
           color: #fff;
@@ -192,7 +188,7 @@ export default function MapView() {
           position: absolute;
           bottom: 80px;
           right: 16px;
-          z-index: 1000;
+          z-index: 900;
           background: rgba(15, 23, 42, 0.8);
           color: #94a3b8;
           padding: 5px 10px;
