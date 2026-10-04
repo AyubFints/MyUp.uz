@@ -1,14 +1,22 @@
 import React from "react";
-import { Search, Map, User, Navigation } from "lucide-react";
+import { Home, Search, Map, User, Settings } from "lucide-react";
 
 export default function BottomNav({ activeTab, setActiveTab, onOpenSettings }) {
   return (
     <nav className="bottom-nav-bar modern-bottom-nav">
       <button
+        className={`bottom-nav-item ${activeTab === "home" ? "active" : ""}`}
+        onClick={() => setActiveTab("home")}
+      >
+        <Home size={20} className="nav-icon" />
+        <span>Asosiy</span>
+      </button>
+
+      <button
         className={`bottom-nav-item ${activeTab === "search" ? "active" : ""}`}
         onClick={() => setActiveTab("search")}
       >
-        <Search size={22} className="nav-icon" />
+        <Search size={20} className="nav-icon" />
         <span>Qidiruv</span>
       </button>
 
@@ -16,29 +24,17 @@ export default function BottomNav({ activeTab, setActiveTab, onOpenSettings }) {
         className={`bottom-nav-item ${activeTab === "map" ? "active" : ""}`}
         onClick={() => setActiveTab("map")}
       >
-        <Map size={22} className="nav-icon" />
+        <Map size={20} className="nav-icon" />
         <span>Xarita</span>
       </button>
 
       <button
-        className={`bottom-nav-item ${activeTab === "my" ? "active" : ""}`}
-        onClick={() => setActiveTab("my")}
+        className="bottom-nav-item"
+        onClick={() => onOpenSettings && onOpenSettings()}
       >
-        <User size={22} className="nav-icon" />
-        <span>Profil</span>
+        <Settings size={20} className="nav-icon" />
+        <span>Sozlamalar</span>
       </button>
-
-      <div className="bottom-nav-settings-wrapper">
-        <button
-          className="bottom-nav-settings-btn"
-          onClick={() => onOpenSettings && onOpenSettings()}
-        >
-          <div className="floating-circle">
-            <Navigation size={24} className="nav-icon floating-icon" />
-          </div>
-          <span>Sozlamalar</span>
-        </button>
-      </div>
     </nav>
   );
 }

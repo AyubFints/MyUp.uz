@@ -32,13 +32,20 @@ function LiveTracker({ position, accuracy, shouldFly }) {
   const hasFlown = useRef(false);
 
   useEffect(() => {
-    if (position && shouldFly && !hasFlown.current) {
-      // Birinchi marta uchib borish
-      map.flyTo(position, 17, { duration: 1.5 });
-      hasFlown.current = true;
-    } else if (position && shouldFly) {
-      // Keyingi yangilanishlarda smooth pan
-      map.panTo(position, { animate: true, duration: 0.5 });
+    if (position && shouldFly) {
+      try {
+        const size = map.getSize();
+        if (size && size.x > 0 && size.y > 0) {
+          if (!hasFlown.current) {
+            map.flyTo(position, 17, { duration: 1.5 });
+            hasFlown.current = true;
+          } else {
+            map.panTo(position, { animate: true, duration: 0.5 });
+          }
+        }
+      } catch (err) {
+        console.warn("Leaflet flyTo xatosi (kattalik 0 bo'lishi mumkin):", err);
+      }
     }
   }, [position, shouldFly, map]);
 
@@ -66,7 +73,6 @@ export default function MapView() {
       setLocating(false);
       return;
     }
-
     // Avvalgi watchni tozalash
     if (watchRef.current !== null) {
       navigator.geolocation.clearWatch(watchRef.current);
@@ -74,14 +80,17 @@ export default function MapView() {
 
     watchRef.current = navigator.geolocation.watchPosition(
       (pos) => {
-        const newPos = [pos.coords.latitude, pos.coords.longitude];
-        setUserPos(newPos);
-        setAccuracy(pos.coords.accuracy); // metrda
+        if (pos && pos.coords && typeof pos.coords.latitude === 'number') {
+          const newPos = [pos.coords.latitude, pos.coords.longitude];
+          setUserPos(newPos);
+          setAccuracy(pos.coords.accuracy); // metrda
+        } else {
+          setUserPos(defaultCenter);
+        }
         setLocating(false);
         setErrorMsg('');
       },
       (err) => {
-        console.error('Geolocation error:', err);
         setLocating(false);
         if (err.code === 1) {
           setErrorMsg("Joylashuvga ruxsat bering (brauzer sozlamalarida)");

@@ -14,6 +14,9 @@ import {
   Menu,
   Fuel,
   Flame,
+  Container,
+  Cylinder,
+  Plug,
   Droplets,
   Zap,
   User,
@@ -387,12 +390,20 @@ export default function App() {
         <div
           className="logo"
           onClick={() => handleTabChange("home")}
-          style={{ cursor: "pointer" }}
+          style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
         >
           <h1>
             myup.<span style={{ color: "#38bdf8" }}>uz</span>
           </h1>
         </div>
+        
+        <button
+          className="mobile-header-profile"
+          onClick={() => handleTabChange("my")}
+          style={{ marginLeft: 'auto', background: 'none', border: 'none', padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+        >
+          <User size={24} color="#d1d5db" />
+        </button>
         <nav className="desktop-nav">
           <button
             className={`desktop-nav-item ${activeTab === "search" ? "active" : ""}`}
@@ -440,27 +451,48 @@ export default function App() {
               <div className="fuel-filter-grid">
                 <button
                   className={`fuel-btn ${fuelSubFilter === "metan" ? "active" : ""}`}
-                  onClick={() => setFuelSubFilter("metan")}
+                  onClick={() => { setFuelSubFilter(fuelSubFilter === "metan" ? "all" : "metan"); setActiveCategory("fuel"); }}
                 >
-                  <Flame className="fuel-icon" size={20} /> Metan Gaz
+                  <Fuel className="fuel-icon" size={24} /> <span>Metan Gaz</span>
                 </button>
                 <button
                   className={`fuel-btn ${fuelSubFilter === "benzin" ? "active" : ""}`}
-                  onClick={() => setFuelSubFilter("benzin")}
+                  onClick={() => { setFuelSubFilter(fuelSubFilter === "benzin" ? "all" : "benzin"); setActiveCategory("fuel"); }}
                 >
-                  <Droplets className="fuel-icon" size={20} /> Benzin
+                  <Fuel className="fuel-icon" size={24} /> <span>Benzin</span>
                 </button>
                 <button
                   className={`fuel-btn ${fuelSubFilter === "propan" ? "active" : ""}`}
-                  onClick={() => setFuelSubFilter("propan")}
+                  onClick={() => { setFuelSubFilter(fuelSubFilter === "propan" ? "all" : "propan"); setActiveCategory("fuel"); }}
                 >
-                  <Flame className="fuel-icon" size={20} /> Propan
+                  <Fuel className="fuel-icon" size={24} /> <span>Propan</span>
                 </button>
                 <button
                   className={`fuel-btn ${fuelSubFilter === "elektr" ? "active" : ""}`}
-                  onClick={() => setFuelSubFilter("elektr")}
+                  onClick={() => { setFuelSubFilter(fuelSubFilter === "elektr" ? "all" : "elektr"); setActiveCategory("fuel"); }}
                 >
-                  <Zap className="fuel-icon" size={20} /> Elektr Zaryadlash
+                  <Plug className="fuel-icon" size={24} /> <span>Elektr Zaryadlash</span>
+                </button>
+              </div>
+
+              <div className="custom-sort-row">
+                <button
+                  className={`custom-sort-btn ${fuelSortBy === "nearest" ? "active" : ""}`}
+                  onClick={() => setFuelSortBy("nearest")}
+                >
+                  Eng Yaqin
+                </button>
+                <button
+                  className={`custom-sort-btn ${fuelSortBy === "nearest_best" ? "active" : ""}`}
+                  onClick={() => setFuelSortBy("nearest_best")}
+                >
+                  Eng Sifatli
+                </button>
+                <button
+                  className={`custom-sort-btn ${fuelSortBy === "cheapest" ? "active" : ""}`}
+                  onClick={() => setFuelSortBy("cheapest")}
+                >
+                  Eng Arzon
                 </button>
               </div>
 
