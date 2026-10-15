@@ -3518,10 +3518,10 @@
   border-color: #444;
 }
 .dark-theme-home .fuel-btn.active {
-  background-color: var(--accent-blue, #0284c7) !important;
-  border: 1.5px solid #94a3b8 !important;
+  background-color: #1d4ed8 !important;
+  border: 1.5px solid #3b82f6 !important;
   color: #ffffff !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.35);
 }
 
 .dark-theme-home .fuel-icon {
@@ -3767,10 +3767,10 @@
 }
 
 .fuel-btn.active {
-  background-color: var(--accent-blue, #0284c7) !important;
-  border: 1.5px solid #94a3b8 !important;
+  background-color: #1d4ed8 !important;
+  border: 1.5px solid #3b82f6 !important;
   color: #ffffff !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.35);
 }
 .fuel-btn.active .fuel-icon,
 .fuel-btn.active span {
@@ -3915,10 +3915,10 @@
 /* Oq orqafon / Yorug' mavzu uchun: Faol yonilg'i tugmasi to'q ko'k va yozuvi oq */
 .is-light .fuel-btn.active,
 .dark-theme-home.is-light .fuel-btn.active {
-  background-color: #0284c7 !important;
-  border: 1.5px solid #94a3b8 !important;
+  background-color: #1d4ed8 !important;
+  border: 1.5px solid #1e40af !important;
   color: #ffffff !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25) !important;
 }
 .is-light .fuel-btn.active .fuel-icon,
 .dark-theme-home.is-light .fuel-btn.active .fuel-icon,
@@ -5490,5 +5490,96 @@
     height: 18px !important;
     flex-shrink: 0 !important;
   }
+
+  /* Gaz-benzinlar tagidagi saralash ("Eng yaqin", "Eng arzon") qatori uchun tepa va pastdan bo'shliq (yopishib qolmasligi uchun) */
+  .custom-sort-row {
+    padding: 0 10px !important;
+    margin: 12px 0 14px 0 !important;
+    display: flex !important;
+    gap: 8px !important;
+  }
+
+  .custom-sort-btn {
+    padding: 7px 14px !important;
+    font-size: 0.82rem !important;
+  }
+
+  /* Shahobchalar kartochkalari orasidagi bo'shliq */
+  .custom-station-card {
+    padding: 14px 12px !important;
+    margin-bottom: 12px !important;
+    border-radius: 14px !important;
+  }
+
+  /* TELEFONDA HAR QANDAY HOLATDA TURADIGAN HARITA RASMI BANNERI */
+  .mobile-map-find-banner {
+    display: block !important;
+    position: relative;
+    margin: 0 0 14px 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    height: 145px;
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 1.5px solid var(--border-color, rgba(255, 255, 255, 0.12));
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+    user-select: none;
+    flex-shrink: 0;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .mobile-map-find-banner:active {
+    transform: scale(0.98);
+  }
+
+  .mobile-map-banner-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .mobile-map-banner-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(15, 23, 42, 0.2) 0%,
+      rgba(15, 23, 42, 0.45) 50%,
+      rgba(15, 23, 42, 0.75) 100%
+    );
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .mobile-map-banner-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: rgba(2, 132, 199, 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: #ffffff;
+    padding: 10px 22px;
+    border-radius: 9999px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    box-shadow: 0 4px 16px rgba(2, 132, 199, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.25);
+    letter-spacing: 0.3px;
+  }
+
+  .mobile-map-badge-icon {
+    stroke-width: 2.2;
+  }
 }
 
+/* Desktopda (769px va undan katta ekranda) mobil xarita bannerini yashirish */
+@media (min-width: 769px) {
+  .mobile-map-find-banner {
+    display: none !important;
+  }
+}

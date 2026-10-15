@@ -188,8 +188,8 @@ export default function App() {
   });
 
   // Category & sub-filter (global — hamma tabda ishlaydi)
-  const [activeCategory, setActiveCategory] = useState("all"); // 'all' | 'fuel'
-  const [fuelSubFilter, setFuelSubFilter] = useState("all");
+  const [activeCategory, setActiveCategory] = useState("fuel"); // 'all' | 'fuel'
+  const [fuelSubFilter, setFuelSubFilter] = useState("metan");
   const [fuelSortBy, setFuelSortBy] = useState("nearest"); // nearest, nearest_cheap, cheapest, nearest_best
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -660,30 +660,29 @@ export default function App() {
               </div>
 
               <div className="station-list">
-                {fuelSubFilter !== "all" && (
-                  <div
-                    className="mobile-map-find-banner"
-                    onClick={() => handleTabChange("map")}
-                    role="button"
-                    tabIndex={0}
-                    title="Xaritadan topish"
-                  >
-                    <picture>
-                      <source media="(min-width: 769px)" srcSet="/map-preview-desktop.png" />
-                      <img
-                        src="/map-preview.jpg"
-                        alt="Xaritadan topish"
-                        className="mobile-map-banner-img"
-                      />
-                    </picture>
-                    <div className="mobile-map-banner-overlay">
-                      <div className="mobile-map-banner-badge">
-                        <Map size={18} className="mobile-map-badge-icon" />
-                        <span>Xaritadan topish</span>
-                      </div>
+                {/* TELEFONDA HAR QANDAY HOLATDA DOIM TURADIGAN HARITA RASMI */}
+                <div
+                  className="mobile-map-find-banner"
+                  onClick={() => handleTabChange("map")}
+                  role="button"
+                  tabIndex={0}
+                  title="Xaritadan topish"
+                >
+                  <picture>
+                    <source media="(min-width: 769px)" srcSet="/map-preview-desktop.png" />
+                    <img
+                      src="/map-preview.jpg"
+                      alt="Xaritadan topish"
+                      className="mobile-map-banner-img"
+                    />
+                  </picture>
+                  <div className="mobile-map-banner-overlay">
+                    <div className="mobile-map-banner-badge">
+                      <Map size={18} className="mobile-map-badge-icon" />
+                      <span>Xaritadan topish</span>
                     </div>
                   </div>
-                )}
+                </div>
 
                 {filteredStations.map((station) => (
                   <StationCard
