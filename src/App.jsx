@@ -5,9 +5,10 @@ import StationCard from "./components/StationCard";
 import StationDetailModal from "./components/StationDetailModal";
 import ProfileDetailModal from "./components/ProfileDetailModal";
 import AddStationModal from "./components/AddStationModal";
-import MapView from "./components/MapView";
+import MapView, { stationMatchesFuel } from "./components/MapView";
 import NavigationMode from "./components/NavigationMode";
 import SplashScreen from "./components/SplashScreen";
+import SettingsSection, { THEME_PRESETS } from "./components/SettingsSection";
 import { CITIES, INITIAL_STATIONS } from "./data/mockData";
 import { calculateDistance } from "./utils/distance";
 import {
@@ -31,8 +32,40 @@ import {
   Home,
   Search,
   Map,
+  X,
+  Bookmark,
+  Newspaper,
+  Trash2,
 } from "lucide-react";
 import "./App.css";
+
+
+const MOCK_NEWS = [
+  {
+    id: 1,
+    title: "Metan gaz bosimi barqaror",
+    desc: "Toshkent shahridagi AGTKSh shahobchalarida gaz bosimi 200-210 atm darajasida me'yorda ishlamoqda.",
+    date: "Bugun, 09:30",
+    tag: "Metan",
+    tagColor: "#0284c7",
+  },
+  {
+    id: 2,
+    title: "Yangi tezkor zaryadlash stansiyalari",
+    desc: "Poytaxt va viloyat markazlarida 120 kVt quvvatli yangi elektromobil zaryadlash stansiyalari ishga tushirildi.",
+    date: "Kecha, 18:45",
+    tag: "Elektr",
+    tagColor: "#10b981",
+  },
+  {
+    id: 3,
+    title: "AI-92 va AI-95 benzin narxlari",
+    desc: "Barcha yoqilg'i shahobchalarida sifat va narx nazorati monitoringi olib borilmoqda.",
+    date: "14 Oktabr",
+    tag: "Benzin",
+    tagColor: "#f59e0b",
+  },
+];
 
 export default function App() {
   // Eski dark temani tozalash va light ga o'tkazish
@@ -62,6 +95,28 @@ export default function App() {
   };
 
   const [activeTab, setActiveTab] = useState("home");
+
+  // Telegram uslubidagi mavzu rangi (Sozlamalar bo'limi uchun)
+  const [appTheme, setAppTheme] = useState(() => {
+    try {
+      const saved = localStorage.getItem("myup_theme_palette");
+      return saved ? JSON.parse(saved) : THEME_PRESETS[0];
+    } catch {
+      return THEME_PRESETS[0];
+    }
+  });
+
+  const isThemeLight = Boolean(
+    appTheme?.isLight ||
+    appTheme?.id === "default-white" ||
+    appTheme?.bg === "#f8fafc" ||
+    appTheme?.bg === "#ffffff"
+  );
+
+  const handleSaveTheme = (newTheme) => {
+    setAppTheme(newTheme);
+    localStorage.setItem("myup_theme_palette", JSON.stringify(newTheme));
+  };
 
   // Telefon ortga tugmasi uchun (Back Button)
   useEffect(() => {
@@ -138,6 +193,47 @@ export default function App() {
   const [fuelSortBy, setFuelSortBy] = useState("nearest"); // nearest, nearest_cheap, cheapest, nearest_best
 
   const [searchQuery, setSearchQuery] = useState("");
+  // Qidiruv tarixi
+  const [searchHistory, setSearchHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem("myup_search_history");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleAddSearchHistory = (term) => {
+    if (!term || !term.trim()) return;
+    const clean = term.trim();
+    setSearchHistory((prev) => {
+      const filtered = prev.filter((item) => item.toLowerCase() !== clean.toLowerCase());
+      const updated = [clean, ...filtered].slice(0, 8);
+      try {
+        localStorage.setItem("myup_search_history", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+  };
+
+  const handleRemoveSearchHistory = (e, term) => {
+    e.stopPropagation();
+    setSearchHistory((prev) => {
+      const updated = prev.filter((item) => item !== term);
+      try {
+        localStorage.setItem("myup_search_history", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+  };
+
+  const handleClearSearchHistory = () => {
+    setSearchHistory([]);
+    try {
+      localStorage.removeItem("myup_search_history");
+    } catch (e) {}
+  };
+
   const [detailStation, setDetailStation] = useState(null);
   const [showProfileDetail, setShowProfileDetail] = useState(false);
 
@@ -272,6 +368,18 @@ export default function App() {
     setReopenModal({ isOpen: false, stationId: null });
   };
 
+    const allStationsList = useMemo(() => {
+    return [...stations, ...myStations].map((st) => ({
+      ...st,
+      calculatedDistance: calculateDistance(
+        userCoords.lat,
+        userCoords.lng,
+        st.lat,
+        st.lng,
+      ),
+    }));
+  }, [stations, myStations, userCoords]);
+
   const filteredStations = useMemo(() => {
     const allStations = [...stations, ...myStations];
     let result = allStations
@@ -376,7 +484,20 @@ export default function App() {
   }
 
   return (
-    <div className="app-container">
+    <div
+      className={`app-container ${isThemeLight ? "is-light" : ""}`}
+      style={{
+        '--bg-color': appTheme.bg,
+        '--panel-bg': appTheme.panel,
+        '--card-bg': appTheme.card,
+        '--border-color': appTheme.border,
+        '--text-main': appTheme.text || (appTheme.isLight ? '#0f172a' : '#ffffff'),
+        '--text-muted': appTheme.textMuted || (appTheme.isLight ? '#64748b' : '#94a3b8'),
+        '--accent-blue': appTheme.accent,
+        backgroundColor: appTheme.bg,
+        color: appTheme.text || (appTheme.isLight ? '#0f172a' : '#ffffff'),
+      }}
+    >
       {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
 
       {/* Ambient background light */}
@@ -390,27 +511,56 @@ export default function App() {
         <div
           className="logo"
           onClick={() => handleTabChange("home")}
-          style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
+          style={{ cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}
         >
           <h1>
             myup.<span style={{ color: "#38bdf8" }}>uz</span>
           </h1>
         </div>
+
+        {/* HEADER QIDIRUV (myup.uz va Asosiy o'rtasidagi uzun qidiruv) */}
+        <div className="header-search-center">
+          <div className="header-search-bar">
+            <Search size={18} className="header-search-icon" />
+            <input
+              type="text"
+              placeholder="Manzil yoki zapravka qidiring..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                if (activeTab !== "home" && activeTab !== "map") {
+                  setActiveTab("home");
+                }
+              }}
+              className="header-search-input"
+            />
+            {searchQuery && (
+              <button
+                className="header-search-clear"
+                onClick={() => setSearchQuery("")}
+                title="Tozalash"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
         
         <button
           className="mobile-header-profile"
           onClick={() => handleTabChange("my")}
-          style={{ marginLeft: 'auto', background: 'none', border: 'none', padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+          style={{ background: 'none', border: 'none', padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+          title="Profil"
         >
-          <User size={24} color="#d1d5db" />
+          <User size={22} color={activeTab === "my" ? "#38bdf8" : "#d1d5db"} />
         </button>
-        <nav className="desktop-nav">
+        <nav className="desktop-nav" style={{ flexShrink: 0 }}>
           <button
-            className={`desktop-nav-item ${activeTab === "search" ? "active" : ""}`}
-            onClick={() => handleTabChange("search")}
+            className={`desktop-nav-item ${activeTab === "home" ? "active" : ""}`}
+            onClick={() => handleTabChange("home")}
           >
-            <Search size={18} className="desktop-nav-icon" />
-            <span>Qidiruv</span>
+            <Home size={18} className="desktop-nav-icon" />
+            <span>Asosiy</span>
           </button>
           <button
             className={`desktop-nav-item ${activeTab === "map" ? "active" : ""}`}
@@ -434,8 +584,8 @@ export default function App() {
             <span>Profil</span>
           </button>
           <button
-            className="desktop-nav-item"
-            onClick={() => setShowSettingsModal(true)}
+            className={`desktop-nav-item ${activeTab === "settings" ? "active" : ""}`}
+            onClick={() => handleTabChange("settings")}
           >
             <Settings size={18} className="desktop-nav-icon" />
             <span>Sozlamalar</span>
@@ -444,7 +594,20 @@ export default function App() {
       </header>
 
       {activeTab === "home" && (
-        <div className="dark-theme-home">
+        <div
+          className={`dark-theme-home ${isThemeLight ? "is-light" : ""}`}
+          style={{
+            '--bg-color': appTheme.bg,
+            '--panel-bg': appTheme.panel,
+            '--card-bg': appTheme.card,
+            '--border-color': appTheme.border,
+            '--text-main': appTheme.text || (appTheme.isLight ? '#0f172a' : '#ffffff'),
+            '--text-muted': appTheme.textMuted || (appTheme.isLight ? '#64748b' : '#94a3b8'),
+            '--accent-blue': appTheme.accent,
+            backgroundColor: appTheme.bg,
+            color: appTheme.text || (appTheme.isLight ? '#0f172a' : '#ffffff'),
+          }}
+        >
           <div className="app-content">
             {/* LEFT PANEL */}
             <div className="left-panel">
@@ -475,7 +638,7 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="custom-sort-row">
+              <div className={`custom-sort-row ${isThemeLight ? "is-light" : ""}`}>
                 <button
                   className={`custom-sort-btn ${fuelSortBy === "nearest" ? "active" : ""}`}
                   onClick={() => setFuelSortBy("nearest")}
@@ -497,6 +660,31 @@ export default function App() {
               </div>
 
               <div className="station-list">
+                {fuelSubFilter !== "all" && (
+                  <div
+                    className="mobile-map-find-banner"
+                    onClick={() => handleTabChange("map")}
+                    role="button"
+                    tabIndex={0}
+                    title="Xaritadan topish"
+                  >
+                    <picture>
+                      <source media="(min-width: 769px)" srcSet="/map-preview-desktop.png" />
+                      <img
+                        src="/map-preview.jpg"
+                        alt="Xaritadan topish"
+                        className="mobile-map-banner-img"
+                      />
+                    </picture>
+                    <div className="mobile-map-banner-overlay">
+                      <div className="mobile-map-banner-badge">
+                        <Map size={18} className="mobile-map-badge-icon" />
+                        <span>Xaritadan topish</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {filteredStations.map((station) => (
                   <StationCard
                     key={station.id}
@@ -505,6 +693,7 @@ export default function App() {
                     isFavorite={favorites.includes(station.id)}
                     onToggleFavorite={handleToggleFavorite}
                     onSelectStation={setDetailStation}
+                    onNavigate={handleNavigate}
                   />
                 ))}
               </div>
@@ -512,164 +701,24 @@ export default function App() {
 
             {/* RIGHT PANEL MAP */}
             <div className="right-panel-map">
-              <MapView />
+              <MapView
+                stations={[...stations, ...myStations]}
+                activeFuelFilter={fuelSubFilter}
+                onFuelFilterChange={(newFilter) => {
+                  setFuelSubFilter(newFilter);
+                  setActiveCategory(newFilter === "all" ? "all" : "fuel");
+                }}
+                onSelectStation={setDetailStation}
+                searchQuery={searchQuery}
+                showSidebar={false}
+              />
             </div>
           </div>
         </div>
       )}
 
-      {activeTab !== "home" && (
+      {activeTab !== "home" && activeTab !== "map" && activeTab !== "settings" && (
         <main className="content-area pb-20">
-          {/* ===== GLOBAL: Category Tabs (faqat Home va Qidiruvda) ===== */}
-          {activeTab === "search" && (
-            <>
-              <div className="home-category-tabs layout-padding">
-                <button
-                  className={`home-cat-btn ${activeCategory === "all" ? "active" : ""}`}
-                  onClick={() => {
-                    setActiveCategory("all");
-                    setFuelSubFilter("all");
-                  }}
-                >
-                  Barchasi
-                </button>
-                <button
-                  className={`home-cat-btn ${activeCategory === "fuel" ? "active" : ""}`}
-                  onClick={() => setActiveCategory("fuel")}
-                >
-                  <Fuel size={16} />
-                  Yoqilg'i shahobchasi
-                </button>
-                {/* Keyinchalik boshqa kategoriyalar shu yerga qo'shiladi */}
-              </div>
-
-              {/* Sub-filters (faqat Yoqilg'i shahobchasi tanlanganda) */}
-              <div
-                className={`fuel-filters-wrapper smooth-transition ${activeCategory === "fuel" ? "show" : "hide"}`}
-              >
-                <div className="transition-inner">
-                  <div className="home-sub-filters layout-padding">
-                    <button
-                      className={`sub-filter-pill ${fuelSubFilter === "all" ? "active" : ""}`}
-                      onClick={() => setFuelSubFilter("all")}
-                    >
-                      Barchasi
-                    </button>
-                    <button
-                      className={`sub-filter-pill gaz ${fuelSubFilter === "metan" ? "active" : ""}`}
-                      onClick={() => setFuelSubFilter("metan")}
-                    >
-                      <Flame size={14} />
-                      Gaz (Metan)
-                    </button>
-                    <button
-                      className={`sub-filter-pill propan ${fuelSubFilter === "propan" ? "active" : ""}`}
-                      onClick={() => setFuelSubFilter("propan")}
-                    >
-                      <Droplets size={14} />
-                      Propan
-                    </button>
-                    <button
-                      className={`sub-filter-pill benzin ${fuelSubFilter === "benzin" ? "active" : ""}`}
-                      onClick={() => setFuelSubFilter("benzin")}
-                    >
-                      <Fuel size={14} />
-                      Benzin
-                    </button>
-                    <button
-                      className={`sub-filter-pill elektr ${fuelSubFilter === "elektr" ? "active" : ""}`}
-                      onClick={() => setFuelSubFilter("elektr")}
-                    >
-                      <Zap size={14} />
-                      Elektr
-                    </button>
-                  </div>
-
-                  {/* SORTING TABS (Turtinchi qator) */}
-                  {/* SORTING TABS (Turtinchi qator) */}
-                  <div
-                    className={`home-sort-filters-wrapper ${fuelSubFilter !== "all" ? "expanded" : "collapsed"}`}
-                  >
-                    <div className="home-sort-filters layout-padding mt-2 mb-2">
-                      <button
-                        className={`sort-pill ${fuelSortBy === "nearest" ? "active" : ""}`}
-                        onClick={() => setFuelSortBy("nearest")}
-                      >
-                        Eng yaqini
-                      </button>
-                      <button
-                        className={`sort-pill ${fuelSortBy === "nearest_cheap" ? "active" : ""}`}
-                        onClick={() => setFuelSortBy("nearest_cheap")}
-                      >
-                        Eng yaqin va arzoni
-                      </button>
-                      <button
-                        className={`sort-pill ${fuelSortBy === "cheapest" ? "active" : ""}`}
-                        onClick={() => setFuelSortBy("cheapest")}
-                      >
-                        Eng arzoni
-                      </button>
-                      <button
-                        className={`sort-pill ${fuelSortBy === "nearest_best" ? "active" : ""}`}
-                        onClick={() => setFuelSortBy("nearest_best")}
-                      >
-                        Eng yaqin va sifatligi
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* ===== TAB CONTENT ===== */}
-
-          {/* HOME */}
-          {activeTab === "search" && (
-            <div className="tab-view fade-in layout-padding">
-              <div className="search-page-header mt-4">
-                <div className="search-input-box">
-                  <input
-                    type="text"
-                    placeholder="Zapravka nomini yozing..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="search-full-input"
-                  />
-                </div>
-              </div>
-              <div className="cards-stream-container mt-4">
-                {filteredStations.map((st) => (
-                  <StationCard
-                    key={st.id}
-                    station={st}
-                    userDistance={st.calculatedDistance}
-                    isFavorite={favorites.includes(st.id)}
-                    onToggleFavorite={handleToggleFavorite}
-                    onSelectStation={(s) => setDetailStation(s)}
-                    onNavigate={handleNavigate}
-                  />
-                ))}
-                {filteredStations.length === 0 && (
-                  <div className="empty-home-state">
-                    <Fuel size={48} className="empty-icon" />
-                    <p>Natija topilmadi</p>
-                    <span>Boshqa nom bilan qidirib ko'ring</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* MAP */}
-          {activeTab === "map" && (
-            <div className="tab-view fade-in">
-              <div className="map-full-container">
-                <MapView />
-              </div>
-            </div>
-          )}
-
           {/* MY (PROFILE) */}
           {activeTab === "my" && !user && (
             <div
@@ -1210,6 +1259,34 @@ export default function App() {
             </div>
           )}
         </main>
+      )}
+
+      {/* MAP - Full Screen (content-area tashqarisida) */}
+      {activeTab === "map" && (
+        <div
+          className="map-fullscreen-wrapper"
+          style={{
+            position: 'fixed',
+            top: '75px',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 5,
+          }}
+        >
+          <MapView stations={filteredStations} onSelectStation={setDetailStation} showSidebar={true} />
+        </div>
+      )}
+
+      {/* SETTINGS - Dedicated Section */}
+      {activeTab === "settings" && (
+        <SettingsSection
+          currentTheme={appTheme}
+          onSaveTheme={handleSaveTheme}
+          user={user}
+          onLogout={() => setShowLogoutConfirm(true)}
+          onNavigateProfile={() => { if (user) { setShowProfileDetail(true); } else { handleTabChange("my"); } }}
+        />
       )}
 
       {/* Profile Detail Modal */}

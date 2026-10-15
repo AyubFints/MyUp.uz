@@ -5,7 +5,8 @@ import { formatDistance } from '../utils/distance';
 export default function StationCard({
   station,
   userDistance,
-  onSelectStation
+  onSelectStation,
+  onNavigate
 }) {
   const isCurrentlyOpen = station.isOpen !== false;
   
@@ -25,6 +26,16 @@ export default function StationCard({
     detailsText += `Bosim: 210 atm`;
   }
 
+  const handleNavClick = (e) => {
+    e.stopPropagation();
+    if (onNavigate) {
+      onNavigate(station);
+    } else {
+      const url = `https://yandex.uz/maps/?rtext=~${station.lat},${station.lng}&rtt=auto`;
+      window.open(url, "_blank");
+    }
+  };
+
   return (
     <div className="custom-station-card" onClick={() => onSelectStation(station)} style={{ cursor: 'pointer' }}>
       {isCurrentlyOpen ? (
@@ -35,7 +46,8 @@ export default function StationCard({
           </div>
           
           <div className="custom-sc-distance">
-            {formatDistance(userDistance)} uzog'liq
+            {station.address && <span className="custom-sc-addr">{station.address} • </span>}
+            <span>{formatDistance(userDistance)} uzog'liq</span>
           </div>
           
           <div className="custom-sc-details">
@@ -48,7 +60,7 @@ export default function StationCard({
             <button className="custom-btn-details" onClick={(e) => { e.stopPropagation(); onSelectStation(station); }}>
               Batafsil
             </button>
-            <button className="custom-btn-navigate" onClick={(e) => { e.stopPropagation(); /* Navigation logic here */ }}>
+            <button className="custom-btn-navigate" onClick={handleNavClick}>
               Borish <Map size={16} />
             </button>
           </div>
@@ -58,7 +70,8 @@ export default function StationCard({
           <div className="custom-sc-header">
             <h3 className="custom-sc-title">{station.name} {station.type && `(${station.type.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join('/')})`}</h3>
             <span className="custom-sc-distance" style={{ margin: 0, fontSize: '0.85rem' }}>
-              {formatDistance(userDistance)}
+              {station.address && <span className="custom-sc-addr">{station.address} • </span>}
+              <span>{formatDistance(userDistance)}</span>
             </span>
           </div>
           
