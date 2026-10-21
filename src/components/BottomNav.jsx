@@ -1,7 +1,7 @@
 import React from "react";
-import { Home, Map, Settings } from "lucide-react";
+import { Home, Map, Menu, Settings } from "lucide-react";
 
-export default function BottomNav({ activeTab, setActiveTab, onOpenSettings }) {
+export default function BottomNav({ activeTab, setActiveTab, onOpenSettings, onOpenServices }) {
   return (
     <nav className="bottom-nav-bar modern-bottom-nav">
       <button
@@ -18,6 +18,20 @@ export default function BottomNav({ activeTab, setActiveTab, onOpenSettings }) {
       >
         <Map size={20} className="nav-icon" />
         <span>Xarita</span>
+      </button>
+
+      <button
+        className={`bottom-nav-item ${activeTab === "services" ? "active" : ""}`}
+        onClick={() => {
+          if (onOpenServices) {
+            onOpenServices();
+          } else {
+            setActiveTab("services");
+          }
+        }}
+      >
+        <Menu size={20} className="nav-icon" />
+        <span>Xizmatlar</span>
       </button>
 
       <button

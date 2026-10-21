@@ -72,7 +72,7 @@ export default function UserProfileModal({
             <Sparkles size={16} className="text-purple-400" />
             <div>
               <span className="info-label">A'zolik holati</span>
-              <strong className="text-cyan-400">MyUp Premium Foydalanuvchi</strong>
+              <strong className="text-cyan-400">A-Maps Premium Foydalanuvchi</strong>
             </div>
           </div>
         </div>

@@ -3,7 +3,7 @@ export default function App() {
     <div className="app-container">
       {/* HEADER */}
       <header className="top-header">
-        <div className="logo-text">myup.uz</div>
+        <div className="logo-text">a-maps.<span style={{ color: "#38bdf8" }}>uz</span></div>
 
         {/* Desktop Nav */}
         <nav className="desktop-nav">

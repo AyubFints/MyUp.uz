@@ -78,7 +78,7 @@ export function stationMatchesFuel(st, fuel) {
 }
 
 // Zaxira demo shahobchalar (agar ro'yxat bo'sh bo'lsa darhol ishlashi uchun)
-const DEFAULT_DEMO_STATIONS = [
+export const DEFAULT_DEMO_STATIONS = [
   {
     id: 'demo-1',
     name: 'Mustaqillik Metan Gaz',
@@ -161,6 +161,90 @@ const DEFAULT_DEMO_STATIONS = [
     gasPressure: 210,
     rating: 4.8,
   },
+  {
+    id: 'demo-7',
+    name: 'Chilonzor Avto Gaz Servis',
+    brand: 'UzMetan',
+    type: ['metan', 'propan'],
+    lat: 41.2780,
+    lng: 69.2150,
+    address: 'Bunyodkor shoh koʻchasi, Chilonzor',
+    isOpen: true,
+    price: 3700,
+    prices: { metan: 3700, propan: 5100 },
+    gasPressure: 215,
+    rating: 4.8,
+  },
+  {
+    id: 'demo-8',
+    name: 'Yunusobod Gaz & Benzin',
+    brand: 'UNG Petro',
+    type: ['metan', 'benzin'],
+    lat: 41.3580,
+    lng: 69.2890,
+    address: 'Amir Temur koʻchasi, Yunusobod',
+    isOpen: true,
+    price: 3750,
+    prices: { metan: 3750, benzin: 9600 },
+    gasPressure: 212,
+    rating: 4.7,
+  },
+  {
+    id: 'demo-9',
+    name: 'Sergeli Baraka Metan',
+    brand: 'BarakaGaz',
+    type: ['metan'],
+    lat: 41.2290,
+    lng: 69.2230,
+    address: 'Yangisergeli koʻchasi, Sergeli',
+    isOpen: true,
+    price: 3650,
+    prices: { metan: 3650 },
+    gasPressure: 220,
+    rating: 4.9,
+  },
+  {
+    id: 'demo-10',
+    name: 'Yashnobod Mega Metan',
+    brand: 'MegaGaz',
+    type: ['metan', 'propan'],
+    lat: 41.2910,
+    lng: 69.3250,
+    address: 'Fargʻona yoʻli, Yashnobod',
+    isOpen: true,
+    price: 3700,
+    prices: { metan: 3700, propan: 5150 },
+    gasPressure: 210,
+    rating: 4.6,
+  },
+  {
+    id: 'demo-11',
+    name: 'Olmazor Eko Gaz',
+    brand: 'EkoGaz',
+    type: ['metan'],
+    lat: 41.3480,
+    lng: 69.2180,
+    address: 'Qorasaroy koʻchasi, Olmazor',
+    isOpen: true,
+    price: 3700,
+    prices: { metan: 3700 },
+    gasPressure: 215,
+    rating: 4.8,
+  },
+  {
+    id: 'demo-12',
+    name: 'Uchtepa Poytaxt Metan',
+    brand: 'PoytaxtGaz',
+    type: ['metan'],
+    lat: 41.2980,
+    lng: 69.1760,
+    address: 'Lutfiy koʻchasi, Uchtepa',
+    isOpen: true,
+    price: 3600,
+    prices: { metan: 3600 },
+    gasPressure: 218,
+    rating: 4.9,
+  },
 ];
 
 export default function MapView({
@@ -169,6 +253,7 @@ export default function MapView({
   onSelectStation,
   searchQuery = '',
   showSidebar = false, // Faqat xarita bo'limida (activeTab === 'map') ko'rsatiladi
+  userCoords = null,
 }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
@@ -177,11 +262,22 @@ export default function MapView({
   const userMarkerRef = useRef(null);
   const hasAutoCentered = useRef(false);
 
-  const [userPos, setUserPos] = useState(null); // [lat, lng]
+  const [userPos, setUserPos] = useState(() => {
+    return userCoords && userCoords.lat && userCoords.lng
+      ? [userCoords.lat, userCoords.lng]
+      : null;
+  }); // [lat, lng]
   const [accuracy, setAccuracy] = useState(null);
-  const [locating, setLocating] = useState(true);
+  const [locating, setLocating] = useState(!userCoords);
   const [errorMsg, setErrorMsg] = useState('');
   const watchRef = useRef(null);
+
+  useEffect(() => {
+    if (userCoords && userCoords.lat && userCoords.lng) {
+      setUserPos([userCoords.lat, userCoords.lng]);
+      setLocating(false);
+    }
+  }, [userCoords]);
 
   // Yandex uslubidagi chap panel holatlari
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);

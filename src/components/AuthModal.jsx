@@ -180,7 +180,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
         <div className="auth-header">
           <div className="auth-logo-badge">
             <Sparkles size={20} className="text-cyan-400" />
-            <span>MyUp.uz</span>
+            <span>A-Maps<span style={{ color: '#38bdf8' }}>.uz</span></span>
           </div>
           <h2>
             {authMode === 'login' ? 'Tizimga kirish' : 'Ro‘yxatdan o‘tish'}
@@ -230,7 +230,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
             <div className="sms-banner-header">
               <div className="sms-banner-title">
                 <MessageSquare size={16} />
-                <span>Yangi SMS (MyUp.uz)</span>
+                <span>Yangi SMS (A-Maps.uz)</span>
               </div>
               <span className="sms-banner-time">Hozirgina</span>
             </div>

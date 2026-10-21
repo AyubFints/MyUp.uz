@@ -37,10 +37,10 @@ export default function SplashScreen({ onComplete }) {
       <div className="splash-content" style={{ zIndex: 2, position: 'relative' }}>
         {/* Yozuv animatsiyasi */}
         <div className={`splash-logo ${phase === 'scaling' ? 'scale-up' : 'bounce-in'}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px' }}>
-          <img src="https://i.postimg.cc/VNHPnzHt/myup-orgg.jpg" alt="MyUp Logo" className="brand-logo-icon" style={{ width: '72px', height: '72px', borderRadius: '16px' }} />
+          <img src="https://i.postimg.cc/VNHPnzHt/myup-orgg.jpg" alt="A-Maps Logo" className="brand-logo-icon" style={{ width: '72px', height: '72px', borderRadius: '16px' }} />
           <div>
-            <span className="splash-brand-my">My</span>
-            <span className="splash-brand-up">Up</span>
+            <span className="splash-brand-my">A-</span>
+            <span className="splash-brand-up">Maps</span>
             <span className="splash-brand-dot">.uz</span>
           </div>
         </div>

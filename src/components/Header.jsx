@@ -33,8 +33,8 @@ export default function Header({
           </div>
           <div className="brand-titles">
             <div className="brand-name-row">
-              <span className="brand-main">MyUp</span>
-              <span className="brand-domain">.uz</span>
+              <span className="brand-main">a-maps.</span>
+              <span className="brand-domain" style={{ color: '#38bdf8' }}>uz</span>
             </div>
             <span className="brand-tagline">Eng yaqin zapravka va xizmatlar</span>
           </div>

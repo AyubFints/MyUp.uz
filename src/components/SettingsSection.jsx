@@ -276,7 +276,7 @@ export default function SettingsSection({
 
   return (
     <div className={`new-settings-wrapper ${isLight ? 'is-light' : ''}`}>
-      {/* 1. TEPADAGI QATOR: "Sozlamalar" (chapda myup.uz tagida) va Kalakolchik (o'ng burchakda 10px joy bilan) */}
+      {/* 1. TEPADAGI QATOR: "Sozlamalar" (chapda A-Maps.uz tagida) va Kalakolchik (o'ng burchakda 10px joy bilan) */}
       <div className="new-settings-header-row">
         <h1 className="new-settings-title">Sozlamalar</h1>
         <button

@@ -2,10 +2,11 @@ import React, { useState, useEffect, useMemo } from "react";
 import AuthScreen from "./components/AuthScreen";
 import BottomNav from "./components/BottomNav";
 import StationCard from "./components/StationCard";
+import StationCardSkeleton from "./components/StationCardSkeleton";
 import StationDetailModal from "./components/StationDetailModal";
 import ProfileDetailModal from "./components/ProfileDetailModal";
 import AddStationModal from "./components/AddStationModal";
-import MapView, { stationMatchesFuel } from "./components/MapView";
+import MapView, { stationMatchesFuel, DEFAULT_DEMO_STATIONS } from "./components/MapView";
 import NavigationMode from "./components/NavigationMode";
 import SplashScreen from "./components/SplashScreen";
 import SettingsSection, { THEME_PRESETS } from "./components/SettingsSection";
@@ -22,6 +23,7 @@ import {
   Zap,
   User,
   ChevronRight,
+  ChevronDown,
   Plus,
   Edit3,
   MapPin,
@@ -36,6 +38,16 @@ import {
   Bookmark,
   Newspaper,
   Trash2,
+  Play,
+  Sparkles,
+  Info,
+  ArrowLeft,
+  Bell,
+  Check,
+  Coffee,
+  ShoppingBag,
+  CreditCard,
+  Banknote,
 } from "lucide-react";
 import "./App.css";
 
@@ -159,8 +171,10 @@ export default function App() {
   });
   const [showAddStation, setShowAddStation] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showServicesModal, setShowServicesModal] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [editingStation, setEditingStation] = useState(null);
+  const [stationToDelete, setStationToDelete] = useState(null);
 
   // Custom Reopen Modal
   const [reopenModal, setReopenModal] = useState({
@@ -168,6 +182,19 @@ export default function App() {
     stationId: null,
   });
   const [reopenTimeInput, setReopenTimeInput] = useState("");
+
+  // Station Manage Page state (Mening joylarim -> Alohida boshqarish bo'limi)
+  const [selectedManageStationId, setSelectedManageStationId] = useState(null);
+  const [showStationBellModal, setShowStationBellModal] = useState(false);
+  const [editingPriceKey, setEditingPriceKey] = useState(null);
+  const [tempPriceVal, setTempPriceVal] = useState("");
+  const [showPhoneEditModal, setShowPhoneEditModal] = useState(false);
+  const [pendingPhoneStationId, setPendingPhoneStationId] = useState(null);
+  const [tempPhone, setTempPhone] = useState("");
+
+  const currentManageStation = useMemo(() => {
+    return myStations.find((s) => s.id === selectedManageStationId) || null;
+  }, [myStations, selectedManageStationId]);
 
   // Quick Gas Pressure Edit
   const [editingPressureId, setEditingPressureId] = useState(null);
@@ -246,13 +273,57 @@ export default function App() {
     localStorage.setItem("myup_favorites", JSON.stringify(favorites));
   }, [favorites]);
 
-  useEffect(() => {
-    localStorage.setItem("myup_my_stations", JSON.stringify(myStations));
-  }, [myStations]);
+  const [isLocating, setIsLocating] = useState(true);
 
+  // Dasturga kirganda fon rejimida foydalanuvchi joylashuvini avtomatik aniqlash (xaritasiz)
   useEffect(() => {
-    setUserCoords({ lat: selectedCity.lat, lng: selectedCity.lng });
-  }, [selectedCity]);
+    let hasResolved = false;
+
+    if (!navigator.geolocation) {
+      setIsLocating(false);
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        if (pos && pos.coords) {
+          const { latitude, longitude } = pos.coords;
+          setUserCoords({ lat: latitude, lng: longitude });
+
+          // 70% aniqlikdayoq (birinchi olingan aniq koordinatalar) pastdagi manzillar chiqishni boshlaydi
+          if (!hasResolved) {
+            hasResolved = true;
+            setIsLocating(false);
+          }
+        }
+      },
+      (err) => {
+        console.warn("Avtomatik geolokatsiya:", err?.message || err);
+        if (!hasResolved) {
+          hasResolved = true;
+          setIsLocating(false);
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 6000,
+        maximumAge: 30000,
+      }
+    );
+
+    // Agar geolokatsiya uzoq vaqt cho'zilsa, sahifa qotib turmasligi uchun fallback
+    const fallbackTimer = setTimeout(() => {
+      if (!hasResolved) {
+        hasResolved = true;
+        setIsLocating(false);
+      }
+    }, 2200);
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+      clearTimeout(fallbackTimer);
+    };
+  }, []);
 
   const handleToggleFavorite = (stationId) => {
     if (favorites.includes(stationId)) {
@@ -283,8 +354,7 @@ export default function App() {
   };
 
   const handleNavigate = (station) => {
-    const url = `https://yandex.uz/maps/?rtext=~${station.lat},${station.lng}&rtt=auto`;
-    window.open(url, "_blank");
+    setNavigationTarget(station);
   };
 
   // Shahobcha saqlash / tahrirlash
@@ -301,6 +371,26 @@ export default function App() {
   const handleEditStation = (station) => {
     setEditingStation(station);
     setShowAddStation(true);
+  };
+
+  const handleConfirmDeleteStation = () => {
+    if (!stationToDelete) return;
+    const stId = stationToDelete.id;
+
+    // Mening joylarim va umumiy ro'yxatdan o'chirish
+    setMyStations((prev) => prev.filter((s) => s.id !== stId));
+    setStations((prev) => prev.filter((s) => s.id !== stId));
+
+    // Agar boshqaruv sahifasida turgan bo'lsa, chiqib ketish
+    if (selectedManageStationId === stId) {
+      setSelectedManageStationId(null);
+    }
+    // Agar tafsilotlar modali ochilgan bo'lsa, yopish
+    if (detailStation?.id === stId) {
+      setDetailStation(null);
+    }
+
+    setStationToDelete(null);
   };
 
   const handleSaveQuickPressure = (e, stId) => {
@@ -337,7 +427,7 @@ export default function App() {
   };
 
   const handleSetStatus = (e, stationId, makeOpen) => {
-    e.stopPropagation();
+    if (e && e.stopPropagation) e.stopPropagation();
     const station = myStations.find((s) => s.id === stationId);
     if (!station) return;
 
@@ -349,27 +439,191 @@ export default function App() {
       setReopenModal({ isOpen: true, stationId });
     } else {
       // Ochish
-      setMyStations(
-        myStations.map((s) =>
-          s.id === stationId ? { ...s, isOpen: true, reopenTime: "" } : s,
-        ),
-      );
+      const updateFn = (s) =>
+        s.id === stationId ? { ...s, isOpen: true, reopenTime: "" } : s;
+      setMyStations((prev) => prev.map(updateFn));
+      setStations((prev) => prev.map(updateFn));
     }
   };
 
   const submitReopenTime = () => {
-    setMyStations(
-      myStations.map((s) =>
-        s.id === reopenModal.stationId
-          ? { ...s, isOpen: false, reopenTime: reopenTimeInput || "" }
-          : s,
-      ),
-    );
+    const updateFn = (s) =>
+      s.id === reopenModal.stationId
+        ? { ...s, isOpen: false, reopenTime: reopenTimeInput || "" }
+        : s;
+    setMyStations((prev) => prev.map(updateFn));
+    setStations((prev) => prev.map(updateFn));
     setReopenModal({ isOpen: false, stationId: null });
   };
 
-    const allStationsList = useMemo(() => {
-    return [...stations, ...myStations].map((st) => ({
+  const allAvailableFuels = [
+    { id: "metan", label: "Gaz (Metan)", icon: Flame, color: "#0ea5e9" },
+    { id: "propan", label: "Propan", icon: Droplets, color: "#a855f7" },
+    { id: "benzin", label: "Benzin", icon: Fuel, color: "#f59e0b" },
+    { id: "elektr", label: "Elektr", icon: Zap, color: "#10b981" },
+  ];
+
+  const activeFuelsList = useMemo(() => {
+    if (!currentManageStation) return [];
+    const types = currentManageStation.type || [];
+    if (types.length === 0) {
+      return allAvailableFuels.slice(0, 2);
+    }
+    const matched = allAvailableFuels.filter((f) => types.includes(f.id));
+    return matched.length > 0 ? matched : allAvailableFuels.slice(0, 2);
+  }, [currentManageStation]);
+
+  const pressureFuelsList = useMemo(() => {
+    if (!currentManageStation) return [];
+    const types = currentManageStation.type || [];
+    const gasOnly = allAvailableFuels.filter(
+      (f) =>
+        (f.id === "metan" || f.id === "propan") &&
+        (types.length === 0 || types.includes(f.id))
+    );
+    return gasOnly.length > 0 ? gasOnly : allAvailableFuels.slice(0, 2);
+  }, [currentManageStation]);
+
+  const getPressureStatus = (pressure) => {
+    const p = Number(pressure);
+    if (!p || isNaN(p) || p <= 0) {
+      return {
+        label: "Kiritilmagan",
+        color: "#94a3b8",
+        bg: "rgba(148, 163, 184, 0.1)",
+      };
+    }
+    if (p > 170) {
+      return {
+        label: "Me'yorida",
+        color: "#10b981",
+        bg: "rgba(16, 185, 129, 0.15)",
+      };
+    }
+    if (p >= 150) {
+      return {
+        label: "O'rtacha",
+        color: "#f59e0b",
+        bg: "rgba(245, 158, 11, 0.15)",
+      };
+    }
+    if (p >= 100) {
+      return {
+        label: "Past",
+        color: "#f97316",
+        bg: "rgba(249, 115, 22, 0.15)",
+      };
+    }
+    return {
+      label: "Juda past",
+      color: "#ef4444",
+      bg: "rgba(239, 68, 68, 0.15)",
+    };
+  };
+
+  const getFuelPressure = (station, fuelKey) => {
+    if (!station) return "";
+    if (station.pressures && station.pressures[fuelKey] !== undefined) {
+      return station.pressures[fuelKey];
+    }
+    if (fuelKey === "metan" || !station.pressures) {
+      return station.gasPressure !== undefined && station.gasPressure !== null
+        ? station.gasPressure
+        : "";
+    }
+    return "";
+  };
+
+  const updateStationField = (stationId, fieldsToUpdate) => {
+    const updateFn = (s) =>
+      s.id === stationId ? { ...s, ...fieldsToUpdate } : s;
+    setMyStations((prev) => prev.map(updateFn));
+    setStations((prev) => prev.map(updateFn));
+  };
+
+  const handleConfirmSavePhone = () => {
+    if (pendingPhoneStationId) {
+      updateStationField(pendingPhoneStationId, {
+        phone: tempPhone ? tempPhone.trim() : "",
+      });
+    }
+    setShowPhoneEditModal(false);
+    setPendingPhoneStationId(null);
+    setTempPhone("");
+  };
+
+  const handleUpdatePressure = (stationId, fuelKey, val) => {
+    let num = val === "" ? "" : parseInt(val, 10);
+    if (num !== "") {
+      num = Math.min(205, Math.max(0, num));
+    }
+
+    const updateFn = (s) => {
+      if (s.id !== stationId) return s;
+      const newPressures = { ...(s.pressures || {}) };
+      if (num === "") delete newPressures[fuelKey];
+      else newPressures[fuelKey] = num;
+
+      const updated = { ...s, pressures: newPressures };
+      if (fuelKey === "metan" || !s.pressures) {
+        updated.gasPressure = num === "" ? null : num;
+      }
+      return updated;
+    };
+
+    setMyStations((prev) => prev.map(updateFn));
+    setStations((prev) => prev.map(updateFn));
+  };
+
+  const handleUpdatePrice = (stationId, fuelKey, priceVal) => {
+    let num = parseInt(priceVal, 10);
+    const updateFn = (s) => {
+      if (s.id !== stationId) return s;
+      const newPrices = { ...(s.prices || {}) };
+      if (isNaN(num) || num <= 0) delete newPrices[fuelKey];
+      else newPrices[fuelKey] = num;
+      return { ...s, prices: newPrices };
+    };
+    setMyStations((prev) => prev.map(updateFn));
+    setStations((prev) => prev.map(updateFn));
+  };
+
+  const handleToggleAmenity = (stationId, amenityKey) => {
+    const updateFn = (s) => {
+      if (s.id !== stationId) return s;
+      const cur = s.amenities?.[amenityKey] ?? true;
+      return {
+        ...s,
+        amenities: {
+          ...(s.amenities || { coffee: true, toilet: true, shop: true }),
+          [amenityKey]: !cur,
+        },
+      };
+    };
+    setMyStations((prev) => prev.map(updateFn));
+    setStations((prev) => prev.map(updateFn));
+  };
+
+  const handleTogglePayment = (stationId, payKey) => {
+    const updateFn = (s) => {
+      if (s.id !== stationId) return s;
+      const cur = s.payments?.[payKey] ?? true;
+      return {
+        ...s,
+        payments: {
+          ...(s.payments || { cash: true, uzcard: true, humo: true, visa: true }),
+          [payKey]: !cur,
+        },
+      };
+    };
+    setMyStations((prev) => prev.map(updateFn));
+    setStations((prev) => prev.map(updateFn));
+  };
+
+  const allStationsList = useMemo(() => {
+    const baseList = [...stations, ...myStations];
+    const sourceList = baseList.length > 0 ? baseList : DEFAULT_DEMO_STATIONS;
+    return sourceList.map((st) => ({
       ...st,
       calculatedDistance: calculateDistance(
         userCoords.lat,
@@ -381,7 +635,8 @@ export default function App() {
   }, [stations, myStations, userCoords]);
 
   const filteredStations = useMemo(() => {
-    const allStations = [...stations, ...myStations];
+    const baseList = [...stations, ...myStations];
+    const allStations = baseList.length > 0 ? baseList : DEFAULT_DEMO_STATIONS;
     let result = allStations
       .map((st) => ({
         ...st,
@@ -473,6 +728,18 @@ export default function App() {
     userCoords,
   ]);
 
+  // Telefon va kompyuterda dastlab faqat 5 ta manzil ko'rsatish
+  const [visibleStationCount, setVisibleStationCount] = useState(5);
+
+  // Filtrlash (Metan, Benzin...) yoki saralash (Eng Yaqin...) o'zgarganda yana 5 tadan boshlash
+  useEffect(() => {
+    setVisibleStationCount(5);
+  }, [fuelSubFilter, fuelSortBy, activeCategory, searchQuery]);
+
+  const displayedStations = useMemo(() => {
+    return filteredStations.slice(0, visibleStationCount);
+  }, [filteredStations, visibleStationCount]);
+
   if (navigationTarget) {
     return (
       <NavigationMode
@@ -514,11 +781,11 @@ export default function App() {
           style={{ cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}
         >
           <h1>
-            myup.<span style={{ color: "#38bdf8" }}>uz</span>
+            A-maps.<span style={{ color: "#38bdf8" }}>uz</span>
           </h1>
         </div>
 
-        {/* HEADER QIDIRUV (myup.uz va Asosiy o'rtasidagi uzun qidiruv) */}
+        {/* HEADER QIDIRUV (A-Maps.uz va Asosiy o'rtasidagi uzun qidiruv) */}
         <div className="header-search-center">
           <div className="header-search-bar">
             <Search size={18} className="header-search-icon" />
@@ -571,7 +838,7 @@ export default function App() {
           </button>
           <button
             className={`desktop-nav-item ${activeTab === "services" ? "active" : ""}`}
-            onClick={() => alert("Xizmatlar hozircha tayyor emas")}
+            onClick={() => setShowServicesModal(true)}
           >
             <Menu size={18} className="desktop-nav-icon" />
             <span>Xizmatlar</span>
@@ -684,17 +951,38 @@ export default function App() {
                   </div>
                 </div>
 
-                {filteredStations.map((station) => (
-                  <StationCard
-                    key={station.id}
-                    station={station}
-                    userDistance={station.calculatedDistance}
-                    isFavorite={favorites.includes(station.id)}
-                    onToggleFavorite={handleToggleFavorite}
-                    onSelectStation={setDetailStation}
-                    onNavigate={handleNavigate}
-                  />
-                ))}
+                {isLocating ? (
+                  Array.from({ length: 4 }).map((_, idx) => (
+                    <StationCardSkeleton key={`skeleton-${idx}`} />
+                  ))
+                ) : (
+                  <>
+                    {displayedStations.map((station) => (
+                      <StationCard
+                        key={station.id}
+                        station={station}
+                        userDistance={station.calculatedDistance}
+                        isFavorite={favorites.includes(station.id)}
+                        onToggleFavorite={handleToggleFavorite}
+                        onSelectStation={setDetailStation}
+                        onNavigate={handleNavigate}
+                      />
+                    ))}
+
+                    {filteredStations.length > visibleStationCount && (
+                      <div className="load-more-stations-container">
+                        <button
+                          type="button"
+                          className="load-more-stations-btn"
+                          onClick={() => setVisibleStationCount((prev) => prev + 5)}
+                        >
+                          <span>Yana</span>
+                          <ChevronDown size={18} />
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
 
@@ -710,6 +998,7 @@ export default function App() {
                 onSelectStation={setDetailStation}
                 searchQuery={searchQuery}
                 showSidebar={false}
+                userCoords={userCoords}
               />
             </div>
           </div>
@@ -717,544 +1006,779 @@ export default function App() {
       )}
 
       {activeTab !== "home" && activeTab !== "map" && activeTab !== "settings" && (
-        <main className="content-area pb-20">
+        <main className={`content-area pb-20 ${activeTab === "my" ? "profile-content-area" : ""}`}>
           {/* MY (PROFILE) */}
           {activeTab === "my" && !user && (
             <div
-              className="tab-view fade-in layout-padding"
+              className={`auth-three-col-layout profile-three-col-layout ${isThemeLight ? "is-light" : ""}`}
               style={{
-                height: "100vh",
-                paddingBottom: "70px",
-                overflowY: "auto",
+                '--theme-accent': appTheme?.accent || '#38bdf8',
+                '--theme-bg': appTheme?.bg || '#0e0e10',
+                '--theme-card': appTheme?.card || '#1c1c1e',
+                '--theme-border': appTheme?.border || 'rgba(255, 255, 255, 0.08)',
+                '--theme-panel': appTheme?.panel || '#161618',
+                '--theme-text': appTheme?.text || (isThemeLight ? '#0f172a' : '#ffffff'),
+                '--theme-muted': appTheme?.textMuted || (isThemeLight ? '#64748b' : '#94a3b8'),
+                minHeight: "100vh",
+                backgroundColor: appTheme?.bg || "var(--bg-primary, #0b0f19)",
+                color: appTheme?.text || (isThemeLight ? "#0f172a" : "#ffffff"),
               }}
             >
-              <AuthScreen onLoginSuccess={setUser} />
-            </div>
-          )}
-          {activeTab === "my" && user && (
-            <div className="tab-view fade-in layout-padding">
-              {/* Header */}
-              <div style={{ marginTop: "16px" }}>
-                <h2
-                  style={{
-                    fontSize: "1.2rem",
-                    color: "var(--text-primary)",
-                    margin: 0,
-                    fontWeight: "700",
-                  }}
-                >
-                  Profil
-                </h2>
-              </div>
-
-              {/* Profil kartochkasi */}
-              <div className="profile-page-card mt-3">
-                <div className="profile-header-banner">
-                  <div className="profile-names-block">
-                    <h3>
-                      {user?.firstName} {user?.lastName}
-                    </h3>
-                    <span className="profile-user-phone">
-                      {user?.phoneNumber}
-                    </span>
+              {/* CHAP TOMON REKLAMA (Faqat kompyuter holatida) */}
+              <aside className="profile-side-video-banner left-banner auth-desktop-side-banner">
+                <div className="side-banner-inner">
+                  <div className="side-banner-tag">
+                    <Sparkles size={13} />
+                    <span>Reklama</span>
                   </div>
-                  <div
-                    className="profile-avatar-box clickable"
-                    onClick={() => setShowProfileDetail(true)}
-                  >
-                    {user?.avatar && !user?.avatar.includes("dicebear") ? (
-                      <img src={user?.avatar} alt={user?.firstName} />
-                    ) : (
-                      <User size={28} />
-                    )}
-                    <div className="profile-avatar-arrow">
-                      <ChevronRight size={14} />
+
+                  <div className="side-video-box">
+                    <div className="side-video-ambient-glow"></div>
+                    <div className="side-video-header-badge">
+                      <span className="live-dot"></span>
+                      <span>HD • 0:30</span>
+                    </div>
+
+                    <div className="side-video-center-content">
+                      <div className="video-play-button-ring">
+                        <div className="video-play-pulse"></div>
+                        <Play size={24} className="video-play-icon" fill="currentColor" />
+                      </div>
+                      <h4 className="video-ad-title">
+                        Bu yerda sizning reklamangiz bo'lishi mumkin
+                      </h4>
+                      <p className="video-ad-desc">
+                        A-Maps ilovasida minglab faol haydovchilarga o'z biznesingizni video orqali taniting
+                      </p>
+                    </div>
+
+                    <div className="side-video-bottom-bar">
+                      <button
+                        className="side-video-cta"
+                        onClick={() => alert("Reklama berish uchun: @amaps_support")}
+                      >
+                        Reklama berish
+                      </button>
                     </div>
                   </div>
                 </div>
+              </aside>
+
+              {/* O'RTA ASOSIY RO'YXATDAN O'TISH / KIRISH QISMI */}
+              <div className="auth-center-col profile-center-main-col">
+                <AuthScreen onLoginSuccess={setUser} isLight={isThemeLight} />
               </div>
 
-              {/* Mening manzillarim ro'yxati (tepada) */}
-              {myStations.length > 0 && (
-                <div className="my-stations-list mt-4">
-                  <h4 className="my-stations-title">Mening manzillarim</h4>
-                  {myStations.map((st) => {
-                    const fuelLabel = (st.type || [])
-                      .map((t) => {
-                        if (t === "metan") return "Gaz";
-                        if (t === "propan") return "Propan";
-                        if (t === "benzin") return "Benzin";
-                        if (t === "elektr") return "Elektr";
-                        return t;
-                      })
-                      .join(", ");
+              {/* O'NG TOMON REKLAMA (Faqat kompyuter holatida) */}
+              <aside className="profile-side-video-banner right-banner auth-desktop-side-banner">
+                <div className="side-banner-inner">
+                  <div className="side-banner-tag">
+                    <Sparkles size={13} />
+                    <span>Reklama</span>
+                  </div>
 
-                    return (
-                      <div
-                        key={st.id}
-                        className="my-station-card-v2 clickable-card"
-                        onClick={() => handleEditStation(st)}
+                  <div className="side-video-box">
+                    <div className="side-video-ambient-glow"></div>
+                    <div className="side-video-header-badge">
+                      <span className="live-dot"></span>
+                      <span>HD • 0:30</span>
+                    </div>
+
+                    <div className="side-video-center-content">
+                      <div className="video-play-button-ring">
+                        <div className="video-play-pulse"></div>
+                        <Play size={24} className="video-play-icon" fill="currentColor" />
+                      </div>
+                      <h4 className="video-ad-title">
+                        Bu yerda sizning reklamangiz bo'lishi mumkin
+                      </h4>
+                      <p className="video-ad-desc">
+                        A-Maps ilovasida minglab faol haydovchilarga o'z biznesingizni video orqali taniting
+                      </p>
+                    </div>
+
+                    <div className="side-video-bottom-bar">
+                      <button
+                        className="side-video-cta"
+                        onClick={() => alert("Reklama berish uchun: @amaps_support")}
                       >
-                        {/* Chap: Ma'lumotlar */}
-                        <div className="my-st-left">
-                          <h5 className="my-st-name">{st.name}</h5>
-                          <span className="my-st-type">
-                            <Fuel size={12} />{" "}
-                            {fuelLabel || "Yoqilg'i shahobchasi"}
+                        Reklama berish
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+            </div>
+          )}
+          {activeTab === "my" && user && (
+            <div
+              className={`profile-three-col-layout ${isThemeLight ? "is-light" : ""}`}
+              style={{
+                '--theme-accent': appTheme?.accent || '#38bdf8',
+                '--theme-bg': appTheme?.bg || '#0e0e10',
+                '--theme-card': appTheme?.card || '#1c1c1e',
+                '--theme-border': appTheme?.border || 'rgba(255, 255, 255, 0.08)',
+                '--theme-panel': appTheme?.panel || '#161618',
+                '--theme-text': appTheme?.text || (isThemeLight ? '#0f172a' : '#ffffff'),
+                '--theme-muted': appTheme?.textMuted || (isThemeLight ? '#64748b' : '#94a3b8'),
+              }}
+            >
+              {/* CHAP TOMON REKLAMA VIDEOSI (Left Side Video Ad Banner) */}
+              <aside className="profile-side-video-banner left-banner">
+                <div className="side-banner-inner">
+                  <div className="side-banner-tag">
+                    <Sparkles size={13} />
+                    <span>Reklama</span>
+                  </div>
+
+                  <div className="side-video-box">
+                    <div className="side-video-ambient-glow"></div>
+                    <div className="side-video-header-badge">
+                      <span className="live-dot"></span>
+                      <span>HD • 0:30</span>
+                    </div>
+
+                    <div className="side-video-center-content">
+                      <div className="video-play-button-ring">
+                        <div className="video-play-pulse"></div>
+                        <Play size={24} className="video-play-icon" fill="currentColor" />
+                      </div>
+                      <h4 className="video-ad-title">
+                        Bu yerda sizning reklamangiz bo'lishi mumkin
+                      </h4>
+                      <p className="video-ad-desc">
+                        A-Maps ilovasida minglab faol haydovchilarga o'z biznesingizni video orqali taniting
+                      </p>
+                    </div>
+
+                    <div className="side-video-bottom-bar">
+                      <button
+                        className="side-video-cta"
+                        onClick={() => alert("Reklama berish uchun: @amaps_support")}
+                      >
+                        Reklama berish
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </aside>
+
+              {/* O'RTA ASOSIY PROFIL BO'LIMI (Center Main Profile Section) */}
+              <div className="profile-center-main-col">
+                {selectedManageStationId && currentManageStation ? (
+                  /* ========================================================
+                     ALOHIDA BO'LIM: SHAHOBCHANI BOSHQARISH (Separate Station View)
+                     ======================================================== */
+                  <div className="station-manage-page-view">
+                    {/* 1. ENG TEPADA: Strelka + Ortga, O'rtada Joylashuv nomi, O'ngda Kalakolchik */}
+                    <div className="station-manage-top-header">
+                      <button
+                        className="station-manage-back-btn"
+                        onClick={() => setSelectedManageStationId(null)}
+                      >
+                        <ArrowLeft size={18} />
+                        <span>Ortga</span>
+                      </button>
+
+                      <h3 className="station-manage-header-name">
+                        {currentManageStation.name}
+                      </h3>
+
+                      <div className="station-manage-top-actions">
+                        <button
+                          type="button"
+                          className="station-manage-header-action-btn"
+                          onClick={() => handleEditStation(currentManageStation)}
+                          title="Shahobchani to'liq tahrirlash"
+                        >
+                          <Edit3 size={17} />
+                        </button>
+                        <button
+                          type="button"
+                          className="station-manage-bell-btn"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setShowStationBellModal(true);
+                          }}
+                          title="Eslatmalar"
+                          aria-label="Eslatmalar"
+                        >
+                          <Bell size={19} />
+                        </button>
+                        <button
+                          type="button"
+                          className="station-manage-header-action-btn delete-action"
+                          onClick={() => setStationToDelete(currentManageStation)}
+                          title="Joylashuvni o'chirish"
+                          aria-label="Joylashuvni o'chirish"
+                        >
+                          <Trash2 size={17} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 2. ALOHIDA TURGAN KARTOTCHKA: Manzil nomi, Yiqqan yulduzlari, Ochiq/Yopiq, Telefon */}
+                    <div className="station-manage-main-card">
+                      {/* Manzil nomi */}
+                      <div className="manage-main-address-block">
+                        <div className="manage-main-address-text">
+                          <h4 className="manage-main-title">
+                            {currentManageStation.name}
+                          </h4>
+                          <span className="manage-main-address">
+                            {currentManageStation.address || "Manzil ko'rsatilmagan"}
                           </span>
-
-                          {/* Yulduzcha reyting */}
-                          <div className="my-st-rating">
-                            {[1, 2, 3, 4, 5].map((i) => (
-                              <Star
-                                key={i}
-                                size={13}
-                                fill={
-                                  i <= (st.rating || 0) ? "#f59e0b" : "none"
-                                }
-                                color={
-                                  i <= (st.rating || 0) ? "#f59e0b" : "#cbd5e1"
-                                }
-                              />
-                            ))}
-                            <span className="my-st-rating-num">
-                              {st.rating || "—"}
-                            </span>
-                          </div>
-
-                          {st.phone && (
-                            <span className="my-st-phone">
-                              <Phone size={12} /> {st.phone}
-                            </span>
-                          )}
-
-                          {/* Ochiq / Yopiq */}
-                          <div className="my-st-status-row">
-                            <div className="status-toggle-group">
-                              <button
-                                className={`status-toggle-btn ${st.isOpen ? "active-open" : ""}`}
-                                onClick={(e) => handleSetStatus(e, st.id, true)}
-                              >
-                                Ochiq
-                              </button>
-                              <button
-                                className={`status-toggle-btn ${!st.isOpen ? "active-closed" : ""}`}
-                                onClick={(e) =>
-                                  handleSetStatus(e, st.id, false)
-                                }
-                              >
-                                Yopiq
-                              </button>
-                            </div>
-                            {!st.isOpen && st.reopenTime && (
-                              <span className="my-st-reopen">
-                                <Clock size={11} /> {st.reopenTime} gacha
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Narxlar */}
-                          {st.prices && Object.keys(st.prices).length > 0 && (
-                            <div className="my-st-prices">
-                              {Object.entries(st.prices).map(([key, val]) => (
-                                <span key={key} className="my-st-price-badge">
-                                  <strong>
-                                    {key === "metan" ? "Gaz" : key}:
-                                  </strong>{" "}
-                                  {val} so'm
-                                </span>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Quick Edit Gas Pressure */}
-                          {(st.type || []).includes("metan") && (
-                            <div
-                              className="my-st-quick-pressure"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {editingPressureId === st.id ? (
-                                <div
-                                  className="flex items-center gap-2 mt-3"
-                                  style={{
-                                    background: "#e0f2fe",
-                                    padding: "8px",
-                                    borderRadius: "12px",
-                                    border: "1px solid #bae6fd",
-                                  }}
-                                >
-                                  <input
-                                    type="number"
-                                    value={tempPressure}
-                                    onChange={(e) =>
-                                      setTempPressure(e.target.value)
-                                    }
-                                    autoFocus
-                                    max={210}
-                                    className="search-full-input"
-                                    style={{
-                                      width: "70px",
-                                      padding: "4px 8px",
-                                      height: "32px",
-                                      border: "1px solid #0ea5e9",
-                                    }}
-                                  />
-                                  <button
-                                    className="status-toggle-btn active-open"
-                                    style={{
-                                      padding: "4px 8px",
-                                      minHeight: "32px",
-                                    }}
-                                    onClick={(e) =>
-                                      handleSaveQuickPressure(e, st.id)
-                                    }
-                                  >
-                                    Saqlash
-                                  </button>
-                                  <button
-                                    className="status-toggle-btn"
-                                    style={{
-                                      padding: "4px 8px",
-                                      minHeight: "32px",
-                                    }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setEditingPressureId(null);
-                                    }}
-                                  >
-                                    Bekor
-                                  </button>
-                                </div>
-                              ) : (
-                                <div
-                                  className="mt-2"
-                                  style={{
-                                    width: "100%",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                    background:
-                                      "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
-                                    padding: "8px 10px",
-                                    borderRadius: "14px",
-                                    border: "1px solid #bae6fd",
-                                    boxShadow:
-                                      "0 2px 8px rgba(2, 132, 199, 0.08)",
-                                  }}
-                                >
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: "6px",
-                                    }}
-                                  >
-                                    <div
-                                      style={{
-                                        background: "#bae6fd",
-                                        padding: "5px",
-                                        borderRadius: "50%",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                      }}
-                                    >
-                                      <Zap size={14} color="#0284c7" />
-                                    </div>
-                                    <span
-                                      style={{
-                                        fontSize: "0.8rem",
-                                        color: "#082f49",
-                                        fontWeight: "600",
-                                        whiteSpace: "nowrap",
-                                      }}
-                                    >
-                                      Gaz bosimi:{" "}
-                                      <strong
-                                        style={{
-                                          color: "#0284c7",
-                                          fontSize: "0.85rem",
-                                          marginLeft: "2px",
-                                        }}
-                                      >
-                                        {st.gasPressure || "—"} atm
-                                      </strong>
-                                    </span>
-                                  </div>
-                                  <button
-                                    style={{
-                                      fontSize: "0.75rem",
-                                      padding: "6px 10px",
-                                      background:
-                                        "linear-gradient(135deg, #0ea5e9, #0284c7)",
-                                      color: "white",
-                                      fontWeight: "bold",
-                                      borderRadius: "16px",
-                                      border: "none",
-                                      cursor: "pointer",
-                                      boxShadow:
-                                        "0 2px 8px rgba(14, 165, 233, 0.3)",
-                                      transition: "all 0.2s ease",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: "4px",
-                                      whiteSpace: "nowrap",
-                                      flexShrink: 0,
-                                    }}
-                                    onMouseOver={(e) =>
-                                      (e.currentTarget.style.transform =
-                                        "translateY(-2px)")
-                                    }
-                                    onMouseOut={(e) =>
-                                      (e.currentTarget.style.transform =
-                                        "translateY(0)")
-                                    }
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setEditingPressureId(st.id);
-                                      setTempPressure(st.gasPressure || "");
-                                    }}
-                                  >
-                                    <Edit3 size={12} />
-                                    O'zgartirish
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Quick Edit Price */}
-                          {st.type &&
-                            (st.type.includes("metan") ||
-                              st.type.includes("propan")) && (
-                              <div
-                                className="my-st-quick-price mt-2"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {["metan", "propan"]
-                                  .filter((t) => st.type.includes(t))
-                                  .map((fuelType) => (
-                                    <div key={fuelType} className="mb-2">
-                                      {editingPriceId === st.id &&
-                                      editingPriceType === fuelType ? (
-                                        <div
-                                          className="flex items-center gap-2 mt-1"
-                                          style={{
-                                            background: "#f8fafc",
-                                            padding: "8px",
-                                            borderRadius: "12px",
-                                            border: "1px solid #e2e8f0",
-                                          }}
-                                        >
-                                          <input
-                                            type="number"
-                                            value={tempPrice}
-                                            onChange={(e) =>
-                                              setTempPrice(e.target.value)
-                                            }
-                                            autoFocus
-                                            className="search-full-input"
-                                            style={{
-                                              width: "90px",
-                                              padding: "4px 8px",
-                                              height: "32px",
-                                              border: "1px solid #94a3b8",
-                                              borderRadius: "8px",
-                                              outline: "none",
-                                            }}
-                                            placeholder="Narx"
-                                          />
-                                          <button
-                                            className="status-toggle-btn active-open"
-                                            style={{
-                                              padding: "4px 8px",
-                                              minHeight: "32px",
-                                              border: "none",
-                                              background: "#3b82f6",
-                                              color: "white",
-                                              borderRadius: "8px",
-                                              cursor: "pointer",
-                                            }}
-                                            onClick={(e) =>
-                                              handleSaveQuickPrice(e, st.id)
-                                            }
-                                          >
-                                            Saqlash
-                                          </button>
-                                          <button
-                                            className="status-toggle-btn"
-                                            style={{
-                                              padding: "4px 8px",
-                                              minHeight: "32px",
-                                              border: "1px solid #cbd5e1",
-                                              background: "transparent",
-                                              borderRadius: "8px",
-                                              cursor: "pointer",
-                                            }}
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setEditingPriceId(null);
-                                              setEditingPriceType(null);
-                                            }}
-                                          >
-                                            Bekor
-                                          </button>
-                                        </div>
-                                      ) : (
-                                        <div
-                                          style={{
-                                            width: "100%",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "space-between",
-                                            background:
-                                              fuelType === "metan"
-                                                ? "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)"
-                                                : "linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)",
-                                            padding: "8px 10px",
-                                            borderRadius: "14px",
-                                            border:
-                                              fuelType === "metan"
-                                                ? "1px solid #bae6fd"
-                                                : "1px solid #e9d5ff",
-                                            boxShadow:
-                                              "0 2px 8px rgba(0,0,0,0.03)",
-                                          }}
-                                        >
-                                          <div
-                                            style={{
-                                              display: "flex",
-                                              alignItems: "center",
-                                              gap: "6px",
-                                            }}
-                                          >
-                                            <div
-                                              style={{
-                                                background:
-                                                  fuelType === "metan"
-                                                    ? "#bae6fd"
-                                                    : "#e9d5ff",
-                                                padding: "5px",
-                                                borderRadius: "50%",
-                                                display: "flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                              }}
-                                            >
-                                              {fuelType === "metan" ? (
-                                                <Flame
-                                                  size={14}
-                                                  color="#0284c7"
-                                                />
-                                              ) : (
-                                                <Droplets
-                                                  size={14}
-                                                  color="#9333ea"
-                                                />
-                                              )}
-                                            </div>
-                                            <span
-                                              style={{
-                                                fontSize: "0.8rem",
-                                                color:
-                                                  fuelType === "metan"
-                                                    ? "#082f49"
-                                                    : "#3b0764",
-                                                fontWeight: "600",
-                                                whiteSpace: "nowrap",
-                                              }}
-                                            >
-                                              {fuelType === "metan"
-                                                ? "Metan"
-                                                : "Propan"}
-                                              :{" "}
-                                              <strong
-                                                style={{
-                                                  color:
-                                                    fuelType === "metan"
-                                                      ? "#0284c7"
-                                                      : "#9333ea",
-                                                  fontSize: "0.85rem",
-                                                  marginLeft: "2px",
-                                                }}
-                                              >
-                                                {st.prices?.[fuelType]
-                                                  ? `${st.prices[fuelType].toLocaleString()} so'm`
-                                                  : "—"}
-                                              </strong>
-                                            </span>
-                                          </div>
-                                          <button
-                                            style={{
-                                              fontSize: "0.75rem",
-                                              padding: "6px 10px",
-                                              background:
-                                                fuelType === "metan"
-                                                  ? "linear-gradient(135deg, #0ea5e9, #0284c7)"
-                                                  : "linear-gradient(135deg, #a855f7, #9333ea)",
-                                              color: "white",
-                                              fontWeight: "bold",
-                                              borderRadius: "16px",
-                                              border: "none",
-                                              cursor: "pointer",
-                                              display: "flex",
-                                              alignItems: "center",
-                                              gap: "4px",
-                                              whiteSpace: "nowrap",
-                                              flexShrink: 0,
-                                            }}
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setEditingPriceId(st.id);
-                                              setEditingPriceType(fuelType);
-                                              setTempPrice(
-                                                st.prices?.[fuelType] || "",
-                                              );
-                                            }}
-                                          >
-                                            <Edit3 size={12} /> O'zgartirish
-                                          </button>
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))}
-                              </div>
-                            )}
-                        </div>
-
-                        {/* O'ng: Rasm */}
-                        <div className="my-st-right">
-                          {st.image ? (
-                            <img
-                              src={st.image}
-                              alt={st.name}
-                              className="my-st-thumb"
-                            />
-                          ) : (
-                            <div className="my-st-thumb-empty">
-                              <Fuel size={20} />
-                            </div>
-                          )}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
 
-              {/* Joylashuv qo'shish tugmasi (pastda) */}
-              <button
-                className="my-add-station-btn mt-4"
-                onClick={() => {
-                  setEditingStation(null);
-                  setShowAddStation(true);
-                }}
-              >
-                <div className="my-add-icon-circle">
-                  <Plus size={20} />
+                      {/* Tagida: Yiqqan yulduzlari */}
+                      <div className="manage-main-stars-row">
+                        <div className="stars-cluster">
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <Star
+                              key={i}
+                              size={16}
+                              fill={
+                                i <= Math.round(currentManageStation.rating || 5)
+                                  ? "#f59e0b"
+                                  : "none"
+                              }
+                              color={
+                                i <= Math.round(currentManageStation.rating || 5)
+                                  ? "#f59e0b"
+                                  : "#94a3b8"
+                              }
+                            />
+                          ))}
+                        </div>
+                        <strong className="manage-stars-num">
+                          {Number(currentManageStation.rating || 5.0).toFixed(1)}
+                        </strong>
+                      </div>
+
+                      {/* Tagida: Ochiq va Yopiq qilib qo'yish joyi */}
+                      <div className="manage-status-control-box">
+                        <div className="manage-status-toggle-row">
+                          <span className="manage-status-label">Holati:</span>
+                          <div className="status-toggle-group">
+                            <button
+                              className={`status-toggle-btn ${
+                                currentManageStation.isOpen ? "active-open" : ""
+                              }`}
+                              onClick={(e) =>
+                                handleSetStatus(e, currentManageStation.id, true)
+                              }
+                            >
+                              Ochiq
+                            </button>
+                            <button
+                              className={`status-toggle-btn ${
+                                !currentManageStation.isOpen ? "active-closed" : ""
+                              }`}
+                              onClick={(e) =>
+                                handleSetStatus(e, currentManageStation.id, false)
+                              }
+                            >
+                              Yopiq
+                            </button>
+                          </div>
+                        </div>
+
+                        {!currentManageStation.isOpen && (
+                          <div className="manage-reopen-time-badge">
+                            <Clock size={13} />
+                            <span>
+                              {currentManageStation.reopenTime
+                                ? `Qachon ochiladi: ${currentManageStation.reopenTime}`
+                                : "Qachon ochilishi ko'rsatilmagan"}
+                            </span>
+                            <button
+                              className="manage-reopen-edit-btn"
+                              onClick={() => {
+                                setReopenTimeInput(
+                                  currentManageStation.reopenTime || ""
+                                );
+                                setReopenModal({
+                                  isOpen: true,
+                                  stationId: currentManageStation.id,
+                                });
+                              }}
+                              title="Ochilish vaqtini o'zgartirish"
+                            >
+                              <Edit3 size={11} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Tagida: Manzilni o'zining telefon nomeri */}
+                      <div className="manage-phone-row">
+                        <div className="manage-phone-left">
+                          <Phone size={15} className="text-emerald-400" />
+                          <span className="manage-phone-val">
+                            {currentManageStation.phone || "Telefon kiritilmagan"}
+                          </span>
+                        </div>
+                        <button
+                          className="manage-phone-edit-icon-btn"
+                          onClick={() => {
+                            setPendingPhoneStationId(currentManageStation.id);
+                            setTempPhone(currentManageStation.phone || "");
+                            setShowPhoneEditModal(true);
+                          }}
+                          title="Telefon raqamni o'zgartirish"
+                          aria-label="Telefon raqamni o'zgartirish"
+                        >
+                          <Edit3 size={13} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 3. SAL PASTDA: YOQILG'I NARXLARI */}
+                    {/* Sotadigan yoqilg'i 2 yoki undan ko'p bo'lsa har biri bitta pastda bo'lib tursin, orqa foni bir xil, orada bo'lim foni ko'rinadigan */}
+                    <div className="station-manage-fuel-section">
+                      <div className="manage-sec-header">
+                        <h4>Yoqilg'i narxlari</h4>
+                        <span className="manage-sec-sub">
+                          Sotiladigan yoqilg'ilar ro'yxati
+                        </span>
+                      </div>
+
+                      <div className="fuel-prices-vertical-stack">
+                        {activeFuelsList.map((fuel) => {
+                          const currentPrice =
+                            currentManageStation.prices?.[fuel.id];
+                          const isEditing = editingPriceKey === fuel.id;
+
+                          return (
+                            <div key={fuel.id} className="fuel-price-row-card">
+                              <div className="fuel-row-left">
+                                <div
+                                  className="fuel-type-icon-halo"
+                                  style={{
+                                    backgroundColor: `${fuel.color}22`,
+                                    color: fuel.color,
+                                  }}
+                                >
+                                  <fuel.icon size={16} />
+                                </div>
+                                <div className="fuel-row-title-block">
+                                  <span className="fuel-row-name">
+                                    {fuel.label}
+                                  </span>
+                                  <span className="fuel-row-unit">
+                                    1{" "}
+                                    {fuel.id === "metan"
+                                      ? "m³"
+                                      : fuel.id === "elektr"
+                                      ? "kVt/soat"
+                                      : "litr"}{" "}
+                                    uchun
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="fuel-row-right">
+                                {isEditing ? (
+                                  <div className="fuel-price-inline-edit">
+                                    <input
+                                      type="number"
+                                      value={tempPriceVal}
+                                      onChange={(e) =>
+                                        setTempPriceVal(e.target.value)
+                                      }
+                                      placeholder="Narx"
+                                      className="fuel-price-input"
+                                      autoFocus
+                                    />
+                                    <button
+                                      className="manage-save-btn-small"
+                                      onClick={() => {
+                                        handleUpdatePrice(
+                                          currentManageStation.id,
+                                          fuel.id,
+                                          tempPriceVal
+                                        );
+                                        setEditingPriceKey(null);
+                                      }}
+                                    >
+                                      <Check size={14} />
+                                    </button>
+                                    <button
+                                      className="manage-cancel-btn-small"
+                                      onClick={() => setEditingPriceKey(null)}
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div
+                                    className="fuel-price-display-pill"
+                                    onClick={() => {
+                                      setEditingPriceKey(fuel.id);
+                                      setTempPriceVal(currentPrice || "");
+                                    }}
+                                    title="Narxni o'zgartirish uchun bosing"
+                                  >
+                                    <strong className="fuel-price-val">
+                                      {currentPrice
+                                        ? `${Number(
+                                            currentPrice
+                                          ).toLocaleString()} so'm`
+                                        : "Narx belgilanmagan"}
+                                    </strong>
+                                    <Edit3
+                                      size={12}
+                                      className="fuel-price-edit-icon"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 4. SAL PASTDA: GAZ BOSIMI */}
+                    {/* Sotadigan yoqilg'i ikkta bo'lsa ikklasiniham bosimini sorasin, 205 gacha kiritsa bo'lsin, tagida nuqta va Me'yorida / O'rtacha / Past / Juda past */}
+                    {pressureFuelsList.length > 0 && (
+                      <div className="station-manage-pressure-section">
+                        <div className="manage-sec-header">
+                          <h4>Gaz bosimi</h4>
+                          <span className="manage-sec-sub">
+                            Maksimal ruxsat etilgan bosim: 205 atm gacha
+                          </span>
+                        </div>
+
+                        <div className="pressure-cards-stack">
+                          {pressureFuelsList.map((fuel) => {
+                            const rawPressure = getFuelPressure(
+                              currentManageStation,
+                              fuel.id
+                            );
+
+                            return (
+                              <div
+                                key={fuel.id}
+                                className="gas-pressure-card"
+                              >
+                                <div className="pressure-card-top-row">
+                                  <div className="pressure-fuel-info">
+                                    <div
+                                      className="pressure-icon-wrap"
+                                      style={{
+                                        backgroundColor: `${fuel.color}22`,
+                                        color: fuel.color,
+                                      }}
+                                    >
+                                      <fuel.icon size={16} />
+                                    </div>
+                                    <div>
+                                      <span className="pressure-fuel-title">
+                                        {pressureFuelsList.length > 1
+                                          ? `${fuel.label} bosimi`
+                                          : "Gaz bosimi"}
+                                      </span>
+                                      <span className="pressure-limit-hint">
+                                        Cheklov: 0 – 205 atm
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="pressure-input-control">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={205}
+                                      value={
+                                        rawPressure === undefined ||
+                                        rawPressure === null
+                                          ? ""
+                                          : rawPressure
+                                      }
+                                      onChange={(e) => {
+                                        let val = e.target.value;
+                                        if (val !== "") {
+                                          val = Math.min(
+                                            205,
+                                            Math.max(
+                                              0,
+                                              parseInt(val, 10) || 0
+                                            )
+                                          );
+                                        }
+                                        handleUpdatePressure(
+                                          currentManageStation.id,
+                                          fuel.id,
+                                          val
+                                        );
+                                      }}
+                                      placeholder="0"
+                                      className="pressure-number-input"
+                                    />
+                                    <span className="pressure-unit-label">
+                                      atm
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 5. SAL PASTDA: QULAYLIKLAR VA TO'LOV TURLARI */}
+                    <div className="station-manage-services-section">
+                      <div className="manage-sec-header">
+                        <h4>Qulayliklar va to'lov turlari</h4>
+                        <span className="manage-sec-sub">
+                          Mijozlarga ko'rinadigan xizmatlar (bosing va o'zgartiring)
+                        </span>
+                      </div>
+
+                      <div className="manage-services-quick-grid">
+                        {[
+                          { key: 'coffee', label: 'Qahva', icon: Coffee, isAmenity: true },
+                          { key: 'toilet', label: 'Hojatxona', icon: User, isAmenity: true },
+                          { key: 'shop', label: "Do'kon", icon: ShoppingBag, isAmenity: true },
+                          { key: 'cash', label: 'cash', icon: Banknote, isAmenity: false },
+                          { key: 'uzcard', label: 'Uzcard', icon: CreditCard, isAmenity: false },
+                          { key: 'humo', label: 'HUMO', icon: CreditCard, isAmenity: false },
+                          { key: 'visa', label: 'VISA', icon: CreditCard, isAmenity: false },
+                        ].map((item) => {
+                          const isAvail = item.isAmenity
+                            ? (currentManageStation.amenities?.[item.key] !== false)
+                            : (currentManageStation.payments?.[item.key] !== false);
+                          const Icon = item.icon;
+                          return (
+                            <button
+                              key={item.key}
+                              type="button"
+                              className={`manage-service-chip ${isAvail ? 'is-active' : 'is-disabled'}`}
+                              onClick={() => {
+                                if (item.isAmenity) {
+                                  handleToggleAmenity(currentManageStation.id, item.key);
+                                } else {
+                                  handleTogglePayment(currentManageStation.id, item.key);
+                                }
+                              }}
+                              title={isAvail ? "Mavjud (O'chirish uchun bosing)" : "Mavjud emas (Yoqish uchun bosing)"}
+                            >
+                              <div className="manage-chip-icon-box">
+                                <Icon size={15} />
+                                {!isAvail && (
+                                  <span className="manage-chip-x-mark"><X size={10} strokeWidth={3} /></span>
+                                )}
+                              </div>
+                              <span className="manage-chip-label">{item.label}</span>
+                              <span className={`manage-chip-badge ${isAvail ? 'badge-yes' : 'badge-no'}`}>
+                                {isAvail ? 'Bor' : "Yo'q"}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 6. JOYLASHUVNI O'CHIRISH TUGMASI */}
+                    <div className="station-manage-delete-section">
+                      <button
+                        type="button"
+                        className="station-manage-delete-btn"
+                        onClick={() => setStationToDelete(currentManageStation)}
+                      >
+                        <Trash2 size={17} />
+                        <span>Joylashuvni o'chirish</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* ========================================================
+                     ASOSIY PROFIL BO'LIMI: PROFIL KARTASI VA MENING JOYLAShUVLARIM
+                     ======================================================== */
+                  <>
+                    {/* 1. BOSHIDA PROFIL KARTASI: Rasm, Ism-familiya, Telefon, va O'ng burchakda to'liq ma'lumot */}
+                    <div className="profile-hero-card">
+                      <div className="profile-hero-left">
+                        <div
+                          className="profile-hero-avatar-box clickable"
+                          onClick={() => setShowProfileDetail(true)}
+                          title="Rasmni ko'rish yoki tahrirlash"
+                        >
+                          {user?.avatar && !user?.avatar.includes("dicebear") ? (
+                            <img
+                              src={user?.avatar}
+                              alt={user?.firstName}
+                              className="profile-hero-avatar-img"
+                            />
+                          ) : (
+                            <User size={32} color="#3b82f6" />
+                          )}
+                          <div className="profile-hero-avatar-edit-icon">
+                            <Edit3 size={11} />
+                          </div>
+                        </div>
+
+                        <div className="profile-hero-user-info">
+                          <h3 className="profile-hero-name">
+                            {user?.firstName} {user?.lastName}
+                          </h3>
+                          <div className="profile-hero-phone-row">
+                            <Phone size={13} />
+                            <span>{user?.phoneNumber}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* O'ng tomon burchagida profil egasi haqidagi to'liq ma'lumot */}
+                      <button
+                        className="profile-full-details-btn"
+                        onClick={() => setShowProfileDetail(true)}
+                        title="Profil egasi haqidagi to'liq ma'lumot"
+                      >
+                        <div className="full-details-icon-wrap">
+                          <Info size={16} />
+                        </div>
+                        <div className="full-details-text-group">
+                          <span className="full-details-title">
+                            To'liq ma'lumot
+                          </span>
+                          <span className="full-details-subtitle">
+                            Profil sozlamalari
+                          </span>
+                        </div>
+                        <ChevronRight
+                          size={16}
+                          className="full-details-chevron"
+                        />
+                      </button>
+                    </div>
+
+                    {/* 2. PROFIL PASTIDA JOYLASHUV QO'SHISH DEGAN JOY */}
+                    <button
+                      className="profile-add-station-banner-btn"
+                      onClick={() => {
+                        setEditingStation(null);
+                        setShowAddStation(true);
+                      }}
+                    >
+                      <div className="add-station-icon-halo">
+                        <Plus size={22} />
+                      </div>
+                      <div className="add-station-banner-text">
+                        <span className="add-station-banner-title">
+                          Joylashuv qo'shish
+                        </span>
+                        <span className="add-station-banner-subtitle">
+                          O'z xizmat ko'rsatish markazingizni A-Maps ga joylashtiring
+                        </span>
+                      </div>
+                      <div className="add-station-banner-arrow">
+                        <ChevronRight size={18} />
+                      </div>
+                    </button>
+
+                    {/* 3. PASTIDA UNING JOYLASHUVLARI (Mening joylashuvlarim) */}
+                    <div className="profile-my-locations-wrapper">
+                      <div className="my-locations-header-bar">
+                        <div className="my-locations-title-cluster">
+                          <MapPin size={18} color="#3b82f6" />
+                          <h4>Mening joylashuvlarim</h4>
+                          <span className="my-locations-count-pill">
+                            {myStations.length}
+                          </span>
+                        </div>
+                      </div>
+
+                      {myStations.length === 0 ? (
+                        <div className="profile-no-locations-empty">
+                          <button
+                            className="create-demo-station-btn profile-add-location-empty-btn"
+                            onClick={() => {
+                              setEditingStation(null);
+                              setShowAddStation(true);
+                            }}
+                          >
+                            <Plus size={16} />
+                            <span>Joylashuv qo'shish</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="my-stations-list mt-2">
+                          {myStations.map((st) => (
+                            <div
+                              key={st.id}
+                              className="my-station-simple-card"
+                              onClick={() => setSelectedManageStationId(st.id)}
+                            >
+                              <div className="my-station-simple-info">
+                                <h5 className="my-station-simple-title">
+                                  {st.name}
+                                </h5>
+                              </div>
+
+                              <button
+                                className="my-station-edit-pencil-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedManageStationId(st.id);
+                                }}
+                                title="Tahrirlash va boshqarish"
+                                aria-label="Tahrirlash"
+                              >
+                                <Edit3 size={17} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* O'NG TOMON REKLAMA VIDEOSI (Right Side Video Ad Banner) */}
+              <aside className="profile-side-video-banner right-banner">
+                <div className="side-banner-inner">
+                  <div className="side-banner-tag">
+                    <Sparkles size={13} />
+                    <span>Homiylik</span>
+                  </div>
+
+                  <div className="side-video-box right-glow">
+                    <div className="side-video-ambient-glow right-theme"></div>
+                    <div className="side-video-header-badge">
+                      <span className="live-dot purple-dot"></span>
+                      <span>4K • 0:15</span>
+                    </div>
+
+                    <div className="side-video-center-content">
+                      <div className="video-play-button-ring">
+                        <div className="video-play-pulse"></div>
+                        <Play size={24} className="video-play-icon" fill="currentColor" />
+                      </div>
+                      <h4 className="video-ad-title">
+                        Bu yerda sizning reklamangiz bo'lishi mumkin
+                      </h4>
+                      <p className="video-ad-desc">
+                        A-Maps platformasida eng faol mijozlarni jalb qiling va brendingizni ommalashtiring
+                      </p>
+                    </div>
+
+                    <div className="side-video-bottom-bar">
+                      <button
+                        className="side-video-cta"
+                        onClick={() => alert("Reklama berish uchun: @amaps_support")}
+                      >
+                        Reklama berish
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <span>Joylashuv qo'shish</span>
-              </button>
+              </aside>
             </div>
           )}
         </main>
@@ -1273,19 +1797,123 @@ export default function App() {
             zIndex: 5,
           }}
         >
-          <MapView stations={filteredStations} onSelectStation={setDetailStation} showSidebar={true} />
+          <MapView
+            stations={filteredStations}
+            onSelectStation={setDetailStation}
+            showSidebar={true}
+            userCoords={userCoords}
+          />
         </div>
       )}
 
       {/* SETTINGS - Dedicated Section */}
       {activeTab === "settings" && (
-        <SettingsSection
-          currentTheme={appTheme}
-          onSaveTheme={handleSaveTheme}
-          user={user}
-          onLogout={() => setShowLogoutConfirm(true)}
-          onNavigateProfile={() => { if (user) { setShowProfileDetail(true); } else { handleTabChange("my"); } }}
-        />
+        <div
+          className={`settings-three-col-layout profile-three-col-layout ${isThemeLight ? "is-light" : ""}`}
+          style={{
+            '--theme-accent': appTheme?.accent || '#38bdf8',
+            '--theme-bg': appTheme?.bg || '#0e0e10',
+            '--theme-card': appTheme?.card || '#1c1c1e',
+            '--theme-border': appTheme?.border || 'rgba(255, 255, 255, 0.08)',
+            '--theme-panel': appTheme?.panel || '#161618',
+            '--theme-text': appTheme?.text || (isThemeLight ? '#0f172a' : '#ffffff'),
+            '--theme-muted': appTheme?.textMuted || (isThemeLight ? '#64748b' : '#94a3b8'),
+            minHeight: "100vh",
+            backgroundColor: appTheme?.bg || "var(--bg-primary, #0e0e10)",
+            color: appTheme?.text || (isThemeLight ? "#0f172a" : "#ffffff"),
+          }}
+        >
+          {/* CHAP TOMON REKLAMA (Faqat kompyuter holatida) */}
+          <aside className="profile-side-video-banner left-banner settings-desktop-side-banner">
+            <div className="side-banner-inner">
+              <div className="side-banner-tag">
+                <Sparkles size={13} />
+                <span>Reklama</span>
+              </div>
+
+              <div className="side-video-box">
+                <div className="side-video-ambient-glow"></div>
+                <div className="side-video-header-badge">
+                  <span className="live-dot"></span>
+                  <span>HD • 0:30</span>
+                </div>
+
+                <div className="side-video-center-content">
+                  <div className="video-play-button-ring">
+                    <div className="video-play-pulse"></div>
+                    <Play size={24} className="video-play-icon" fill="currentColor" />
+                  </div>
+                  <h4 className="video-ad-title">
+                    Bu yerda sizning reklamangiz bo'lishi mumkin
+                  </h4>
+                  <p className="video-ad-desc">
+                    A-Maps ilovasida minglab faol haydovchilarga o'z biznesingizni video orqali taniting
+                  </p>
+                </div>
+
+                <div className="side-video-bottom-bar">
+                  <button
+                    className="side-video-cta"
+                    onClick={() => alert("Reklama berish uchun: @amaps_support")}
+                  >
+                    Reklama berish
+                  </button>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          {/* O'RTA ASOSIY SOZLAMALAR BO'LIMI */}
+          <div className="settings-center-col profile-center-main-col">
+            <SettingsSection
+              currentTheme={appTheme}
+              onSaveTheme={handleSaveTheme}
+              user={user}
+              onLogout={() => setShowLogoutConfirm(true)}
+              onNavigateProfile={() => { if (user) { setShowProfileDetail(true); } else { handleTabChange("my"); } }}
+            />
+          </div>
+
+          {/* O'NG TOMON REKLAMA (Faqat kompyuter holatida) */}
+          <aside className="profile-side-video-banner right-banner settings-desktop-side-banner">
+            <div className="side-banner-inner">
+              <div className="side-banner-tag">
+                <Sparkles size={13} />
+                <span>Reklama</span>
+              </div>
+
+              <div className="side-video-box">
+                <div className="side-video-ambient-glow"></div>
+                <div className="side-video-header-badge">
+                  <span className="live-dot"></span>
+                  <span>HD • 0:30</span>
+                </div>
+
+                <div className="side-video-center-content">
+                  <div className="video-play-button-ring">
+                    <div className="video-play-pulse"></div>
+                    <Play size={24} className="video-play-icon" fill="currentColor" />
+                  </div>
+                  <h4 className="video-ad-title">
+                    Bu yerda sizning reklamangiz bo'lishi mumkin
+                  </h4>
+                  <p className="video-ad-desc">
+                    A-Maps ilovasida minglab faol haydovchilarga o'z biznesingizni video orqali taniting
+                  </p>
+                </div>
+
+                <div className="side-video-bottom-bar">
+                  <button
+                    className="side-video-cta"
+                    onClick={() => alert("Reklama berish uchun: @amaps_support")}
+                  >
+                    Reklama berish
+                  </button>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
       )}
 
       {/* Profile Detail Modal */}
@@ -1306,6 +1934,7 @@ export default function App() {
         }}
         onSave={handleSaveStation}
         editStation={editingStation}
+        isLight={isThemeLight}
       />
 
       <StationDetailModal
@@ -1323,7 +1952,110 @@ export default function App() {
         onClose={() => setDetailStation(null)}
         onStartNavigation={(target) => setNavigationTarget(target)}
         onRateStation={handleRateStation}
+        isMyStation={myStations.some((s) => s.id === detailStation?.id)}
+        onDeleteStation={(st) => setStationToDelete(st)}
       />
+
+      {/* ========================================================
+          ROSTDAN HAM O'CHIRMOQCHIMISIZ? MODAL OYNASI
+          ======================================================== */}
+      {stationToDelete && (
+        <div 
+          className="delete-confirm-overlay" 
+          onClick={() => setStationToDelete(null)}
+        >
+          <div 
+            className="delete-confirm-card" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              type="button" 
+              className="delete-confirm-close-btn" 
+              onClick={() => setStationToDelete(null)}
+              aria-label="Yopish"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="delete-confirm-icon-bubble">
+              <Trash2 size={28} />
+            </div>
+
+            <h3 className="delete-confirm-title">
+              Rostdan ham o'chirmoqchimisiz?
+            </h3>
+
+            <p className="delete-confirm-desc">
+              <strong>"{stationToDelete.name}"</strong> joylashuvi A-Maps tizimidan butunlay o'chiriladi. Bu amalni qaytarib bo'lmaydi.
+            </p>
+
+            <div className="delete-confirm-actions">
+              <button 
+                type="button" 
+                className="delete-btn-cancel" 
+                onClick={() => setStationToDelete(null)}
+              >
+                Yo'q, bekor qilish
+              </button>
+
+              <button 
+                type="button" 
+                className="delete-btn-confirm" 
+                onClick={handleConfirmDeleteStation}
+              >
+                <Trash2 size={16} />
+                <span>Ha, o'chirish</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          XIZMATLAR HOZIRCHA TAYYOR EMAS - MODAL OYNASI
+          ======================================================== */}
+      {showServicesModal && (
+        <div 
+          className="services-modal-overlay" 
+          onClick={() => setShowServicesModal(false)}
+        >
+          <div 
+            className="services-modal-card" 
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              type="button" 
+              className="services-modal-close-btn" 
+              onClick={() => setShowServicesModal(false)}
+              aria-label="Yopish"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="services-modal-icon-bubble">
+              <Menu size={28} />
+            </div>
+
+            <h3 className="services-modal-title">
+              Xizmatlar hozircha tayyor emas
+            </h3>
+
+            <p className="services-modal-desc">
+              Ushbu bo'lim tez orada yangi va qulay servislar (avtomoyka, ustaxona, evakuator va boshqalar) bilan ishga tushiriladi.
+            </p>
+
+            <div className="services-modal-actions">
+              <button 
+                type="button" 
+                className="services-modal-ok-btn" 
+                onClick={() => setShowServicesModal(false)}
+              >
+                Tushunarli
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Settings Modal */}
       {showSettingsModal && (
@@ -1475,20 +2207,107 @@ export default function App() {
             />
             <div style={{ display: "flex", gap: "10px" }}>
               <button
-                className="add-st-submit-btn"
-                style={{
-                  background: "var(--bg-input)",
-                  color: "var(--text-primary)",
-                  boxShadow: "none",
-                }}
+                className="add-st-submit-btn reopen-cancel-btn"
                 onClick={() =>
                   setReopenModal({ isOpen: false, stationId: null })
                 }
               >
                 Bekor qilish
               </button>
-              <button className="add-st-submit-btn" onClick={submitReopenTime}>
+              <button
+                className="add-st-submit-btn reopen-confirm-btn"
+                onClick={submitReopenTime}
+              >
                 Tasdiqlash
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SHAHOBCHA ESLATMALAR MODAL OYNASI (Bell Modal) */}
+      {showStationBellModal && (
+        <div
+          className="profile-overlay"
+          onClick={() => setShowStationBellModal(false)}
+        >
+          <div
+            className="station-bell-modal-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="station-bell-icon-halo">
+              <Bell size={30} color="#f59e0b" />
+            </div>
+            <h3 className="station-bell-modal-title">Eslatmalar</h3>
+            <p className="station-bell-modal-text">
+              Hozircha eslatma yo'q
+            </p>
+            <button
+              type="button"
+              className="station-bell-modal-btn"
+              onClick={() => setShowStationBellModal(false)}
+            >
+              Tushunarli
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* TELEFON RAQAMNI O'ZGARTIRISH MODAL OYNASI */}
+      {showPhoneEditModal && (
+        <div
+          className="profile-overlay"
+          onClick={() => setShowPhoneEditModal(false)}
+        >
+          <div
+            className="station-bell-modal-card phone-confirm-modal-sheet"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="station-bell-icon-halo"
+              style={{
+                backgroundColor: "rgba(16, 185, 129, 0.15)",
+                borderColor: "rgba(16, 185, 129, 0.3)",
+                color: "#10b981",
+              }}
+            >
+              <Phone size={28} />
+            </div>
+            <h3 className="station-bell-modal-title">Telefon raqamni o'zgartirish</h3>
+            <p className="station-bell-modal-text">
+              Rostdan ham telefon raqamni o'zgartirmoqchimisiz?
+            </p>
+            <div className="phone-modal-input-wrap">
+              <label className="phone-modal-input-label">Yangi telefon raqam:</label>
+              <input
+                type="text"
+                value={tempPhone}
+                onChange={(e) => setTempPhone(e.target.value)}
+                placeholder="+998 90 123 45 67"
+                className="phone-modal-input-box"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleConfirmSavePhone();
+                  }
+                }}
+              />
+            </div>
+            <div className="phone-confirm-btns-row">
+              <button
+                type="button"
+                className="phone-confirm-cancel-btn"
+                onClick={() => setShowPhoneEditModal(false)}
+              >
+                Bekor qilish
+              </button>
+              <button
+                type="button"
+                className="phone-confirm-agree-btn"
+                onClick={handleConfirmSavePhone}
+              >
+                Ha, o'zgartirish
               </button>
             </div>
           </div>
@@ -1499,6 +2318,7 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={handleTabChange}
         onOpenSettings={() => setShowSettingsModal(true)}
+        onOpenServices={() => setShowServicesModal(true)}
       />
     </div>
   );
