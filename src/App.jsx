@@ -12,8 +12,9 @@ import NavigationMode from "./components/NavigationMode";
 import SplashScreen from "./components/SplashScreen";
 import SettingsSection, { THEME_PRESETS } from "./components/SettingsSection";
 import { DesktopSideBanner, MobileAdBanner } from "./components/AdBannerCard";
-import { CITIES, INITIAL_STATIONS } from "./data/mockData";
+import { CITIES, INITIAL_STATIONS, MOCK_NEWS } from "./data/mockData";
 import { calculateDistance } from "./utils/distance";
+import { playReopenAlertSound } from "./utils/audio";
 import api from "./api/client";
 import {
   Menu,
@@ -68,71 +69,6 @@ import "./App.css";
 // Har bir sahifa ochilganda yoki refresh bo'lganda faqat 1 marta kirish signali yuboriladi
 let hasSentVisitOnThisLoad = false;
 
-const MOCK_NEWS = [
-  {
-    id: 1,
-    title: "Metan gaz bosimi barqaror",
-    desc: "Toshkent shahridagi AGTKSh shahobchalarida gaz bosimi 200-210 atm darajasida me'yorda ishlamoqda.",
-    date: "Bugun, 09:30",
-    tag: "Metan",
-    tagColor: "#0284c7",
-  },
-  {
-    id: 2,
-    title: "Yangi tezkor zaryadlash stansiyalari",
-    desc: "Poytaxt va viloyat markazlarida 120 kVt quvvatli yangi elektromobil zaryadlash stansiyalari ishga tushirildi.",
-    date: "Kecha, 18:45",
-    tag: "Elektr",
-    tagColor: "#10b981",
-  },
-  {
-    id: 3,
-    title: "AI-92 va AI-95 benzin narxlari",
-    desc: "Barcha yoqilg'i shahobchalarida sifat va narx nazorati monitoringi olib borilmoqda.",
-    date: "14 Oktabr",
-    tag: "Benzin",
-    tagColor: "#f59e0b",
-  },
-];
-
-// Web Audio orqali xabarnoma ovozi (Telefon va kompyuterda aniq eshitiladi)
-const playReopenAlertSound = () => {
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-    if (ctx.state === "suspended") {
-      ctx.resume().catch(() => {});
-    }
-    const now = ctx.currentTime;
-
-    // 1-ohang (D5)
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = "sine";
-    osc1.frequency.setValueAtTime(587.33, now);
-    gain1.gain.setValueAtTime(0.35, now);
-    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-    osc1.start(now);
-    osc1.stop(now + 0.35);
-
-    // 2-ohang (A5)
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = "sine";
-    osc2.frequency.setValueAtTime(880, now + 0.16);
-    gain2.gain.setValueAtTime(0.4, now + 0.16);
-    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-    osc2.start(now + 0.16);
-    osc2.stop(now + 0.65);
-  } catch (e) {
-    console.warn("Audio play error:", e);
-  }
-};
 
 export default function App() {
   // Eski dark temani tozalash va light ga o'tkazish

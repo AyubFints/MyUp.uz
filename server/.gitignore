@@ -1,0 +1,15 @@
+# Backend Dependencies
+node_modules/
+
+# Environment variables
+.env
+!.env.example
+
+# Logs and debugging
+logs/
+*.log
+npm-debug.log*
+
+# Backups and temp
+*.bak
+*.tmp

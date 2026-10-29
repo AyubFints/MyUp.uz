@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server": "node server/src/server.js",
+    "server:dev": "node --watch server/src/server.js",
+    "server:init": "node server/scripts/initDb.js"
   },
   "dependencies": {
     "firebase": "^12.19.0",

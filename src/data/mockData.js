@@ -15,5 +15,39 @@ export const FUEL_TYPES = [
   { id: 'elektr', label: 'Elektr (EV)', icon: 'Zap', color: '#10b981' },
 ];
 
+export const CATEGORIES = [
+  { id: 'fuel', label: 'Yoqilg\'i', icon: 'Fuel', color: '#0ea5e9' },
+  { id: 'service', label: 'Servis', icon: 'Wrench', color: '#f59e0b' },
+  { id: 'food', label: 'Oshxona', icon: 'Utensils', color: '#10b981' },
+  { id: 'medical', label: 'Tibbiyot', icon: 'Cross', color: '#ef4444' },
+];
+
+export const MOCK_NEWS = [
+  {
+    id: 1,
+    title: "Metan gaz bosimi barqaror",
+    desc: "Toshkent shahridagi AGTKSh shahobchalarida gaz bosimi 200-210 atm darajasida me'yorda ishlamoqda.",
+    date: "Bugun",
+    tag: "Metan",
+    tagColor: "#0ea5e9",
+  },
+  {
+    id: 2,
+    title: "Yangi EV tez quvvatlash stansiyasi",
+    desc: "Yunusobod tumanida 120 kVt quvvatga ega yangi elektr zaryadlash stansiyasi ishga tushirildi.",
+    date: "Kecha",
+    tag: "Elektr",
+    tagColor: "#10b981",
+  },
+  {
+    id: 3,
+    title: "AI-92 va AI-95 benzin narxlari",
+    desc: "Barcha yoqilg'i shahobchalarida sifat va narx nazorati monitoringi olib borilmoqda.",
+    date: "14 Oktabr",
+    tag: "Benzin",
+    tagColor: "#f59e0b",
+  },
+];
+
 // Startap dastlabki holatida hech qanday manzil ko'rsatilmasligi uchun ro'yxat bo'shatildi
 export const INITIAL_STATIONS = [];
