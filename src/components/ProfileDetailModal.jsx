@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Camera, Phone, Calendar, User, FileText, LogOut, Edit3, ImagePlus } from 'lucide-react';
+import { X, Camera, Phone, Calendar, User, FileText, LogOut, Edit3, ImagePlus, MapPin } from 'lucide-react';
 
 export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser, onLogout }) {
   const [bio, setBio] = useState(user?.bio || '');
@@ -14,6 +14,17 @@ export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser
   if (!isOpen || !user) return null;
 
   const hasRealPhoto = user.avatar && !user.avatar.includes('dicebear');
+
+  const isLocationActive = Boolean(user?.hasLocation || user?.has_location);
+
+  const handleToggleLocation = () => {
+    const nextState = !isLocationActive;
+    const updated = { ...user, hasLocation: nextState, has_location: nextState };
+    localStorage.setItem('myup_user', JSON.stringify(updated));
+    if (typeof onUpdateUser === 'function') {
+      onUpdateUser(updated);
+    }
+  };
 
   const handlePhotoUpload = (e) => {
     const file = e.target.files?.[0];
@@ -153,6 +164,31 @@ export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser
             <div className="info-item-content">
               <span className="info-item-label">Tug'ilgan sana</span>
               <span className="info-item-value">{user.birthDate || '—'}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* A-Maps xizmat markazi / Joylashuv holati */}
+        <div className="profile-detail-info-list" style={{ marginTop: '0.75rem' }}>
+          <div 
+            className="profile-detail-info-item" 
+            style={{ cursor: 'pointer' }} 
+            onClick={handleToggleLocation}
+            title="Joylashuv qo'shish bo'limini yoqish yoki o'chirish"
+          >
+            <div className="info-item-icon" style={{ background: isLocationActive ? 'rgba(56, 189, 248, 0.15)' : 'rgba(148, 163, 184, 0.1)', color: isLocationActive ? '#38bdf8' : '#94a3b8' }}>
+              <MapPin size={18} />
+            </div>
+            <div className="info-item-content" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+              <div>
+                <span className="info-item-label">A-Maps da xizmat ko'rsatish markazi</span>
+                <span className="info-item-value" style={{ color: isLocationActive ? '#38bdf8' : '#94a3b8', fontSize: '0.86rem' }}>
+                  {isLocationActive ? "Bor (Joylashuvlar ko'rinadi)" : "Yo'q (Joylashuvlar yashiringan)"}
+                </span>
+              </div>
+              <div className={`profile-toggle-switch ${isLocationActive ? 'active' : ''}`}>
+                <div className="toggle-switch-circle" />
+              </div>
             </div>
           </div>
         </div>

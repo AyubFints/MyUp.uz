@@ -1,5 +1,30 @@
-import React, { useState } from 'react';
-import { Bell, Check, ChevronRight, User, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  Bell,
+  Check,
+  ChevronRight,
+  ChevronDown,
+  User,
+  CheckCircle2,
+  Clock,
+  Trash2,
+  X,
+} from 'lucide-react';
+import amapsEmptyMascot from '../assets/amaps-empty-notif.png';
+import api from '../api/client';
+
+// Sana formatlovchi yordamchi funksiya: masalan, "25-okt 14:30"
+const formatNotifDate = (dateVal) => {
+  if (!dateVal) return "";
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return String(dateVal);
+  const months = ["yan", "fev", "mar", "apr", "may", "iyn", "iyl", "avg", "sen", "okt", "noy", "dek"];
+  const day = d.getDate();
+  const month = months[d.getMonth()];
+  const hours = String(d.getHours()).padStart(2, "0");
+  const mins = String(d.getMinutes()).padStart(2, "0");
+  return `${day}-${month} ${hours}:${mins}`;
+};
 
 // 12 ta maxsus tanlangan zamonaviy ranglar (Telegram uslubida)
 export const TWELVE_PRESETS = [
@@ -221,12 +246,106 @@ export default function SettingsSection({
   currentTheme,
   onSaveTheme,
   user,
+  onLogout,
   onNavigateProfile,
+  onOpenNotifications,
+  hasUnreadNotification,
+  unreadCount = 0,
 }) {
   const [selectedTheme, setSelectedTheme] = useState(currentTheme || TWELVE_PRESETS[0]);
   const [customHex, setCustomHex] = useState(selectedTheme?.bg || '#0e0e10');
   const [hueValue, setHueValue] = useState(210);
   const [toastMessage, setToastMessage] = useState('');
+  const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
+
+  // Menga kelgan bildirishnomalar holati
+  const [incomingNotifications, setIncomingNotifications] = useState(() => {
+    try {
+      const saved = localStorage.getItem("myup_incoming_notifications");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+        return parsed.filter((item) => {
+          if (item.readAt) {
+            const age = Date.now() - new Date(item.readAt).getTime();
+            if (age >= ONE_DAY_MS) return false;
+          }
+          return item.id !== "sys_amaps_welcome" && !item.id?.startsWith("incoming_reply_");
+        });
+      }
+    } catch {}
+    return [];
+  });
+
+  // PostgreSQL bazasidan kelgan bildirishnomalarni olish
+  useEffect(() => {
+    let isMounted = true;
+    const userPhone = user?.phoneNumber || user?.phone || "";
+    const userId = user?.id || null;
+
+    if (!userPhone && !userId) return;
+
+    api.notifications
+      ?.getAll({ userId: userId || "", phone: userPhone })
+      .then((res) => {
+        if (isMounted && res.success && Array.isArray(res.notifications)) {
+          const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+          const apiNotifs = res.notifications
+            .map((n) => ({
+              id: n.id,
+              title: n.title,
+              message: n.message,
+              badge: n.badge || (n.type === 'station_approved' ? "Tasdiqlandi" : "Moderatsiya"),
+              date: formatNotifDate(n.createdAt),
+              type: n.type,
+              stationId: n.stationId,
+              isRead: true,
+              readAt: n.readAt || new Date().toISOString(),
+              sender: "Super Administrator",
+            }))
+            .filter((n) => {
+              if (n.readAt) {
+                const age = Date.now() - new Date(n.readAt).getTime();
+                return age < ONE_DAY_MS;
+              }
+              return true;
+            });
+
+          setIncomingNotifications(apiNotifs);
+          try {
+            localStorage.setItem("myup_incoming_notifications", JSON.stringify(apiNotifs));
+          } catch (e) {}
+
+          api.notifications?.markAllRead({ userId: userId || "", phone: userPhone }).catch(() => {});
+        }
+      })
+      .catch((err) => {
+        console.warn("API notifications error:", err.message);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  // Kelgan bildirishnomani o'chirish
+  const handleDeleteIncoming = async (id) => {
+    const updated = incomingNotifications.filter((n) => n.id !== id);
+    setIncomingNotifications(updated);
+    try {
+      localStorage.setItem("myup_incoming_notifications", JSON.stringify(updated));
+    } catch (err) {
+      console.error(err);
+    }
+
+    try {
+      if (api.notifications?.delete) {
+        await api.notifications.delete(id);
+      }
+    } catch (err) {
+      console.warn("Serverdan o'chirish xatosi:", err.message);
+    }
+  };
 
   const handleSelectPreset = (preset) => {
     setSelectedTheme(preset);
@@ -281,11 +400,16 @@ export default function SettingsSection({
         <h1 className="new-settings-title">Sozlamalar</h1>
         <button
           className="new-settings-bell-btn"
-          onClick={() => alert("Hozircha yangi bildirishnomalar yo'q")}
+          onClick={onOpenNotifications}
           title="Bildirishnomalar"
           type="button"
+          style={{ position: 'relative' }}
+          aria-label="Bildirishnomalar"
         >
           <Bell size={22} color={isLight ? '#475569' : '#ffffff'} />
+          {(unreadCount > 0 || hasUnreadNotification) && (
+            <span className="profile-hero-bell-badge">{unreadCount > 0 ? unreadCount : 1}</span>
+          )}
         </button>
       </div>
 
@@ -328,138 +452,277 @@ export default function SettingsSection({
           <ChevronRight size={20} className="new-profile-arrow" />
         </div>
 
-        {/* 3. FON RANGI BO'LIMI (Tugmasiz, to'g'ridan-to'g'ri ochiq turadi) */}
+        {/* 3. FON RANGI BO'LIMI:
+            Dastlab faqat "Fon rangi" yozuvi va o'ng tomonda "O'zgartirish" tugmasi turadi.
+            Bosilganda pastga qarab animatsiya bilan ochiladi */}
         <div className="new-settings-color-card">
           <div className="new-color-section-heading">
-            <span className="new-color-title">Fon rangi</span>
-          </div>
-
-          {/* 12 ta yumaloq rang */}
-          <div className="new-twelve-circles-grid">
-            {TWELVE_PRESETS.map((preset) => {
-              const isSelected = selectedTheme.bg.toLowerCase() === preset.bg.toLowerCase();
-              return (
-                <button
-                  key={preset.id}
-                  className={`new-color-dot ${isSelected ? 'active' : ''}`}
-                  style={{
-                    backgroundColor: preset.bg,
-                    border: preset.isLight ? '1.5px solid #cbd5e1' : '1.5px solid rgba(255, 255, 255, 0.15)',
-                  }}
-                  onClick={() => handleSelectPreset(preset)}
-                  title={preset.name}
-                  type="button"
-                >
-                  {isSelected && (
-                    <Check
-                      size={18}
-                      color={preset.isLight ? '#0f172a' : '#ffffff'}
-                      strokeWidth={3}
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Rangni yurg'izib tanlaydigan joy (Slider va rang namunasi) */}
-          <div className="new-color-slider-section">
-            <div className="new-slider-row">
-              <div className="new-slider-track-wrap">
-                <input
-                  type="range"
-                  min="0"
-                  max="360"
-                  value={hueValue}
-                  onChange={handleSliderHueChange}
-                  className="new-hue-slider"
-                  title="Rangni yurg'izib tanlang"
-                />
-              </div>
-
-              {/* Tanlagan rangni ko'rsatuvchi doira va to'liq palitra tanlagich */}
-              <div
-                className="new-chosen-swatch"
-                style={{ backgroundColor: customHex }}
-                title="Batafsil rang tanlash uchun bosing"
-              >
-                <input
-                  type="color"
-                  value={customHex}
-                  onChange={handleNativeColorChange}
-                  className="new-native-color-picker"
-                  id="nativeColorInput"
-                />
-                <label htmlFor="nativeColorInput" className="new-swatch-clickable-overlay" />
-              </div>
+            <div className="new-color-title-wrap">
+              <span className="new-color-title">Fon rangi</span>
             </div>
-
-            <div className="new-chosen-hex-row">
-              <span>
-                Tanlangan rang: <strong>{customHex.toUpperCase()}</strong>
-              </span>
-            </div>
-          </div>
-
-          {/* Tanlagan rangi qanday turishini ko'rsatadigan joy (Live Preview) */}
-          <div className="new-live-preview-box">
-            <span className="new-preview-title">Tanlangan rang ko'rinishi:</span>
-            
-            <div
-              className="new-preview-card-frame"
-              style={{
-                backgroundColor: selectedTheme.bg,
-                borderColor: selectedTheme.border,
-              }}
+            <button
+              type="button"
+              className="new-color-toggle-btn"
+              onClick={() => setIsColorPickerOpen((prev) => !prev)}
+              aria-expanded={isColorPickerOpen}
+              title="Fon rangini o'zgartirish"
             >
-              {/* Ichki kichik panel */}
-              <div
-                className="new-preview-inner-bar"
-                style={{
-                  backgroundColor: selectedTheme.panel,
-                  borderColor: selectedTheme.border,
-                }}
-              >
-                <span style={{ color: selectedTheme.accent, fontWeight: 700, fontSize: '0.85rem' }}>
-                  ⛽ Metan Gaz
-                </span>
-                <span style={{ color: selectedTheme.text || '#ffffff', fontSize: '0.8rem' }}>
-                  📍 150 m yaqin
-                </span>
+              <span>{isColorPickerOpen ? "Yopish" : "O'zgartirish"}</span>
+              <ChevronDown
+                size={16}
+                className={`color-toggle-chevron ${isColorPickerOpen ? "is-open" : ""}`}
+              />
+            </button>
+          </div>
+
+          {/* Ranglar tanlanadigan va ko'rinadigan joylar: animatsiyalik qilib pastga qarab sekin tushadi */}
+          <div className={`new-color-collapsible-wrapper ${isColorPickerOpen ? "is-open" : ""}`}>
+            <div className="new-color-collapsible-inner">
+              {/* 12 ta yumaloq rang */}
+              <div className="new-twelve-circles-grid">
+                {TWELVE_PRESETS.map((preset) => {
+                  const isSelected = selectedTheme.bg.toLowerCase() === preset.bg.toLowerCase();
+                  return (
+                    <button
+                      key={preset.id}
+                      className={`new-color-dot ${isSelected ? 'active' : ''}`}
+                      style={{
+                        backgroundColor: preset.bg,
+                        border: preset.isLight ? '1.5px solid #cbd5e1' : '1.5px solid rgba(255, 255, 255, 0.15)',
+                      }}
+                      onClick={() => handleSelectPreset(preset)}
+                      title={preset.name}
+                      type="button"
+                    >
+                      {isSelected && (
+                        <Check
+                          size={18}
+                          color={preset.isLight ? '#0f172a' : '#ffffff'}
+                          strokeWidth={3}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Ichki namuna kartochkasi */}
-              <div
-                className="new-preview-inner-card"
-                style={{
-                  backgroundColor: selectedTheme.card,
-                  borderColor: selectedTheme.border,
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <strong style={{ color: selectedTheme.text || '#ffffff', fontSize: '0.9rem' }}>
-                    Mustaqillik Zapravkasi
-                  </strong>
-                  <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 700 }}>
-                    Ochiq
+              {/* Rangni yurg'izib tanlaydigan joy (Slider va rang namunasi) */}
+              <div className="new-color-slider-section">
+                <div className="new-slider-row">
+                  <div className="new-slider-track-wrap">
+                    <input
+                      type="range"
+                      min="0"
+                      max="360"
+                      value={hueValue}
+                      onChange={handleSliderHueChange}
+                      className="new-hue-slider"
+                      title="Rangni yurg'izib tanlang"
+                    />
+                  </div>
+
+                  {/* Tanlagan rangni ko'rsatuvchi doira va to'liq palitra tanlagich */}
+                  <div
+                    className="new-chosen-swatch"
+                    style={{ backgroundColor: customHex }}
+                    title="Batafsil rang tanlash uchun bosing"
+                  >
+                    <input
+                      type="color"
+                      value={customHex}
+                      onChange={handleNativeColorChange}
+                      className="new-native-color-picker"
+                      id="nativeColorInput"
+                    />
+                    <label htmlFor="nativeColorInput" className="new-swatch-clickable-overlay" />
+                  </div>
+                </div>
+
+                <div className="new-chosen-hex-row">
+                  <span>
+                    Tanlangan rang: <strong>{customHex.toUpperCase()}</strong>
                   </span>
                 </div>
-                <div style={{ color: selectedTheme.textMuted || '#94a3b8', fontSize: '0.78rem', marginTop: '4px' }}>
-                  Metan: 3,800 so'm • Bosim: 210 atm
+              </div>
+
+              {/* Tanlagan rangi qanday turishini ko'rsatadigan joy (Live Preview) */}
+              <div className="new-live-preview-box">
+                <span className="new-preview-title">Tanlangan rang ko'rinishi:</span>
+                
+                <div
+                  className="new-preview-card-frame"
+                  style={{
+                    backgroundColor: selectedTheme.bg,
+                    borderColor: selectedTheme.border,
+                  }}
+                >
+                  {/* Ichki kichik panel */}
+                  <div
+                    className="new-preview-inner-bar"
+                    style={{
+                      backgroundColor: selectedTheme.panel,
+                      borderColor: selectedTheme.border,
+                    }}
+                  >
+                    <span style={{ color: selectedTheme.accent, fontWeight: 700, fontSize: '0.85rem' }}>
+                      ⛽ Metan Gaz
+                    </span>
+                    <span style={{ color: selectedTheme.text || '#ffffff', fontSize: '0.8rem' }}>
+                      📍 150 m yaqin
+                    </span>
+                  </div>
+
+                  {/* Ichki namuna kartochkasi */}
+                  <div
+                    className="new-preview-inner-card"
+                    style={{
+                      backgroundColor: selectedTheme.card,
+                      borderColor: selectedTheme.border,
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <strong style={{ color: selectedTheme.text || '#ffffff', fontSize: '0.9rem' }}>
+                        Mustaqillik Zapravkasi
+                      </strong>
+                      <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 700 }}>
+                        Ochiq
+                      </span>
+                    </div>
+                    <div style={{ color: selectedTheme.textMuted || '#94a3b8', fontSize: '0.78rem', marginTop: '4px' }}>
+                      Metan: 3,800 so'm • Bosim: 210 atm
+                    </div>
+                  </div>
                 </div>
               </div>
+
+              {/* Rangni tasdiqlaydigan joy */}
+              <button
+                className="new-confirm-theme-btn"
+                onClick={handleConfirmTheme}
+                type="button"
+              >
+                <Check size={18} strokeWidth={2.5} />
+                <span>Rangni tasdiqlash</span>
+              </button>
             </div>
           </div>
+        </div>
 
-          {/* Rangni tasdiqlaydigan joy */}
-          <button
-            className="new-confirm-theme-btn"
-            onClick={handleConfirmTheme}
-            type="button"
-          >
-            <Check size={18} strokeWidth={2.5} />
-            <span>Rangni tasdiqlash</span>
-          </button>
+        {/* 4. FON RANGINING TAGIDA: MENGA KELGAN BILDIRISHNOMALAR
+            Kalakolchik ichida qanday tursa huddi shunday tursin tagidagi rasmlar bilan bir xil */}
+        <div className="notif-section-block settings-notifs-section">
+          <div className="notif-list-heading-bar">
+            <div className="notif-section-title-wrap">
+              <Bell size={16} className="notif-heading-icon incoming-icon" />
+              <h4 className="notif-list-title">Menga kelgan bildirishnomalar</h4>
+            </div>
+            {incomingNotifications.length > 0 && (
+              <span className="notif-count-pill incoming-pill">
+                {incomingNotifications.length}
+              </span>
+            )}
+          </div>
+
+          {incomingNotifications.length > 0 ? (
+            <div className="notif-items-vertical-stack">
+              {incomingNotifications.map((item) => {
+                const isApprovedNotif = item.type === 'station_approved' || item.badge === 'Tasdiqlandi' || (item.title && item.title.includes('tasdiqlandi'));
+                const isRejectedNotif = item.type === 'station_rejected' || item.badge === 'Rad etildi' || (item.title && item.title.includes('rad etildi'));
+
+                return (
+                  <div 
+                    key={item.id} 
+                    className={`notif-message-card incoming-card ${isApprovedNotif ? 'notif-approved-card' : ''}`}
+                    style={isApprovedNotif ? {
+                      border: '1px solid rgba(16, 185, 129, 0.45)',
+                      background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                      boxShadow: '0 4px 20px rgba(16, 185, 129, 0.15)',
+                      borderRadius: '16px'
+                    } : isRejectedNotif ? {
+                      border: '1px solid rgba(239, 68, 68, 0.35)',
+                      background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.06) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                      borderRadius: '16px'
+                    } : {}}
+                  >
+                    <div className="notif-message-top">
+                      <span 
+                        className="notif-message-badge notif-badge-incoming"
+                        style={isApprovedNotif ? {
+                          background: 'rgba(16, 185, 129, 0.2)',
+                          border: '1px solid rgba(16, 185, 129, 0.5)',
+                          color: '#10b981',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        } : isRejectedNotif ? {
+                          background: 'rgba(239, 68, 68, 0.2)',
+                          border: '1px solid rgba(239, 68, 68, 0.5)',
+                          color: '#ef4444',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px'
+                        } : {}}
+                      >
+                        {isApprovedNotif ? <CheckCircle2 size={13} color="#10b981" /> : isRejectedNotif ? <X size={13} color="#ef4444" /> : null}
+                        {item.badge || (isApprovedNotif ? "Tasdiqlandi" : "A-Maps Tizimi")}
+                      </span>
+                      <div className="notif-message-date-box">
+                        <Clock size={12} />
+                        <span>{item.date}</span>
+                        <button
+                          type="button"
+                          className="notif-msg-delete-btn"
+                          onClick={() => handleDeleteIncoming(item.id)}
+                          title="O'chirish"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <h5 
+                      className="incoming-notif-title"
+                      style={isApprovedNotif ? { color: '#10b981', fontWeight: 700, fontSize: '0.96rem' } : isRejectedNotif ? { color: '#ef4444', fontWeight: 700 } : {}}
+                    >
+                      {item.title}
+                    </h5>
+                    <p className="notif-message-content" style={{ lineHeight: 1.55 }}>{item.message}</p>
+
+                    <div className="notif-message-footer">
+                      <span className="notif-author-label">
+                        Yuboruvchi: {item.sender || "Super Administrator"}
+                      </span>
+                      <span 
+                        className="notif-status-indicator incoming-status"
+                        style={isApprovedNotif ? { color: '#10b981' } : {}}
+                      >
+                        <CheckCircle2 size={13} />
+                        <span>{isApprovedNotif ? "Tasdiqlandi" : "Yetkazildi"}</span>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* BO'SH HOLAT: A-Maps Limon personaji */
+            <div className="notif-empty-state-box">
+              <div className="notif-empty-illustration-wrapper">
+                <img
+                  src={amapsEmptyMascot}
+                  alt="A-Maps bildirishnoma yo'q"
+                  className="notif-empty-character-img"
+                />
+              </div>
+
+              <h4 className="notif-empty-title">Sizga kelgan bildirishnoma yo'q</h4>
+              <p className="notif-empty-subtitle">
+                Hozircha sizga hech qanday xabar yoki eslatma kelmagan. Agar tizimdan yangilik yoki javob kelsa, shu yerda ko'rinadi.
+              </p>
+            </div>
+          )}
         </div>
 
       </div>

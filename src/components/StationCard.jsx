@@ -31,18 +31,18 @@ export default function StationCard({
     detailsText += `Bosim: 210 atm`;
   }
 
-  const rawTypes = Array.isArray(station.type)
+  const rawTypes = Array.isArray(station?.type)
     ? station.type
-    : (station.type ? [station.type] : (station.fuelType ? [station.fuelType] : []));
+    : (station?.type ? [station.type] : (station?.fuelType ? [station.fuelType] : []));
 
   const formatTypeName = (t) => {
     if (!t) return '';
-    const lower = t.toLowerCase();
+    const lower = typeof t === 'string' ? t.toLowerCase() : String(t).toLowerCase();
     if (lower === 'metan') return 'Metan';
     if (lower === 'propan') return 'Propan';
     if (lower === 'benzin') return 'Benzin';
     if (lower === 'elektr') return 'Elektr';
-    return t.charAt(0).toUpperCase() + t.slice(1);
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
   };
 
   const fuelTypeText = rawTypes.map(formatTypeName).filter(Boolean).join(' / ');

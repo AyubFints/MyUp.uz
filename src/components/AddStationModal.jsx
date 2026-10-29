@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   MapPin, Check, Plus, Trash2, Camera, Phone, User, Droplets, Zap, Flame, 
-  Fuel, ChevronRight, ChevronLeft, Type, X, Sparkles, CheckCircle2
+  Fuel, ChevronRight, ChevronLeft, Type, X, Sparkles, CheckCircle2, Clock, Crosshair
 } from 'lucide-react';
 import * as maplibregl from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
@@ -257,7 +257,7 @@ const FUEL_TYPES = [
   { id: 'elektr', label: 'Elektr', icon: Zap, color: '#34d399' },
 ];
 
-export default function AddStationModal({ isOpen, onClose, onSave, editStation, isLight = false }) {
+export default function AddStationModal({ isOpen, onClose, onSave, editStation, isLight = false, userCoords = null }) {
   const [step, setStep] = useState(1);
   const [animating, setAnimating] = useState(false);
 
@@ -270,6 +270,44 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
 
   // Map states
   const [mapPos, setMapPos] = useState([41.311081, 69.240562]); // Default Tashkent
+  const [isLocating, setIsLocating] = useState(false);
+
+  // Foydalanuvchining joylashuvini avtomatik aniqlash
+  const locateUser = useCallback(() => {
+    setIsLocating(true);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          setIsLocating(false);
+          const coords = [pos.coords.latitude, pos.coords.longitude];
+          setMapPos(coords);
+          try {
+            const addr = await reverseGeocode(coords[0], coords[1]);
+            if (addr) setAddress(addr);
+          } catch (e) {
+            console.warn("Geocode error:", e);
+          }
+        },
+        (err) => {
+          setIsLocating(false);
+          console.warn("Geolokatsiya aniqlanmadi:", err?.message);
+          if (userCoords?.lat && userCoords?.lng) {
+            const coords = [userCoords.lat, userCoords.lng];
+            setMapPos(coords);
+            reverseGeocode(coords[0], coords[1]).then(setAddress);
+          }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    } else if (userCoords?.lat && userCoords?.lng) {
+      setIsLocating(false);
+      const coords = [userCoords.lat, userCoords.lng];
+      setMapPos(coords);
+      reverseGeocode(coords[0], coords[1]).then(setAddress);
+    } else {
+      setIsLocating(false);
+    }
+  }, [userCoords]);
   const [address, setAddress] = useState(null);
   const [locationConfirmed, setLocationConfirmed] = useState(false);
   const [isAddressCorrect, setIsAddressCorrect] = useState(null);
@@ -292,6 +330,48 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
   const [q2, setQ2] = useState(true);
 
   const imgInputRef = useRef(null);
+  const [verificationImages, setVerificationImages] = useState({
+    exterior: '',
+    interior: '',
+    roadside: '',
+  });
+  const [showSuccessSubmittedModal, setShowSuccessSubmittedModal] = useState(false);
+  const [submittedCountdown, setSubmittedCountdown] = useState(5);
+
+  const extInputRef = useRef(null);
+  const intInputRef = useRef(null);
+  const roadInputRef = useRef(null);
+
+  const handleVerificationUpload = (slot, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setVerificationImages(prev => ({ ...prev, [slot]: reader.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeVerificationImage = (slot) => {
+    setVerificationImages(prev => ({ ...prev, [slot]: '' }));
+  };
+
+  useEffect(() => {
+    if (!showSuccessSubmittedModal) return;
+    const interval = setInterval(() => {
+      setSubmittedCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setShowSuccessSubmittedModal(false);
+          onClose();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [showSuccessSubmittedModal, onClose]);
+
 
   useEffect(() => {
     if (isOpen) {
@@ -308,6 +388,13 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
         setIsAddressCorrect(true);
         setDescription(editStation.description || '');
         setImages(editStation.images || []);
+        setVerificationImages({
+          exterior: editStation.verificationImages?.exterior || '',
+          interior: editStation.verificationImages?.interior || '',
+          roadside: editStation.verificationImages?.roadside || '',
+        });
+        setShowSuccessSubmittedModal(false);
+        setSubmittedCountdown(5);
         setAmenities(editStation.amenities || {
           coffee: true,
           toilet: true,
@@ -328,12 +415,18 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
         setSelectedTypes(['metan']);
         setFuelPrices({ metan: '3800' });
         setPhone('+998 ');
-        setMapPos([41.311081, 69.240562]);
+        const initialCoords = (userCoords?.lat && userCoords?.lng)
+          ? [userCoords.lat, userCoords.lng]
+          : [41.311081, 69.240562];
+        setMapPos(initialCoords);
         setAddress(null);
         setLocationConfirmed(false);
         setIsAddressCorrect(null);
         setDescription('');
         setImages([]);
+        setVerificationImages({ exterior: '', interior: '', roadside: '' });
+        setShowSuccessSubmittedModal(false);
+        setSubmittedCountdown(5);
         setAmenities({
           coffee: true,
           toilet: true,
@@ -348,18 +441,19 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
         setQ1(true);
         setQ2(true);
 
-        // Auto locate
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(async (pos) => {
-            const coords = [pos.coords.latitude, pos.coords.longitude];
-            setMapPos(coords);
-            const addr = await reverseGeocode(coords[0], coords[1]);
-            setAddress(addr);
-          }, () => {});
-        }
+        // Avtomatik foydalanuvchi joylashuvini topish
+        locateUser();
       }
     }
   }, [isOpen, editStation]);
+
+
+  // 4-bosqichga o'tganda (xarita ochilganda) avtomatik odam qayerdaligini topib xaritani ko'rsatish
+  useEffect(() => {
+    if (step === 4 && !editStation) {
+      locateUser();
+    }
+  }, [step, editStation, locateUser]);
 
   if (!isOpen) return null;
 
@@ -432,6 +526,31 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
         .filter(([k, v]) => !isNaN(v) && v > 0)
     );
 
+    const verificationList = [
+      verificationImages.exterior,
+      verificationImages.interior,
+      verificationImages.roadside,
+    ].filter(Boolean);
+
+    // Barcha yuklangan rasmlar (umumiy rasmlar + tekshiruv uchun yuklangan 3 ta rasm)
+    const combinedImgs = [...images];
+    verificationList.forEach(v => {
+      if (v && !combinedImgs.includes(v)) combinedImgs.push(v);
+    });
+
+    if (combinedImgs.length === 0) {
+      combinedImgs.push('https://images.unsplash.com/photo-1545459720-aac8509eb02c?auto=format&fit=crop&w=600&q=80');
+    }
+
+    // Tekshiruv uchun 3 ta rasm:
+    // Agar foydalanuvchi alohida 3 ta katakchaga yuklagan bo'lsa - o'shalar olinadi.
+    // Agar umumiy rasmlar bo'limiga 3 ta rasm yuklagan bo'lsa - avtomatik ravishda 1-, 2-, 3-rasmlar moslashtiriladi!
+    const finalVerification = {
+      exterior: verificationImages.exterior || images[0] || combinedImgs[0] || '',
+      interior: verificationImages.interior || images[1] || combinedImgs[1] || '',
+      roadside: verificationImages.roadside || images[2] || combinedImgs[2] || '',
+    };
+
     const newStation = {
       id: editStation?.id || `st_user_${Date.now()}`,
       name: name.trim() || 'A-Maps Shahobchasi',
@@ -442,7 +561,8 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
       lng: mapPos[1],
       address: address?.full || 'Toshkent sh., Chilonzor tumani',
       description,
-      images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1545459720-aac8509eb02c?auto=format&fit=crop&w=600&q=80'],
+      images: combinedImgs,
+      verificationImages: finalVerification,
       gasPressure: selectedTypes.includes('metan') ? 200 : '',
       pressures: selectedTypes.includes('metan') ? { metan: 200 } : {},
       amenities: {
@@ -463,14 +583,15 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
       reviewsCount: 1,
     };
     onSave(newStation);
-    onClose();
+    setShowSuccessSubmittedModal(true);
+    setSubmittedCountdown(5);
   };
 
   // Validations
   const isStep2Valid = stationType === 'fuel' && name.trim().length >= 2;
   const isStep3Valid = selectedTypes.length > 0 && phone.replace(/\s/g, '').length >= 13;
   const isStep4Valid = isAddressCorrect === true;
-  const isStep5Valid = images.length > 0;
+  const isStep5Valid = images.length > 0 || Boolean(verificationImages.exterior || verificationImages.interior || verificationImages.roadside);
   const isStep6Valid = true; // Qulayliklar va to'lov turlari
   const isStep7Valid = q1 !== null && q2 !== null;
 
@@ -706,13 +827,22 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
             <h2 className="modern-add-step-title">Aniq manzil</h2>
             <p className="modern-add-step-desc">Xaritada shahobcha joylashgan aniq nuqtani bosing:</p>
 
-            <div className="modern-add-map-box">
+            <div className="modern-add-map-box" style={{ position: 'relative' }}>
               {mapPos && (
                 <AddStationMapPicker 
                   position={mapPos} 
                   onLocationSelect={handleMapClick} 
                 />
               )}
+              <button
+                type="button"
+                className={`add-map-gps-btn ${isLocating ? 'locating' : ''}`}
+                onClick={locateUser}
+                title="Mening hozirgi joylashuvim"
+              >
+                <Crosshair size={16} className={isLocating ? "animate-spin" : ""} />
+                <span>{isLocating ? "Aniqlanmoqda..." : "Joylashuvim"}</span>
+              </button>
             </div>
 
             {isAddressCorrect !== true ? (
@@ -842,6 +972,113 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
                 style={{ display: 'none' }} 
                 onChange={handleImageUpload} 
               />
+            </div>
+
+            {/* Dastur Administratsiyasi tekshiruvi uchun 3 ta rasm */}
+            <div className="modern-verification-box mt-4" style={{
+              background: 'rgba(56, 189, 248, 0.05)',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
+              borderRadius: '14px',
+              padding: '16px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <Sparkles size={18} color="#38bdf8" />
+                <h4 style={{ fontSize: '0.94rem', fontWeight: 700, color: '#38bdf8', margin: 0 }}>
+                  Dastur Administratsiyasi tekshiruvi uchun 3 ta rasm
+                </h4>
+              </div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary, #94a3b8)', lineHeight: 1.45, marginBottom: '14px' }}>
+                Dastur Administratsiyasi manzilingizni dasturga qo'shish uchun unga manzil rostdan borligi bo'yicha manzilni tashqari tomondan, ichki tomondan va yo'l yuzi tomonidan olingan 3 ta rasm qo'ying.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+                {/* 1. Tashqari tomondan */}
+                <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px dashed rgba(56, 189, 248, 0.3)', borderRadius: '10px', padding: '10px', textAlign: 'center' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px', color: '#e2e8f0' }}>
+                    1. Tashqari tomondan
+                  </span>
+                  {verificationImages.exterior ? (
+                    <div style={{ position: 'relative', width: '100%', height: '80px', borderRadius: '8px', overflow: 'hidden' }}>
+                      <img src={verificationImages.exterior} alt="Tashqari" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <button
+                        type="button"
+                        onClick={() => removeVerificationImage('exterior')}
+                        style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', cursor: 'pointer' }}
+                        title="O'chirish"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => extInputRef.current?.click()}
+                      style={{ height: '80px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', cursor: 'pointer', borderRadius: '8px', background: 'rgba(56, 189, 248, 0.06)' }}
+                    >
+                      <Camera size={20} color="#38bdf8" />
+                      <span style={{ fontSize: '0.72rem', color: '#38bdf8' }}>Rasm yuklash</span>
+                    </div>
+                  )}
+                  <input ref={extInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleVerificationUpload('exterior', e)} />
+                </div>
+
+                {/* 2. Ichki tomondan */}
+                <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px dashed rgba(56, 189, 248, 0.3)', borderRadius: '10px', padding: '10px', textAlign: 'center' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px', color: '#e2e8f0' }}>
+                    2. Ichki tomondan
+                  </span>
+                  {verificationImages.interior ? (
+                    <div style={{ position: 'relative', width: '100%', height: '80px', borderRadius: '8px', overflow: 'hidden' }}>
+                      <img src={verificationImages.interior} alt="Ichki" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <button
+                        type="button"
+                        onClick={() => removeVerificationImage('interior')}
+                        style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', cursor: 'pointer' }}
+                        title="O'chirish"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => intInputRef.current?.click()}
+                      style={{ height: '80px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', cursor: 'pointer', borderRadius: '8px', background: 'rgba(56, 189, 248, 0.06)' }}
+                    >
+                      <Camera size={20} color="#38bdf8" />
+                      <span style={{ fontSize: '0.72rem', color: '#38bdf8' }}>Rasm yuklash</span>
+                    </div>
+                  )}
+                  <input ref={intInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleVerificationUpload('interior', e)} />
+                </div>
+
+                {/* 3. Yo'l yuzi tomon */}
+                <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px dashed rgba(56, 189, 248, 0.3)', borderRadius: '10px', padding: '10px', textAlign: 'center' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '6px', color: '#e2e8f0' }}>
+                    3. Yo'l yuzi tomon
+                  </span>
+                  {verificationImages.roadside ? (
+                    <div style={{ position: 'relative', width: '100%', height: '80px', borderRadius: '8px', overflow: 'hidden' }}>
+                      <img src={verificationImages.roadside} alt="Yo'l yuzi" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <button
+                        type="button"
+                        onClick={() => removeVerificationImage('roadside')}
+                        style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', cursor: 'pointer' }}
+                        title="O'chirish"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => roadInputRef.current?.click()}
+                      style={{ height: '80px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', cursor: 'pointer', borderRadius: '8px', background: 'rgba(56, 189, 248, 0.06)' }}
+                    >
+                      <Camera size={20} color="#38bdf8" />
+                      <span style={{ fontSize: '0.72rem', color: '#38bdf8' }}>Rasm yuklash</span>
+                    </div>
+                  )}
+                  <input ref={roadInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleVerificationUpload('roadside', e)} />
+                </div>
+              </div>
             </div>
 
             <div className="modern-add-actions-row mt-4">
@@ -1068,6 +1305,85 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
               >
                 <Check size={18} /> Tasdiqlash va saqlash
               </button>
+            </div>
+          </div>
+        )}
+        {showSuccessSubmittedModal && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(2, 6, 23, 0.85)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}>
+            <div style={{
+              background: '#0f172a',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              borderRadius: '20px',
+              padding: '2rem 1.75rem',
+              maxWidth: '430px',
+              width: '100%',
+              textAlign: 'center',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(56, 189, 248, 0.2)',
+            }}>
+              <div style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                background: 'rgba(16, 185, 129, 0.15)',
+                border: '2px solid rgba(16, 185, 129, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1.25rem',
+                color: '#10b981',
+                boxShadow: '0 0 25px rgba(16, 185, 129, 0.25)',
+              }}>
+                <CheckCircle2 size={36} />
+              </div>
+
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#f8fafc', marginBottom: '0.6rem' }}>
+                Manzilingiz Dastur Administratsiyasiga yuborildi
+              </h3>
+
+              <p style={{ fontSize: '0.9rem', color: '#94a3b8', lineHeight: 1.5, marginBottom: '1.4rem' }}>
+                Administratsiya tasdiqlaganidan keyin manzilingiz dasturga joylanadi.
+              </p>
+
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                background: 'rgba(56, 189, 248, 0.1)',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                borderRadius: '999px',
+                color: '#38bdf8',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                marginBottom: '1.5rem',
+              }}>
+                <Clock size={14} />
+                <span>{submittedCountdown} soniyadan so'ng yopiladi...</span>
+              </div>
+
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSuccessSubmittedModal(false);
+                    onClose();
+                  }}
+                  className="modern-add-btn-primary"
+                  style={{ width: '100%', justifyContent: 'center', padding: '10px 18px' }}
+                >
+                  Tushunarli
+                </button>
+              </div>
             </div>
           </div>
         )}
