@@ -5,13 +5,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { pool } from './config/db.js';
-import authRoutes from './routes/authRoutes.js';
-import stationRoutes from './routes/stationRoutes.js';
-import feedbackRoutes from './routes/feedbackRoutes.js';
-import adminRoutes from './routes/adminRoutes.js';
-import adRoutes from './routes/adRoutes.js';
-import analyticsRoutes from './routes/analyticsRoutes.js';
-import notificationRoutes from './routes/notificationRoutes.js';
+import apiRoutes from './routes/index.js';
 
 dotenv.config({ path: path.join(__server_dir, '../.env') });
 
@@ -48,13 +42,7 @@ app.get('/api/health', async (req, res) => {
 });
 
 // API Marshrutlari (Routes)
-app.use('/api/auth', authRoutes);
-app.use('/api/stations', stationRoutes);
-app.use('/api/feedbacks', feedbackRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/ads', adRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/notifications', notificationRoutes);
+app.use('/api', apiRoutes);
 
 // 404 handler
 app.use((req, res) => {
