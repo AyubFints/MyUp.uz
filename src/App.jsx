@@ -12,6 +12,12 @@ import NavigationMode from "./components/NavigationMode";
 import SplashScreen from "./components/SplashScreen";
 import SettingsSection, { THEME_PRESETS } from "./components/SettingsSection";
 import { DesktopSideBanner, MobileAdBanner } from "./components/AdBannerCard";
+import DeleteStationModal from "./components/DeleteStationModal";
+import PendingInspectionModal from "./components/PendingInspectionModal";
+import ServicesModal from "./components/ServicesModal";
+import LogoutConfirmModal from "./components/LogoutConfirmModal";
+import StationBellModal from "./components/StationBellModal";
+import PhoneEditModal from "./components/PhoneEditModal";
 import { CITIES, INITIAL_STATIONS, MOCK_NEWS } from "./data/mockData";
 import { calculateDistance } from "./utils/distance";
 import { playReopenAlertSound } from "./utils/audio";
@@ -3060,275 +3066,39 @@ export default function App() {
         onDeleteStation={(st) => setStationToDelete(st)}
       />
 
-      {/* ========================================================
-          ROSTDAN HAM O'CHIRMOQCHIMISIZ? MODAL OYNASI
-          ======================================================== */}
-      {stationToDelete && (
-        <div 
-          className={`delete-confirm-overlay ${isThemeLight ? "is-light" : ""}`}
-          style={{
-            '--theme-bg': appTheme?.bg || '#0e0e10',
-            '--theme-panel': appTheme?.panel || '#161618',
-            '--theme-card': appTheme?.card || '#1c1c1e',
-            '--theme-border': appTheme?.border || 'rgba(255, 255, 255, 0.12)',
-            '--theme-text': appTheme?.text || (isThemeLight ? '#0f172a' : '#ffffff'),
-            '--theme-muted': appTheme?.textMuted || (isThemeLight ? '#64748b' : '#94a3b8'),
-          }}
-          onClick={() => {
-            if (!isDeletingStation) {
-              setStationToDelete(null);
-              setDeleteReason("");
-              setDeleteReasonError("");
-            }
-          }}
-        >
-          <div 
-            className="delete-confirm-card" 
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: appTheme?.bg || '#0e0e10',
-              color: appTheme?.text || (isThemeLight ? '#0f172a' : '#ffffff'),
-              borderColor: appTheme?.border || 'rgba(239, 68, 68, 0.35)',
-            }}
-          >
-            <button 
-              type="button" 
-              className="delete-confirm-close-btn" 
-              onClick={() => {
-                if (!isDeletingStation) {
-                  setStationToDelete(null);
-                  setDeleteReason("");
-                  setDeleteReasonError("");
-                }
-              }}
-              aria-label="Yopish"
-              disabled={isDeletingStation}
-            >
-              <X size={18} />
-            </button>
+      {/* Joylashuvni o'chirish modali */}
+      <DeleteStationModal
+        station={stationToDelete}
+        isOpen={Boolean(stationToDelete)}
+        onClose={() => {
+          if (!isDeletingStation) {
+            setStationToDelete(null);
+            setDeleteReason("");
+            setDeleteReasonError("");
+          }
+        }}
+        onConfirm={handleConfirmDeleteStation}
+        deleteReason={deleteReason}
+        setDeleteReason={setDeleteReason}
+        deleteReasonError={deleteReasonError}
+        setDeleteReasonError={setDeleteReasonError}
+        isDeleting={isDeletingStation}
+        isThemeLight={isThemeLight}
+        appTheme={appTheme}
+      />
 
-            <div className="delete-confirm-icon-bubble">
-              <Trash2 size={28} />
-            </div>
+      {/* Hozirda ko'rib chiqilmoqda modali */}
+      <PendingInspectionModal
+        station={pendingInspectionModalStation}
+        isOpen={Boolean(pendingInspectionModalStation)}
+        onClose={() => setPendingInspectionModalStation(null)}
+      />
 
-            <h3 className="delete-confirm-title">
-              Joylashuvni o'chirish
-            </h3>
-
-            <p className="delete-confirm-desc">
-              <strong>"{stationToDelete.name}"</strong> manzili A-Maps tizimidan butunlay o'chiriladi.
-            </p>
-
-            {/* O'chirish sababi kiritish maydoni */}
-            <div className="delete-reason-input-group" style={{ width: '100%', marginTop: '14px', textAlign: 'left' }}>
-              <label 
-                style={{
-                  display: 'block',
-                  fontSize: '0.84rem',
-                  fontWeight: 700,
-                  color: 'var(--text-muted, #94a3b8)',
-                  marginBottom: '6px'
-                }}
-              >
-                Nima sababdan o'chirmoqchisiz? <span style={{ color: '#ef4444' }}>*</span>
-              </label>
-              <textarea
-                value={deleteReason}
-                onChange={(e) => {
-                  setDeleteReason(e.target.value);
-                  if (deleteReasonError) setDeleteReasonError("");
-                }}
-                placeholder="Masalan: Faoliyatimiz to'xtatildi yoki boshqa manzilga ko'chdik..."
-                rows={3}
-                style={{
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  padding: '10px 12px',
-                  borderRadius: '12px',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: deleteReasonError ? '1.5px solid #ef4444' : '1.5px solid var(--border-color, rgba(255, 255, 255, 0.14))',
-                  color: 'var(--text-main, #ffffff)',
-                  fontSize: '0.9rem',
-                  resize: 'none',
-                  outline: 'none',
-                  fontFamily: 'inherit',
-                }}
-                autoFocus
-              />
-              {deleteReasonError && (
-                <div style={{ color: '#ef4444', fontSize: '0.82rem', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <AlertCircle size={14} />
-                  <span>{deleteReasonError}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="delete-confirm-actions" style={{ marginTop: '18px' }}>
-              <button 
-                type="button" 
-                className="delete-btn-cancel" 
-                style={{
-                  backgroundColor: isThemeLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)',
-                  borderColor: appTheme?.border || (isThemeLight ? '#cbd5e1' : 'rgba(255, 255, 255, 0.12)'),
-                  color: appTheme?.text || (isThemeLight ? '#334155' : '#ffffff'),
-                }}
-                onClick={() => {
-                  setStationToDelete(null);
-                  setDeleteReason("");
-                  setDeleteReasonError("");
-                }}
-                disabled={isDeletingStation}
-              >
-                Bekor qilish
-              </button>
-
-              <button 
-                type="button" 
-                className="delete-btn-confirm" 
-                onClick={handleConfirmDeleteStation}
-                disabled={isDeletingStation}
-              >
-                <Trash2 size={16} />
-                <span>{isDeletingStation ? "O'chirilmoqda..." : "Ha, o'chirish"}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================
-          HALI TASDIQLANMAGAN MANZIL: "HOZIRDA KO'RIB CHIQILMOQDA" MODAL OYNASI
-          ======================================================== */}
-      {pendingInspectionModalStation && (
-        <div 
-          className="profile-overlay" 
-          style={{ zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.25rem' }}
-          onClick={() => setPendingInspectionModalStation(null)}
-        >
-          <div 
-            className="station-bell-modal-card" 
-            style={{
-              maxWidth: '430px',
-              width: '100%',
-              textAlign: 'center',
-              padding: '2.25rem 1.75rem',
-              background: '#0f172a',
-              border: '1px solid rgba(245, 158, 11, 0.35)',
-              borderRadius: '24px',
-              boxShadow: '0 25px 60px rgba(0,0,0,0.85), 0 0 35px rgba(245, 158, 11, 0.15)'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div 
-              style={{
-                width: '68px',
-                height: '68px',
-                borderRadius: '50%',
-                background: 'rgba(245, 158, 11, 0.15)',
-                border: '2px solid rgba(245, 158, 11, 0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 1.25rem',
-                color: '#f59e0b',
-                boxShadow: '0 0 25px rgba(245, 158, 11, 0.25)'
-              }}
-            >
-              <Clock size={36} />
-            </div>
-
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '4px 14px',
-              borderRadius: '999px',
-              fontSize: '0.78rem',
-              fontWeight: 700,
-              background: 'rgba(245, 158, 11, 0.15)',
-              border: '1px solid rgba(245, 158, 11, 0.35)',
-              color: '#f59e0b',
-              marginBottom: '0.85rem'
-            }}>
-              <span>Hozirda kutilmoqda</span>
-            </div>
-
-            <h3 style={{ fontSize: '1.28rem', fontWeight: 700, color: '#f8fafc', marginBottom: '0.75rem' }}>
-              Hozirda ko'rib chiqilmoqda
-            </h3>
-
-            <p style={{ fontSize: '0.9rem', color: '#94a3b8', lineHeight: 1.6, marginBottom: '1.75rem' }}>
-              Siz kiritgan <strong>"{pendingInspectionModalStation.name}"</strong> manzili hozirda Dastur Administratsiyasi tomonidan ko'rib chiqilmoqda. Administratsiya tasdiqlaganidan keyin, manzil ichiga kirib uni to'liq boshqarishingiz (narxlarni o'zgartirish, ochiq/yopiq holati va boshqa onlayn ma'lumotlar) mumkin bo'ladi.
-            </p>
-
-            <button
-              type="button"
-              className="station-bell-modal-btn"
-              style={{
-                width: '100%',
-                padding: '12px 20px',
-                borderRadius: '14px',
-                fontWeight: 700,
-                fontSize: '0.95rem',
-                background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                color: '#0f172a',
-                border: 'none',
-                cursor: 'pointer',
-                boxShadow: '0 4px 18px rgba(245, 158, 11, 0.35)'
-              }}
-              onClick={() => setPendingInspectionModalStation(null)}
-            >
-              Tushunarli
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================
-          XIZMATLAR HOZIRCHA TAYYOR EMAS - MODAL OYNASI
-          ======================================================== */}
-      {showServicesModal && (
-        <div 
-          className="services-modal-overlay" 
-          onClick={() => setShowServicesModal(false)}
-        >
-          <div 
-            className="services-modal-card" 
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button 
-              type="button" 
-              className="services-modal-close-btn" 
-              onClick={() => setShowServicesModal(false)}
-              aria-label="Yopish"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="services-modal-icon-bubble">
-              <Menu size={28} />
-            </div>
-
-            <h3 className="services-modal-title">
-              Xizmatlar hozircha tayyor emas
-            </h3>
-
-            <p className="services-modal-desc">
-              Ushbu bo'lim tez orada yangi va qulay servislar (avtomoyka, ustaxona, evakuator va boshqalar) bilan ishga tushiriladi.
-            </p>
-
-            <div className="services-modal-actions">
-              <button 
-                type="button" 
-                className="services-modal-ok-btn" 
-                onClick={() => setShowServicesModal(false)}
-              >
-                Tushunarli
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Xizmatlar tez kunda modali */}
+      <ServicesModal
+        isOpen={showServicesModal}
+        onClose={() => setShowServicesModal(false)}
+      />
 
       {/* Settings Modal */}
       {showSettingsModal && (
@@ -3382,64 +3152,12 @@ export default function App() {
         </div>
       )}
 
-      {/* Logout Confirm Modal */}
-      {showLogoutConfirm && (
-        <div
-          className="add-station-overlay"
-          onClick={() => setShowLogoutConfirm(false)}
-        >
-          <div
-            className="reopen-modal-sheet"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3
-              style={{
-                fontFamily: "var(--font-heading)",
-                color: "var(--text-primary)",
-                marginBottom: "10px",
-              }}
-            >
-              Tizimdan chiqish
-            </h3>
-            <p
-              style={{
-                fontSize: "0.9rem",
-                color: "var(--text-secondary)",
-                marginBottom: "20px",
-              }}
-            >
-              Rostdan ham tizimdan (dasturdan) chiqmoqchimisiz?
-            </p>
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button
-                className="add-st-submit-btn"
-                style={{
-                  background: "var(--bg-input)",
-                  color: "var(--text-primary)",
-                  boxShadow: "none",
-                }}
-                onClick={() => setShowLogoutConfirm(false)}
-              >
-                Yo'q
-              </button>
-              <button
-                className="add-st-submit-btn"
-                style={{
-                  background: "#ef4444",
-                  color: "white",
-                  boxShadow: "0 4px 12px rgba(239,68,68,0.3)",
-                }}
-                onClick={() => {
-                  setShowLogoutConfirm(false);
-                  handleLogout();
-                }}
-              >
-                Ha, chiqish
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Chiqishni tasdiqlash modali */}
+      <LogoutConfirmModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+      />
 
       {/* Yopish vaqti Modali (Segmented 00:00 time picker) */}
       {reopenModal.isOpen && (
@@ -3690,94 +3408,20 @@ export default function App() {
         </div>
       )}
 
-      {/* SHAHOBCHA ESLATMALAR MODAL OYNASI (Bell Modal) */}
-      {showStationBellModal && (
-        <div
-          className="profile-overlay"
-          onClick={() => setShowStationBellModal(false)}
-        >
-          <div
-            className="station-bell-modal-card"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="station-bell-icon-halo">
-              <Bell size={30} color="#f59e0b" />
-            </div>
-            <h3 className="station-bell-modal-title">Eslatmalar</h3>
-            <p className="station-bell-modal-text">
-              Hozircha eslatma yo'q
-            </p>
-            <button
-              type="button"
-              className="station-bell-modal-btn"
-              onClick={() => setShowStationBellModal(false)}
-            >
-              Tushunarli
-            </button>
-          </div>
-        </div>
-      )}
+      {/* SHAHOBCHA ESLATMALAR MODAL OYNASI */}
+      <StationBellModal
+        isOpen={showStationBellModal}
+        onClose={() => setShowStationBellModal(false)}
+      />
 
       {/* TELEFON RAQAMNI O'ZGARTIRISH MODAL OYNASI */}
-      {showPhoneEditModal && (
-        <div
-          className="profile-overlay"
-          onClick={() => setShowPhoneEditModal(false)}
-        >
-          <div
-            className="station-bell-modal-card phone-confirm-modal-sheet"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              className="station-bell-icon-halo"
-              style={{
-                backgroundColor: "rgba(16, 185, 129, 0.15)",
-                borderColor: "rgba(16, 185, 129, 0.3)",
-                color: "#10b981",
-              }}
-            >
-              <Phone size={28} />
-            </div>
-            <h3 className="station-bell-modal-title">Telefon raqamni o'zgartirish</h3>
-            <p className="station-bell-modal-text">
-              Rostdan ham telefon raqamni o'zgartirmoqchimisiz?
-            </p>
-            <div className="phone-modal-input-wrap">
-              <label className="phone-modal-input-label">Yangi telefon raqam:</label>
-              <input
-                type="text"
-                value={tempPhone}
-                onChange={(e) => setTempPhone(e.target.value)}
-                placeholder="+998 90 123 45 67"
-                className="phone-modal-input-box"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleConfirmSavePhone();
-                  }
-                }}
-              />
-            </div>
-            <div className="phone-confirm-btns-row">
-              <button
-                type="button"
-                className="phone-confirm-cancel-btn"
-                onClick={() => setShowPhoneEditModal(false)}
-              >
-                Bekor qilish
-              </button>
-              <button
-                type="button"
-                className="phone-confirm-agree-btn"
-                onClick={handleConfirmSavePhone}
-              >
-                Ha, o'zgartirish
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PhoneEditModal
+        isOpen={showPhoneEditModal}
+        onClose={() => setShowPhoneEditModal(false)}
+        phone={tempPhone}
+        onChangePhone={setTempPhone}
+        onConfirm={handleConfirmSavePhone}
+      />
 
       {/* ========================================================
           ODDIY FOYDALANUVCHI PROFILINI TO'LDIRISH MODALI
