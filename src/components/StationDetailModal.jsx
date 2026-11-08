@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ChevronLeft, ChevronRight, MapPin, Phone, Info, Navigation, X, Maximize2, Edit3
 } from 'lucide-react';
@@ -54,6 +54,12 @@ export default function StationDetailModal({
 }) {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  // Shahobcha yoki rasm o'zgarganda yuklanish holatini qayta tiklash
+  useEffect(() => {
+    setImageLoaded(false);
+  }, [station?.id, activeImageIndex]);
 
   if (!station) return null;
 
@@ -162,10 +168,23 @@ export default function StationDetailModal({
           onClick={() => setIsImageModalOpen(true)}
           title="Rasmni yaqindan ko'rish uchun bosing"
         >
+          {/* Yaltiroq Shimmer Skeleton effekti (Rasm to'liq ochilguncha yaltirab turadi) */}
+          {!imageLoaded && (
+            <div className="sd-hero-shimmer-skeleton">
+              <div className="sd-hero-shimmer-wave" />
+              <div className="sd-hero-shimmer-badge">
+                <div className="sd-hero-shimmer-dot" />
+                <span>Rasm yuklanmoqda...</span>
+              </div>
+            </div>
+          )}
+
           <img 
             src={currentImage} 
             alt={stationName} 
-            className="sd-hero-image"
+            className={`sd-hero-image ${imageLoaded ? 'is-loaded' : 'is-loading'}`}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageLoaded(true)}
           />
 
           {/* Yaqindan ko'rish ishorasi */}

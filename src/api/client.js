@@ -2,8 +2,8 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// Yordamchi so'rov yuboruvchi funksiya
-async function request(endpoint, options = {}) {
+// Yordamchi so'rov yuboruvchi funksiya (avtomatik retry va 8s barqaror timeout)
+async function request(endpoint, options = {}, retries = 1) {
   const token = localStorage.getItem('myup_token');
   const headers = {
     'Content-Type': 'application/json',
@@ -11,9 +11,9 @@ async function request(endpoint, options = {}) {
     ...options.headers,
   };
 
-  // 4 soniyalik tezkor timeout (telefonda tarmoq qotib qolishini oldini oladi)
+  // 8 soniyalik qulay timeout (mobil internet va 3G/4G tarmoqlarda barqaror ishlashi uchun)
+  const timeoutMs = options.timeout || 8000;
   const controller = new AbortController();
-  const timeoutMs = options.timeout || 4000;
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
@@ -31,6 +31,14 @@ async function request(endpoint, options = {}) {
     return data;
   } catch (err) {
     clearTimeout(timeoutId);
+
+    // Agar mobil tarmoq uzilsa yoki vaqtinchalik timeout bo'lsa, GET so'rovlarni avtomatik 1 marta qayta sinash
+    const isGetOrSafe = !options.method || options.method === 'GET';
+    if (retries > 0 && isGetOrSafe && (err.name === 'AbortError' || err.message?.includes('fetch') || err.name === 'TypeError')) {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      return request(endpoint, options, retries - 1);
+    }
+
     if (err.name === 'AbortError') {
       throw new Error("Server javob berish vaqti tugadi (Timeout)");
     }

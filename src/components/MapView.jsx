@@ -402,6 +402,8 @@ export default function MapView({
     }
   }, [activeFuelFilter]);
   const [highlightBadgeText, setHighlightBadgeText] = useState('');
+  const [isMapReady, setIsMapReady] = useState(false);
+  const [isMapFadingOut, setIsMapFadingOut] = useState(false);
   const [highlightBadgeType, setHighlightBadgeType] = useState('selected'); // 'cheapest' | 'nearest' | 'selected'
   const [sidebarSearch, setSidebarSearch] = useState('');
 
@@ -539,6 +541,20 @@ export default function MapView({
     ro.observe(mapContainerRef.current);
     return () => ro.disconnect();
   }, [mapInstance]);
+
+  // Xarita va barcha shahobchalar xaritaga to'liq tushguncha yarqirab turishi (Foydalanuvchi talabi)
+  useEffect(() => {
+    if (!mapInstance) return;
+    const timer = setTimeout(() => {
+      setIsMapFadingOut(true);
+      const finishTimer = setTimeout(() => {
+        setIsMapReady(true);
+      }, 500);
+      return () => clearTimeout(finishTimer);
+    }, 1800);
+
+    return () => clearTimeout(timer);
+  }, [mapInstance, filteredStationList?.length]);
 
   // 2. Foydalanuvchi GPS joylashuvini kuzatish
   useEffect(() => {
@@ -3055,6 +3071,73 @@ export default function MapView({
           height: '100%',
         }}
       />
+
+      {/* 0. HARITA VA SHAHOBCHALAR TO'LIQ YETIB KELGUNCHA YARQIRAB TURUVCHI HOLOGRAFIK SKELETON */}
+      {!isMapReady && (
+        <div className={`map-shimmer-fullscreen-overlay ${isMapFadingOut ? 'map-shimmer-fade-out' : ''}`}>
+          {/* Xarita to'r chiziqlari */}
+          <div className="map-shimmer-grid-pattern" />
+
+          {/* Diagional yarqiroq lazer nuri */}
+          <div className="map-shimmer-laser-beam" />
+
+          {/* Markaziy futuristik Radar */}
+          <div className="map-shimmer-center-radar">
+            <div className="map-shimmer-radar-circle">
+              <div className="map-radar-pulse-ring ring-one" />
+              <div className="map-radar-pulse-ring ring-two" />
+              <div className="map-radar-pulse-ring ring-three" />
+              <div className="map-radar-compass-center">
+                <Navigation size={28} className="map-radar-compass-icon" />
+              </div>
+            </div>
+            <h3 className="map-shimmer-main-title">Xarita va Shahobchalar yuklanmoqda...</h3>
+            <p className="map-shimmer-sub-text">
+              GPS koordinatalar va barcha shahobchalar xaritaga tushirilmoqda
+            </p>
+            <div className="map-shimmer-progress-track">
+              <div className="map-shimmer-progress-fill" />
+            </div>
+          </div>
+
+          {/* Xarita tepasidagi skelet qidiruv va filtrlar */}
+          <div className="map-ghost-top-bar">
+            <div className="map-ghost-search-box" />
+            <div className="map-ghost-pills-row">
+              <div className="map-ghost-pill pill-accent" />
+              <div className="map-ghost-pill" />
+              <div className="map-ghost-pill" />
+              <div className="map-ghost-pill" />
+              <div className="map-ghost-pill" />
+            </div>
+          </div>
+
+          {/* Xarita ustida yarqirab miltillab turuvchi shahobcha pinlari */}
+          <div className="map-ghost-station-marker ghost-pin-1">
+            <div className="ghost-pin-dot" />
+            <div className="ghost-pin-wave" />
+          </div>
+          <div className="map-ghost-station-marker ghost-pin-2">
+            <div className="ghost-pin-dot" />
+            <div className="ghost-pin-wave" />
+          </div>
+          <div className="map-ghost-station-marker ghost-pin-3">
+            <div className="ghost-pin-dot" />
+            <div className="ghost-pin-wave" />
+          </div>
+          <div className="map-ghost-station-marker ghost-pin-4">
+            <div className="ghost-pin-dot" />
+            <div className="ghost-pin-wave" />
+          </div>
+
+          {/* O'ng tarafdagi boshqaruv tugmalari skeleti */}
+          <div className="map-ghost-right-controls">
+            <div className="map-ghost-round-btn" />
+            <div className="map-ghost-round-btn" />
+            <div className="map-ghost-round-btn" />
+          </div>
+        </div>
+      )}
 
       {/* Aniqlik ko'rsatkichi */}
       {accuracy && !locating && (

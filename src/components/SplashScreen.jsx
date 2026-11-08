@@ -1,55 +1,113 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import './SplashScreen.css';
 
 export default function SplashScreen({ onComplete }) {
-  const [phase, setPhase] = useState('entering');
+  // Fazalar: 'center' (markazda erkin suzadi) -> 'docked' (sekin chapga surilib, yozuvlar silliq ochiladi) -> 'zooming' (katta bo'lib dasturga o'tadi)
+  const [phase, setPhase] = useState('center');
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  const hasFinishedRef = useRef(false);
+
+  const safeComplete = () => {
+    if (hasFinishedRef.current) return;
+    hasFinishedRef.current = true;
+    if (typeof onCompleteRef.current === 'function') {
+      onCompleteRef.current();
+    }
+  };
 
   useEffect(() => {
-    // 1.5 soniyadan keyin "kattalashib yaqinlashish" fazasiga o'tadi
-    const scaleTimer = setTimeout(() => {
-      setPhase('scaling');
-    }, 1500);
+    // 1. Dastlab rasm markazda salobatli va erkin suzadi, 1.25 soniyada sekin va mayin chapga surilishni boshlaydi
+    const dockTimer = setTimeout(() => {
+      setPhase('docked');
+    }, 1250);
 
-    // 3 soniyadan keyin tugatadi
+    // 2. 2.9 soniyada brend bloki butun ekran bo'ylab bitta katta bo'lib (portal zoom) kengayib dasturga kirib ketadi
+    const zoomTimer = setTimeout(() => {
+      setPhase('zooming');
+    }, 2900);
+
+    // 3. 3.55 soniyada silliq ravishda dasturga o'tkazadi
     const finishTimer = setTimeout(() => {
-      setPhase('exiting');
-      setTimeout(onComplete, 400); // 400ms fade-out uchun
-    }, 3000);
+      safeComplete();
+    }, 3550);
+
+    // Favqulodda xavfsizlik (telefon qotib qolmasligi uchun)
+    const emergencyTimer = setTimeout(() => {
+      safeComplete();
+    }, 4200);
 
     return () => {
-      clearTimeout(scaleTimer);
+      clearTimeout(dockTimer);
+      clearTimeout(zoomTimer);
       clearTimeout(finishTimer);
+      clearTimeout(emergencyTimer);
     };
-  }, [onComplete]);
+  }, []);
+
+  // Ekranni bir marta bosganda tezkor dasturga o'tish (Skip)
+  const handleFastSkip = () => {
+    setPhase('zooming');
+    setTimeout(() => {
+      safeComplete();
+    }, 200);
+  };
 
   return (
-    <div className={`splash-screen ${phase === 'exiting' ? 'fade-out' : ''}`}>
-      {/* Blurred background logo */}
-      <div className="splash-background-image" style={{ backgroundImage: 'url(https://i.postimg.cc/VNHPnzHt/myup-orgg.jpg)' }}></div>
-      
-      {/* Orqa fondagi harakatlanuvchi katta shakllar */}
-      <div className="splash-shape shape-1"></div>
-      <div className="splash-shape shape-2"></div>
-      <div className="splash-shape shape-3"></div>
-      <div className="splash-shape shape-4"></div>
-      <div className="splash-shape shape-5"></div>
-      
-      <div className="splash-content" style={{ zIndex: 2, position: 'relative' }}>
-        {/* Yozuv animatsiyasi */}
-        <div className={`splash-logo ${phase === 'scaling' ? 'scale-up' : 'bounce-in'}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px' }}>
-          <img src="https://i.postimg.cc/VNHPnzHt/myup-orgg.jpg" alt="AX-Map Logo" className="brand-logo-icon" style={{ width: '72px', height: '72px', borderRadius: '16px' }} />
-          <div>
-            <span className="splash-brand-my">AX-</span>
-            <span className="splash-brand-up">Map</span>
-            <span className="splash-brand-dot">.uz</span>
-          </div>
+    <div
+      className={`splash-cinematic-screen ${phase === 'zooming' ? 'is-zooming' : ''}`}
+      onClick={handleFastSkip}
+      role="button"
+      tabIndex={0}
+      title="Dasturga tezkor o'tish uchun bosing"
+    >
+      {/* 1. Orqa fon: Chuqur qora va to'lqinlanuvchi to'q ko'k nurlar */}
+      <div className="splash-ambient-bg">
+        <div className="splash-dark-overlay" />
+        <div className="splash-deep-blue-glow glow-center" />
+        <div className="splash-deep-blue-glow glow-bottom" />
+        <div className="splash-deep-blue-glow glow-orbital" />
+        <div className="splash-grid-mesh" />
+      </div>
+
+      {/* 2. Asosiy Animatsion Brend Sahnasi */}
+      <div className={`splash-brand-stage stage-${phase}`}>
+        {/* Metallik Uchburchak Emblem Logo */}
+        <div className="splash-emblem-wrap">
+          <div className="splash-emblem-glow-behind" />
+          <div className="splash-emblem-neon-ring" />
+          {/* Metall yuzasidagi yaltiroq yorug'lik to'lqini */}
+          <div className="splash-emblem-sheen" />
+          <img
+            src="/ax-splash-logo.jpg"
+            alt="AX-Map Emblem"
+            className="splash-emblem-img"
+          />
         </div>
-        
-        {/* Aylanuvchi nuqtalar */}
-        <div className="splash-loader">
-          <div className="dot"></div>
-          <div className="dot"></div>
-          <div className="dot"></div>
+
+        {/* Sekin va mayin surilganda ochiladigan matnlar bloki */}
+        <div className="splash-text-lockup">
+          {/* AX (To'q ko'k rangda, neon jilosi bilan) */}
+          <div className="splash-title-ax">
+            <span>AX</span>
+            <div className="splash-ax-glow-underline" />
+          </div>
+
+          {/* Pastida MAP */}
+          <div className="splash-title-map">
+            <span className="map-text">MAP</span>
+            <span className="map-dot">.uz</span>
+          </div>
+
+          {/* Nozik shior */}
+          <div className="splash-sub-caption">AQLLI NAVIGATSIYA & METAN</div>
+        </div>
+      </div>
+
+      {/* 3. Pastdagi nozik yuklanish chizig'i (sekin, ravon to'ladi) */}
+      <div className="splash-cinematic-bottom">
+        <div className="splash-cinematic-track">
+          <div className="splash-cinematic-progress" />
         </div>
       </div>
     </div>

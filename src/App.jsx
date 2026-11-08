@@ -11,6 +11,7 @@ import LogoutConfirmModal from "./components/LogoutConfirmModal";
 import StationBellModal from "./components/StationBellModal";
 import PhoneEditModal from "./components/PhoneEditModal";
 import AuthScreen from "./components/AuthScreen";
+import StationDetailModal from "./components/StationDetailModal";
 import { CITIES, INITIAL_STATIONS, MOCK_NEWS, DEFAULT_DEMO_STATIONS, DEFAULT_THEME } from "./data/mockData";
 import { stationMatchesFuel } from "./utils/fuel";
 
@@ -20,36 +21,39 @@ const NavigationMode = lazy(() => import("./components/NavigationMode"));
 const AddStationModal = lazy(() => import("./components/AddStationModal"));
 const SettingsSection = lazy(() => import("./components/SettingsSection"));
 const NotificationsView = lazy(() => import("./components/NotificationsView"));
-const StationDetailModal = lazy(() => import("./components/StationDetailModal"));
 const ProfileDetailModal = lazy(() => import("./components/ProfileDetailModal"));
 const StationReviewModal = lazy(() => import("./components/StationReviewModal"));
 
 const MapLoadingFallback = () => (
-  <div
-    style={{
-      width: "100%",
-      height: "100%",
-      minHeight: "350px",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: "#0e1117",
-      color: "#94a3b8",
-      gap: "12px",
-    }}
-  >
-    <div
-      style={{
-        width: "36px",
-        height: "36px",
-        border: "3px solid rgba(56, 189, 248, 0.2)",
-        borderTopColor: "#38bdf8",
-        borderRadius: "50%",
-        animation: "spin 1s linear infinite",
-      }}
-    />
-    <span style={{ fontSize: "14px", fontWeight: 500 }}>Xarita yuklanmoqda...</span>
+  <div className="map-shimmer-fullscreen-overlay">
+    <div className="map-shimmer-grid-pattern" />
+    <div className="map-shimmer-laser-beam" />
+    <div className="map-shimmer-center-radar">
+      <div className="map-shimmer-radar-circle">
+        <div className="map-radar-pulse-ring ring-one" />
+        <div className="map-radar-pulse-ring ring-two" />
+        <div className="map-radar-pulse-ring ring-three" />
+        <div className="map-radar-compass-center">
+          <Navigation size={28} className="map-radar-compass-icon" />
+        </div>
+      </div>
+      <h3 className="map-shimmer-main-title">Xarita va Shahobchalar yuklanmoqda...</h3>
+      <p className="map-shimmer-sub-text">
+        GPS koordinatalar va barcha shahobchalar xaritaga tushirilmoqda
+      </p>
+      <div className="map-shimmer-progress-track">
+        <div className="map-shimmer-progress-fill" />
+      </div>
+    </div>
+    <div className="map-ghost-top-bar">
+      <div className="map-ghost-search-box" />
+      <div className="map-ghost-pills-row">
+        <div className="map-ghost-pill pill-accent" />
+        <div className="map-ghost-pill" />
+        <div className="map-ghost-pill" />
+        <div className="map-ghost-pill" />
+      </div>
+    </div>
   </div>
 );
 
@@ -158,15 +162,20 @@ export default function App() {
   });
 
   const [showSplash, setShowSplash] = useState(() => {
-    const savedUser = localStorage.getItem("myup_user");
-    const splashShown = sessionStorage.getItem("myup_splash_shown");
-    return Boolean(savedUser) && !splashShown;
+    try {
+      const splashShown = sessionStorage.getItem("myup_splash_v3_shown");
+      return !splashShown;
+    } catch {
+      return false;
+    }
   });
 
-  const handleSplashComplete = () => {
-    sessionStorage.setItem("myup_splash_shown", "true");
+  const handleSplashComplete = useCallback(() => {
+    try {
+      sessionStorage.setItem("myup_splash_v3_shown", "true");
+    } catch {}
     setShowSplash(false);
-  };
+  }, []);
 
   const [activeTab, setActiveTab] = useState("home");
 
@@ -225,10 +234,13 @@ export default function App() {
     }
   };
 
+  const [isStationsLoading, setIsStationsLoading] = useState(true);
   const [stations, setStations] = useState(() => {
     try {
+      const cached = localStorage.getItem("myup_cached_stations");
+      const baseStations = cached ? JSON.parse(cached) : INITIAL_STATIONS;
       const storedRatings = JSON.parse(localStorage.getItem("myup_custom_ratings") || "{}");
-      return INITIAL_STATIONS.map((s) => {
+      return (Array.isArray(baseStations) && baseStations.length > 0 ? baseStations : INITIAL_STATIONS).map((s) => {
         if (storedRatings[s.id]) {
           return {
             ...s,
@@ -1163,6 +1175,7 @@ export default function App() {
 
   // PostgreSQL (Backend) dan barcha tasdiqlangan shahobchalarni yuklab olish
   const loadStationsFromDb = useCallback(async () => {
+    setIsStationsLoading(true);
     try {
       const res = await api.stations.getAll({
         userLat: userCoords?.lat,
@@ -1184,6 +1197,9 @@ export default function App() {
           });
         } catch (e) {}
         setStations(mergedStations);
+        try {
+          localStorage.setItem("myup_cached_stations", JSON.stringify(mergedStations));
+        } catch (e) {}
 
         // myStations ro'yxatini bazadagi jonli tasdiqlangan shahobchalar bilan sinxronlashtirish
         setMyStations((prev) => {
@@ -1219,6 +1235,17 @@ export default function App() {
       }
     } catch (err) {
       console.warn("Shahobchalarni bazadan yuklashda xato:", err.message);
+      try {
+        const cached = localStorage.getItem("myup_cached_stations");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setStations(parsed);
+          }
+        }
+      } catch (e) {}
+    } finally {
+      setIsStationsLoading(false);
     }
   }, [userCoords, user?.id]);
 
@@ -1353,14 +1380,7 @@ export default function App() {
     localStorage.setItem("myup_favorites", JSON.stringify(favorites));
   }, [favorites]);
 
-  const [isLocating, setIsLocating] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem("axmap_user_coords");
-      return !saved;
-    } catch {
-      return true;
-    }
-  });
+  const [isLocating, setIsLocating] = useState(true);
 
   // Dasturga kirishi bilanoq foydalanuvchi joylashuvini so'rash va aniqlash
   const requestLocation = useCallback(() => {
@@ -1370,50 +1390,73 @@ export default function App() {
       return;
     }
 
+    const MIN_LOCATING_DURATION_MS = 2200; // Foydalanuvchi talabi: yarqirash tez yo'qolmasligi uchun kamida 2.2 soniya
+    const startTimestamp = Date.now();
+
     setLocationStatus("locating");
     setIsLocating(true);
-    setLocationAccuracyPercent(20);
+    setLocationAccuracyPercent(25);
 
     let resolved = false;
+    let smoothFinishTimer = null;
 
-    // GPS sun'iy yo'ldoshlarini qidirish va ulanish animatsiyasi
+    // GPS sun'iy yo'ldoshlarini qidirish va ulanish animatsiyasi (silliq va ravon foiz o'sishi)
     const progressInterval = setInterval(() => {
       setLocationAccuracyPercent((prev) => {
-        if (prev < 75) return prev + 8;
+        if (prev < 78) return prev + Math.floor(Math.random() * 5 + 5);
         return prev;
       });
-    }, 300);
+    }, 200);
 
     const handleSuccessPosition = (pos) => {
       if (!pos || !pos.coords) return;
       const { latitude, longitude, accuracy } = pos.coords;
 
-      // Aniqlik foizini hisoblash (metr qanchalik kam bo'lsa, aniqlik shuncha baland)
-      let percent = 85;
+      // Aniqlik foizini hisoblash
+      let percent = 88;
       if (typeof accuracy === "number") {
         if (accuracy <= 30) percent = 100;
         else if (accuracy <= 70) percent = 98;
         else if (accuracy <= 150) percent = 95;
         else if (accuracy <= 400) percent = 90;
         else if (accuracy <= 1000) percent = 85;
-        else if (accuracy <= 2500) percent = 80;
-        else percent = 70;
+        else if (accuracy <= 2500) percent = 82;
+        else percent = 80;
       }
 
-      // Foydalanuvchi talabi: "qachonki manzilini 80% aniqlab olgandan kegin manziliga qarab pastida manzil chiqarsin"
-      if (percent >= 80 || !resolved) {
+      if (!resolved) {
         resolved = true;
         clearInterval(progressInterval);
-        setLocationAccuracyPercent(Math.max(percent, 85));
 
-        const newCoords = { lat: latitude, lng: longitude };
-        setUserCoords(newCoords);
-        try {
-          sessionStorage.setItem("axmap_user_coords", JSON.stringify(newCoords));
-        } catch (e) {}
+        // Qolgan vaqtni hisoblash (foydalanuvchi yarqirash va radar animatsiyasini to'liq ko'rishi uchun kamida 2.2 soniya)
+        const elapsed = Date.now() - startTimestamp;
+        const remaining = Math.max(0, MIN_LOCATING_DURATION_MS - elapsed);
 
-        setLocationStatus("ready");
-        setIsLocating(false);
+        // Foizni silliq ravishda 80% dan 100% gacha yetkazish
+        const steps = 6;
+        const stepDelay = Math.max(50, Math.floor(remaining / steps));
+        let stepCount = 0;
+
+        smoothFinishTimer = setInterval(() => {
+          stepCount++;
+          setLocationAccuracyPercent((prev) => Math.min(100, Math.max(prev + 4, 82)));
+
+          if (stepCount >= steps || (Date.now() - startTimestamp) >= MIN_LOCATING_DURATION_MS) {
+            clearInterval(smoothFinishTimer);
+            setLocationAccuracyPercent(Math.max(percent, 88));
+
+            const newCoords = { lat: latitude, lng: longitude };
+            setUserCoords(newCoords);
+            try {
+              sessionStorage.setItem("axmap_user_coords", JSON.stringify(newCoords));
+            } catch (e) {}
+
+            setLocationStatus("ready");
+            setTimeout(() => {
+              setIsLocating(false);
+            }, 300);
+          }
+        }, stepDelay);
       }
     };
 
@@ -1421,9 +1464,15 @@ export default function App() {
       console.warn("Geolokatsiya xatoligi:", err?.message || err);
       if (err?.code === 1) { // PERMISSION_DENIED
         clearInterval(progressInterval);
+        if (smoothFinishTimer) clearInterval(smoothFinishTimer);
         resolved = true;
-        setLocationStatus("denied");
-        setIsLocating(false);
+        const elapsed = Date.now() - startTimestamp;
+        const remaining = Math.max(0, 1200 - elapsed);
+        setTimeout(() => {
+          setLocationStatus("denied");
+          setIsLocating(false);
+          setUserCoords((prev) => prev || { lat: 41.311081, lng: 69.240562 });
+        }, remaining);
       }
     };
 
@@ -1453,13 +1502,16 @@ export default function App() {
     const timeoutTimer = setTimeout(() => {
       if (!resolved) {
         clearInterval(progressInterval);
+        if (smoothFinishTimer) clearInterval(smoothFinishTimer);
         setLocationStatus((prev) => (prev === "locating" ? "timeout" : prev));
         setIsLocating(false);
+        setUserCoords((prev) => prev || { lat: 41.311081, lng: 69.240562 });
       }
     }, 20000);
 
     return () => {
       clearInterval(progressInterval);
+      if (smoothFinishTimer) clearInterval(smoothFinishTimer);
       clearTimeout(timeoutTimer);
       navigator.geolocation.clearWatch(watchId);
     };
@@ -2545,7 +2597,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {isLocating ? (
+                {isLocating || (isStationsLoading && stations.length === 0) ? (
                   <div className="location-searching-wrapper">
                     <div className="location-detecting-card">
                       <div className="location-detecting-top">
@@ -2583,39 +2635,40 @@ export default function App() {
                       <StationCardSkeleton key={`skeleton-${idx}`} />
                     ))}
                   </div>
-                ) : (locationStatus === "denied" || locationStatus === "timeout" || locationStatus === "unsupported") && !userCoords ? (
-                  <div className="location-denied-card">
-                    <div className="location-denied-icon-wrap">
-                      <MapPinOff size={28} />
-                    </div>
-                    <div className="location-denied-content">
-                      <h4 className="location-denied-title">
-                        {locationStatus === "denied" ? "Joylashuvga ruxsat berilmadi" : "Joylashuvni aniqlash cho'zildi"}
-                      </h4>
-                      <p className="location-denied-desc">
-                        Shahobchalargacha bo'lgan masofani real hisoblash uchun joylashuvga (GPS) ruxsat bering.
-                      </p>
-                      <div className="location-denied-actions">
-                        <button
-                          type="button"
-                          className="location-retry-btn"
-                          onClick={requestLocation}
-                        >
-                          <LocateFixed size={16} />
-                          <span>Qayta aniqlash</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="location-fallback-btn"
-                          onClick={handleUseDefaultLocation}
-                        >
-                          <span>Standart xarita bo'yicha ko'rish</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
                 ) : (
                   <>
+                    {(locationStatus === "denied" || locationStatus === "timeout" || locationStatus === "unsupported") && !userCoords && (
+                      <div className="location-denied-card" style={{ marginBottom: "16px" }}>
+                        <div className="location-denied-icon-wrap">
+                          <MapPinOff size={28} />
+                        </div>
+                        <div className="location-denied-content">
+                          <h4 className="location-denied-title">
+                            {locationStatus === "denied" ? "Joylashuvga ruxsat berilmadi" : "Joylashuvni aniqlash cho'zildi"}
+                          </h4>
+                          <p className="location-denied-desc">
+                            Shahobchalargacha bo'lgan masofani real hisoblash uchun joylashuvga (GPS) ruxsat bering.
+                          </p>
+                          <div className="location-denied-actions">
+                            <button
+                              type="button"
+                              className="location-retry-btn"
+                              onClick={requestLocation}
+                            >
+                              <LocateFixed size={16} />
+                              <span>Qayta aniqlash</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="location-fallback-btn"
+                              onClick={handleUseDefaultLocation}
+                            >
+                              <span>Standart xarita bo'yicha ko'rish</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     {displayedStations.map((station) => (
                       <StationCard
                         key={station.id}
@@ -3927,30 +3980,28 @@ export default function App() {
       )}
 
       {Boolean(detailStation) && (
-        <Suspense fallback={null}>
-          <StationDetailModal
-            station={detailStation}
-            userDistance={
-              detailStation
-                ? calculateDistance(
-                    userCoords?.lat,
-                    userCoords?.lng,
-                    detailStation.lat,
-                    detailStation.lng,
-                  )
-                : 0
-            }
-            onClose={() => setDetailStation(null)}
-            onStartNavigation={(target) => setNavigationTarget(target)}
-            onRateStation={handleRateStation}
-            isMyStation={myStations.some((s) => s.id === detailStation?.id)}
-            onDeleteStation={(st) => setStationToDelete(st)}
-            onManageStation={(st) => {
-              setSelectedManageStationId(st.id);
-              setActiveTab('my');
-            }}
-          />
-        </Suspense>
+        <StationDetailModal
+          station={detailStation}
+          userDistance={
+            detailStation
+              ? calculateDistance(
+                  userCoords?.lat,
+                  userCoords?.lng,
+                  detailStation.lat,
+                  detailStation.lng,
+                )
+              : 0
+          }
+          onClose={() => setDetailStation(null)}
+          onStartNavigation={(target) => setNavigationTarget(target)}
+          onRateStation={handleRateStation}
+          isMyStation={myStations.some((s) => s.id === detailStation?.id)}
+          onDeleteStation={(st) => setStationToDelete(st)}
+          onManageStation={(st) => {
+            setSelectedManageStationId(st.id);
+            setActiveTab('my');
+          }}
+        />
       )}
 
       {/* Shahobchani baholash modali (tashrifdan so'ng) */}
