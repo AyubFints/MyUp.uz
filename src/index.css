@@ -53,13 +53,14 @@
   --shadow-glow: 0 0 25px rgba(6, 182, 212, 0.25);
 }
 
-* {
+*, *::before, *::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
-body {
+html, body {
   font-family: var(--font-main);
   background-color: var(--bg-primary);
   color: var(--text-primary);
@@ -67,6 +68,25 @@ body {
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Telefonda matnlarni tasodifan belgilab olib, Google qidiruv oynasi chiqib ketishining oldini olish */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Faqat yozish va kiritish maydonlarida matn tanlashga ruxsat */
+input,
+textarea,
+[contenteditable="true"],
+.selectable-text {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default !important;
 }
 
 /* Custom Scrollbar */

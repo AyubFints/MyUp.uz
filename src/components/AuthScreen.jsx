@@ -396,17 +396,8 @@ export default function AuthScreen({
 
       <div className="modern-auth-card">
 
-        {/* LOGO VA HEADER */}
+        {/* HEADER */}
         <div className="modern-auth-header">
-          <div className="modern-auth-brand-badge">
-            <img 
-              src="/amaps-logo.webp" 
-              alt="AX-Map Logo" 
-              className="modern-auth-badge-logo" 
-            />
-            <span>AX-Map.uz</span>
-          </div>
-
           <h2 className="modern-auth-title">
             {authMode === 'location_register'
               ? "Joylashuv joylash"

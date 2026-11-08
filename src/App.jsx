@@ -131,6 +131,9 @@ import {
   Lock,
   Megaphone,
   ExternalLink,
+  Navigation,
+  MapPinOff,
+  LocateFixed,
 } from "lucide-react";
 import "./App.css";
 
@@ -1038,9 +1041,32 @@ export default function App() {
   };
 
   const [selectedCity] = useState(CITIES[0]);
-  const [userCoords, setUserCoords] = useState({
-    lat: 41.311081,
-    lng: 69.240562,
+  // Dasturga kirishda koordinatalar avvaldan toshkent qilib qo'yilmaydi (faqat foydalanuvchi ruxsat bergach 80%+ aniqlikda olinadi)
+  const [userCoords, setUserCoords] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem("axmap_user_coords");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [locationStatus, setLocationStatus] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem("axmap_user_coords");
+      return saved ? "ready" : "locating";
+    } catch {
+      return "locating";
+    }
+  }); // "locating" | "ready" | "denied" | "timeout" | "unsupported"
+
+  const [locationAccuracyPercent, setLocationAccuracyPercent] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem("axmap_user_coords");
+      return saved ? 95 : 20;
+    } catch {
+      return 20;
+    }
   });
 
   // Category & sub-filter (global — hamma tabda ishlaydi)
@@ -1327,57 +1353,134 @@ export default function App() {
     localStorage.setItem("myup_favorites", JSON.stringify(favorites));
   }, [favorites]);
 
-  const [isLocating, setIsLocating] = useState(true);
+  const [isLocating, setIsLocating] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem("axmap_user_coords");
+      return !saved;
+    } catch {
+      return true;
+    }
+  });
 
-  // Dasturga kirganda fon rejimida foydalanuvchi joylashuvini avtomatik aniqlash (xaritasiz)
-  useEffect(() => {
-    let hasResolved = false;
-
+  // Dasturga kirishi bilanoq foydalanuvchi joylashuvini so'rash va aniqlash
+  const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
+      setLocationStatus("unsupported");
       setIsLocating(false);
       return;
     }
 
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        if (pos && pos.coords) {
-          const { latitude, longitude } = pos.coords;
-          setUserCoords({ lat: latitude, lng: longitude });
+    setLocationStatus("locating");
+    setIsLocating(true);
+    setLocationAccuracyPercent(20);
 
-          // 70% aniqlikdayoq (birinchi olingan aniq koordinatalar) pastdagi manzillar chiqishni boshlaydi
-          if (!hasResolved) {
-            hasResolved = true;
-            setIsLocating(false);
-          }
-        }
-      },
-      (err) => {
-        console.warn("Avtomatik geolokatsiya:", err?.message || err);
-        if (!hasResolved) {
-          hasResolved = true;
-          setIsLocating(false);
-        }
-      },
+    let resolved = false;
+
+    // GPS sun'iy yo'ldoshlarini qidirish va ulanish animatsiyasi
+    const progressInterval = setInterval(() => {
+      setLocationAccuracyPercent((prev) => {
+        if (prev < 75) return prev + 8;
+        return prev;
+      });
+    }, 300);
+
+    const handleSuccessPosition = (pos) => {
+      if (!pos || !pos.coords) return;
+      const { latitude, longitude, accuracy } = pos.coords;
+
+      // Aniqlik foizini hisoblash (metr qanchalik kam bo'lsa, aniqlik shuncha baland)
+      let percent = 85;
+      if (typeof accuracy === "number") {
+        if (accuracy <= 30) percent = 100;
+        else if (accuracy <= 70) percent = 98;
+        else if (accuracy <= 150) percent = 95;
+        else if (accuracy <= 400) percent = 90;
+        else if (accuracy <= 1000) percent = 85;
+        else if (accuracy <= 2500) percent = 80;
+        else percent = 70;
+      }
+
+      // Foydalanuvchi talabi: "qachonki manzilini 80% aniqlab olgandan kegin manziliga qarab pastida manzil chiqarsin"
+      if (percent >= 80 || !resolved) {
+        resolved = true;
+        clearInterval(progressInterval);
+        setLocationAccuracyPercent(Math.max(percent, 85));
+
+        const newCoords = { lat: latitude, lng: longitude };
+        setUserCoords(newCoords);
+        try {
+          sessionStorage.setItem("axmap_user_coords", JSON.stringify(newCoords));
+        } catch (e) {}
+
+        setLocationStatus("ready");
+        setIsLocating(false);
+      }
+    };
+
+    const handleErrorPosition = (err) => {
+      console.warn("Geolokatsiya xatoligi:", err?.message || err);
+      if (err?.code === 1) { // PERMISSION_DENIED
+        clearInterval(progressInterval);
+        resolved = true;
+        setLocationStatus("denied");
+        setIsLocating(false);
+      }
+    };
+
+    // 1. Darhol brauzer dialogini chaqirish va birinchi koordinatani olish (getCurrentPosition)
+    navigator.geolocation.getCurrentPosition(
+      handleSuccessPosition,
+      handleErrorPosition,
       {
         enableHighAccuracy: true,
-        timeout: 6000,
-        maximumAge: 30000,
+        timeout: 15000,
+        maximumAge: 0,
       }
     );
 
-    // Agar geolokatsiya uzoq vaqt cho'zilsa, sahifa qotib turmasligi uchun fallback
-    const fallbackTimer = setTimeout(() => {
-      if (!hasResolved) {
-        hasResolved = true;
+    // 2. watchPosition orqali yuqori aniqlikda kuzatib borish
+    const watchId = navigator.geolocation.watchPosition(
+      handleSuccessPosition,
+      handleErrorPosition,
+      {
+        enableHighAccuracy: true,
+        timeout: 20000,
+        maximumAge: 5000,
+      }
+    );
+
+    // Agar 20 soniyada javob kelmasa (brauzer dialogi ochiq tursa yoki timeout)
+    const timeoutTimer = setTimeout(() => {
+      if (!resolved) {
+        clearInterval(progressInterval);
+        setLocationStatus((prev) => (prev === "locating" ? "timeout" : prev));
         setIsLocating(false);
       }
-    }, 2200);
+    }, 20000);
 
     return () => {
+      clearInterval(progressInterval);
+      clearTimeout(timeoutTimer);
       navigator.geolocation.clearWatch(watchId);
-      clearTimeout(fallbackTimer);
     };
   }, []);
+
+  // Dastur ishga tushishi bilanoq avtomatik geolokatsiya so'raladi (xaritaga kirishni kutmasdan)
+  useEffect(() => {
+    const cleanup = requestLocation();
+    return () => {
+      if (typeof cleanup === "function") cleanup();
+    };
+  }, [requestLocation]);
+
+  // Agar foydalanuvchi ruxsat bermasa, standart ko'rinishga o'tish imkoni
+  const handleUseDefaultLocation = () => {
+    const defaultCoords = { lat: 41.311081, lng: 69.240562 };
+    setUserCoords(defaultCoords);
+    setLocationStatus("ready");
+    setLocationAccuracyPercent(80);
+    setIsLocating(false);
+  };
 
   const handleToggleFavorite = (stationId) => {
     if (favorites.includes(stationId)) {
@@ -2443,9 +2546,74 @@ export default function App() {
                 </div>
 
                 {isLocating ? (
-                  Array.from({ length: 4 }).map((_, idx) => (
-                    <StationCardSkeleton key={`skeleton-${idx}`} />
-                  ))
+                  <div className="location-searching-wrapper">
+                    <div className="location-detecting-card">
+                      <div className="location-detecting-top">
+                        <div className="location-detecting-radar">
+                          <div className="location-radar-ping-ring"></div>
+                          <div className="location-radar-icon-box">
+                            <Navigation size={22} className="location-radar-arrow-icon" />
+                          </div>
+                        </div>
+                        <div className="location-detecting-meta">
+                          <div className="location-detecting-badge-row">
+                            <span className="location-detecting-badge">
+                              <span className="location-detecting-dot" />
+                              <span>GPS Aniqlanmoqda</span>
+                            </span>
+                            <span className="location-accuracy-badge">{locationAccuracyPercent}% aniqlik</span>
+                          </div>
+                          <h4 className="location-detecting-heading">Aniq manzilingiz aniqlanmoqda...</h4>
+                        </div>
+                      </div>
+
+                      <p className="location-detecting-sub">
+                        Sizga eng yaqin shahobchalarni to'g'ri masofa bilan chiqarish uchun joylashuv olinmoqda. Brauzer so'raganda <b>"Ruxsat berish"</b> tugmasini bosing.
+                      </p>
+
+                      <div className="location-progress-bar-bg">
+                        <div
+                          className="location-progress-bar-fill"
+                          style={{ width: `${locationAccuracyPercent}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {Array.from({ length: 3 }).map((_, idx) => (
+                      <StationCardSkeleton key={`skeleton-${idx}`} />
+                    ))}
+                  </div>
+                ) : (locationStatus === "denied" || locationStatus === "timeout" || locationStatus === "unsupported") && !userCoords ? (
+                  <div className="location-denied-card">
+                    <div className="location-denied-icon-wrap">
+                      <MapPinOff size={28} />
+                    </div>
+                    <div className="location-denied-content">
+                      <h4 className="location-denied-title">
+                        {locationStatus === "denied" ? "Joylashuvga ruxsat berilmadi" : "Joylashuvni aniqlash cho'zildi"}
+                      </h4>
+                      <p className="location-denied-desc">
+                        Shahobchalargacha bo'lgan masofani real hisoblash uchun joylashuvga (GPS) ruxsat bering.
+                      </p>
+                      <div className="location-denied-actions">
+                        <button
+                          type="button"
+                          className="location-retry-btn"
+                          onClick={requestLocation}
+                        >
+                          <LocateFixed size={16} />
+                          <span>Qayta aniqlash</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="location-fallback-btn"
+                          onClick={handleUseDefaultLocation}
+                        >
+                          <span>Standart xarita bo'yicha ko'rish</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <>
                     {displayedStations.map((station) => (
@@ -3767,8 +3935,8 @@ export default function App() {
             userDistance={
               detailStation
                 ? calculateDistance(
-                    userCoords.lat,
-                    userCoords.lng,
+                    userCoords?.lat,
+                    userCoords?.lng,
                     detailStation.lat,
                     detailStation.lng,
                   )

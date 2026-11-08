@@ -11,6 +11,11 @@
   position: relative;
   overflow-x: hidden;
   width: 100%;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* Ambient Background Light */
@@ -3859,13 +3864,15 @@
 }
 
 /* ==========================================================================
-   TELEFON / MOBILE QURILMALARDA RO'YXATDAN O'TISH FONINI ASOSIY JOY FONIGA BIRXIL QILISH
+   TELEFON / MOBILE QURILMALARDA RO'YXATDAN O'TISHNI ALOHIDA CARD VA IXCHAM (KICHIK) QILISH
    ========================================================================== */
 @media (max-width: 768px) {
   .modern-auth-screen-wrapper {
-    padding: 12px 8px 36px !important;
+    padding: 14px 12px 36px !important;
     min-height: auto !important;
+    display: flex !important;
     align-items: flex-start !important;
+    justify-content: center !important;
     background: transparent !important;
   }
 
@@ -3873,22 +3880,288 @@
     display: none !important;
   }
 
+  /* Registratsiya joyi dastur fonidan ajratilgan alohida ixcham card ko'rinishida */
   .modern-auth-card {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    padding: 6px 0 20px !important;
-    max-width: 100% !important;
+    background: linear-gradient(180deg, #161928 0%, #10121d 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 16px 38px -8px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(255, 255, 255, 0.04) !important;
+    padding: 18px 16px 16px !important;
+    max-width: 390px !important;
     width: 100% !important;
+    margin: 4px auto 0 !important;
+    box-sizing: border-box !important;
     animation: none !important;
   }
 
   .modern-auth-screen-wrapper.is-light .modern-auth-card {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(0, 0, 0, 0.09) !important;
+    box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.08) !important;
+    border-radius: 20px !important;
+  }
+
+  /* Header & Logo - Kichik va ixcham */
+  .modern-auth-header {
+    margin-bottom: 12px !important;
+  }
+
+  .modern-auth-brand-badge {
+    padding: 4px 12px !important;
+    font-size: 0.8rem !important;
+    margin-bottom: 8px !important;
+    gap: 6px !important;
+    border-radius: 999px !important;
+  }
+
+  .modern-auth-badge-logo {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .modern-auth-title {
+    font-size: 1.22rem !important;
+    font-weight: 800 !important;
+    margin: 0 0 3px !important;
+    line-height: 1.25 !important;
+  }
+
+  .modern-auth-subtitle {
+    font-size: 0.74rem !important;
+    line-height: 1.35 !important;
+    margin: 0 0 10px !important;
+    color: #8492a6 !important;
+  }
+
+  /* Rejim almashtirgich (Tabs) - Kichikroq */
+  .modern-auth-mode-tabs {
+    padding: 3px !important;
+    gap: 4px !important;
+    border-radius: 12px !important;
+    margin-bottom: 12px !important;
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  }
+
+  .modern-auth-tab-btn {
+    padding: 7px 10px !important;
+    font-size: 0.78rem !important;
+    border-radius: 9px !important;
+    gap: 6px !important;
+  }
+
+  .modern-auth-screen-wrapper.is-light .modern-auth-mode-tabs {
+    background: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+  }
+
+  /* Stepper (Bosqichlar) - Kichikroq */
+  .modern-auth-stepper {
+    margin-bottom: 12px !important;
+    gap: 6px !important;
+  }
+
+  .step-circle {
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 0.7rem !important;
+    border-radius: 50% !important;
+  }
+
+  .step-title {
+    font-size: 0.7rem !important;
+    font-weight: 600 !important;
+  }
+
+  .modern-step-line {
+    height: 2px !important;
+  }
+
+  /* Form Maydonlari - Ixcham va toza */
+  .modern-auth-form {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 9px !important;
+  }
+
+  .modern-field-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 3px !important;
+  }
+
+  .modern-field-label {
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    margin-bottom: 2px !important;
+    color: #94a3b8 !important;
+  }
+
+  .modern-input-wrap {
+    height: 40px !important;
+    min-height: 40px !important;
+    border-radius: 10px !important;
+    padding: 0 10px !important;
+    background: rgba(0, 0, 0, 0.25) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .modern-auth-screen-wrapper.is-light .modern-input-wrap {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  .modern-input-field {
+    font-size: 0.84rem !important;
+    padding: 0 !important;
+  }
+
+  .modern-input-icon {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  .modern-pwd-toggle-btn {
+    width: 30px !important;
+    height: 30px !important;
+    padding: 0 !important;
+  }
+
+  /* Tug'ilgan sana (DOB) maydoni */
+  .modern-dob-grid {
+    gap: 6px !important;
+  }
+
+  .modern-dob-grid .modern-input-wrap {
+    height: 40px !important;
+    min-height: 40px !important;
+  }
+
+  .dob-input {
+    font-size: 0.82rem !important;
+  }
+
+  /* Asosiy tugma (Davom etish / Ro'yxatdan o'tish / Kirish) */
+  .modern-auth-submit-btn {
+    height: 40px !important;
+    min-height: 40px !important;
+    border-radius: 11px !important;
+    font-size: 0.86rem !important;
+    font-weight: 700 !important;
+    gap: 6px !important;
+    margin-top: 4px !important;
+  }
+
+  .modern-auth-back-action-btn {
+    height: 40px !important;
+    min-height: 40px !important;
+    border-radius: 11px !important;
+    font-size: 0.82rem !important;
+    padding: 0 14px !important;
+  }
+
+  .modern-form-actions-row {
+    gap: 8px !important;
+    margin-top: 4px !important;
+  }
+
+  /* "Joylashuvingiz bormi?" pastki havolasi */
+  .auth-location-bottom-prompt {
+    margin-top: 6px !important;
+  }
+
+  .auth-location-bluish-link {
+    font-size: 0.76rem !important;
+    padding: 5px 10px !important;
+    gap: 5px !important;
+  }
+
+  /* Joylashuv rasmi yuklash (Location Photo Picker) */
+  .location-photo-prompt-box {
+    padding: 10px !important;
+    margin-bottom: 8px !important;
+    border-radius: 12px !important;
+  }
+
+  .photo-prompt-icon-wrap {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 10px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .photo-prompt-title {
+    font-size: 0.84rem !important;
+    margin-bottom: 2px !important;
+  }
+
+  .photo-prompt-subtitle {
+    font-size: 0.7rem !important;
+  }
+
+  .location-photo-upload-placeholder {
+    padding: 14px 10px !important;
+    min-height: 100px !important;
+    border-radius: 12px !important;
+  }
+
+  .upload-arrow-circle {
+    width: 34px !important;
+    height: 34px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .upload-main-text {
+    font-size: 0.76rem !important;
+  }
+
+  .upload-sub-text {
+    font-size: 0.66rem !important;
+  }
+
+  .location-skip-action-btn {
+    height: 40px !important;
+    font-size: 0.8rem !important;
+    border-radius: 11px !important;
+  }
+
+  .location-step-back-btn {
+    font-size: 0.74rem !important;
+    margin-top: 6px !important;
+  }
+
+  /* Footer qismi (Akkauntingiz bormi? Tizimga kiring) */
+  .modern-auth-card-footer {
+    margin-top: 10px !important;
+    padding-top: 10px !important;
+  }
+
+  .modern-auth-card-footer p {
+    font-size: 0.76rem !important;
+  }
+
+  .auth-link-btn {
+    font-size: 0.78rem !important;
+  }
+
+  /* Demo login */
+  .modern-quick-login-divider {
+    margin: 8px 0 !important;
+    font-size: 0.7rem !important;
+  }
+
+  .modern-demo-user-btn {
+    padding: 8px 10px !important;
+    font-size: 0.76rem !important;
+    border-radius: 9px !important;
+  }
+
+  /* Xatolik xabari */
+  .modern-auth-error-alert {
+    padding: 8px 12px !important;
+    font-size: 0.76rem !important;
+    margin-bottom: 10px !important;
+    border-radius: 10px !important;
   }
 }
 
@@ -16023,4 +16296,307 @@ body.light-theme .ad-detail-modal-footer-tag {
 
 body.light-theme .ad-detail-modal-footer-link {
   color: #64748b;
+}
+
+
+
+/* ========================================================
+   GPS JOYLASHUVNI ANIQLASH (RADAR VA PROGRES KARTASI)
+   ======================================================== */
+.location-searching-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.location-detecting-card {
+  width: 100%;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(15, 23, 42, 0.6) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 18px;
+  padding: 16px 16px 14px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.4), 0 0 16px rgba(56, 189, 248, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.location-detecting-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.location-detecting-radar {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+@keyframes radarRingPing {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.location-radar-ping-ring {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid #38bdf8;
+  animation: radarRingPing 1.8s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+  pointer-events: none;
+}
+
+.location-radar-icon-box {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+  z-index: 1;
+}
+
+@keyframes arrowSpinSubtle {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(15deg); }
+}
+
+.location-radar-arrow-icon {
+  animation: arrowSpinSubtle 2s ease-in-out infinite;
+}
+
+.location-detecting-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.location-detecting-badge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.location-detecting-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+@keyframes livePulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+.location-detecting-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 6px #38bdf8;
+  animation: livePulseDot 1.4s ease-in-out infinite;
+}
+
+.location-accuracy-badge {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #38bdf8;
+  padding: 2px 8px;
+  background: rgba(56, 189, 248, 0.08);
+  border-radius: 6px;
+}
+
+.location-detecting-heading {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.3;
+}
+
+.location-detecting-sub {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.location-progress-bar-bg {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.location-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0284c7 0%, #38bdf8 100%);
+  border-radius: 999px;
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+}
+
+/* Ruxsat berilmagan yoki xatolik kartasi */
+.location-denied-card {
+  width: 100%;
+  background: rgba(24, 27, 36, 0.8);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 18px;
+  padding: 18px 16px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.4);
+}
+
+.location-denied-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f59e0b;
+  flex-shrink: 0;
+}
+
+.location-denied-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.location-denied-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.location-denied-desc {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.location-denied-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.location-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: #0ea5e9;
+  border: none;
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.location-retry-btn:hover {
+  background: #0284c7;
+  transform: translateY(-1px);
+}
+
+.location-fallback-btn {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.location-fallback-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+/* Light Theme Overrides */
+body.light-theme .location-detecting-card {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(241, 245, 249, 0.9) 100%);
+  border-color: rgba(14, 165, 233, 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+body.light-theme .location-detecting-heading {
+  color: #0f172a;
+}
+
+body.light-theme .location-detecting-sub {
+  color: #64748b;
+}
+
+body.light-theme .location-progress-bar-bg {
+  background: #e2e8f0;
+}
+
+body.light-theme .location-denied-card {
+  background: #ffffff;
+  border-color: rgba(245, 158, 11, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+body.light-theme .location-denied-title {
+  color: #0f172a;
+}
+
+body.light-theme .location-denied-desc {
+  color: #64748b;
+}
+
+body.light-theme .location-fallback-btn {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #334155;
 }
