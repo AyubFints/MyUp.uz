@@ -3,16 +3,25 @@ import { query } from '../config/db.js';
 // Barcha faol reklamalarni olish (Mobil ilova va sayt uchun)
 export const getActiveAds = async (req, res) => {
   try {
-    const { side } = req.query;
-    let sql = 'SELECT * FROM ads WHERE is_active = true';
+    const { side, all } = req.query;
+    let sql = 'SELECT * FROM ads';
     const params = [];
+    const conditions = [];
 
-    if (side) {
-      sql += ' AND (side = $1 OR side = \'both\')';
-      params.push(side);
+    if (all !== 'true' && all !== '1') {
+      conditions.push('is_active = true');
     }
 
-    sql += ' ORDER BY created_at ASC, id ASC';
+    if (side) {
+      params.push(side);
+      conditions.push(`(side = ${params.length} OR side = 'both')`);
+    }
+
+    if (conditions.length > 0) {
+      sql += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    sql += ' ORDER BY created_at DESC, id ASC';
 
     const result = await query(sql, params);
     res.json({ success: true, count: result.rows.length, ads: result.rows });
@@ -39,12 +48,14 @@ export const createAd = async (req, res) => {
     const {
       title,
       description,
+      subtitle,
       videoUrl,
       video_url,
       mediaUrl,
       media_url,
       imageUrl,
       image_url,
+      image,
       url,
       targetLink,
       target_link,
@@ -60,7 +71,8 @@ export const createAd = async (req, res) => {
       end_date,
     } = req.body;
 
-    const finalVideoUrl = videoUrl || video_url || mediaUrl || media_url || imageUrl || image_url || url;
+    const finalVideoUrl = videoUrl || video_url || mediaUrl || media_url || imageUrl || image_url || image || url;
+    const finalDescription = description || subtitle || '';
     const finalTargetLink = targetLink || target_link || link || '';
     const finalAdvertiserName = advertiserName || advertiser_name || '';
     const finalAdvertiserPhone = advertiserPhone || advertiser_phone || '';
@@ -124,6 +136,40 @@ export const toggleAdStatus = async (req, res) => {
   }
 };
 
+// Reklama joylashuvini o'zgartirish (Chap / O'ng / Ikkala tomon)
+export const updateAdSide = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { side } = req.body;
+
+    const validSides = ['left', 'right', 'both', 'map_bottom', 'map_sidebar'];
+    if (!validSides.includes(side)) {
+      return res.status(400).json({
+        success: false,
+        message: "Noto'g'ri joylashuv parametri. 'left', 'right', 'both', 'map_bottom' yoki 'map_sidebar' bo'lishi kerak."
+      });
+    }
+
+    const result = await query(
+      `UPDATE ads SET side = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *`,
+      [side, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Reklama topilmadi.' });
+    }
+
+    res.json({
+      success: true,
+      message: "Reklama joylashuvi yangilandi",
+      ad: result.rows[0]
+    });
+  } catch (err) {
+    console.error('UpdateAdSide xatosi:', err);
+    res.status(500).json({ success: false, message: 'Joylashuvni o\'zgartirishda xatolik: ' + err.message });
+  }
+};
+
 // Reklamani o'chirish
 export const deleteAd = async (req, res) => {
   try {
@@ -146,6 +192,9 @@ export const deleteAd = async (req, res) => {
 export const recordAdView = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!id || String(id).startsWith('sample')) {
+      return res.status(400).json({ success: false, message: 'Yaroqsiz reklama ID' });
+    }
     const result = await query(
       `UPDATE ads 
        SET views_count = COALESCE(views_count, 0) + 1, updated_at = CURRENT_TIMESTAMP 
@@ -169,6 +218,9 @@ export const recordAdView = async (req, res) => {
 export const recordAdClick = async (req, res) => {
   try {
     const { id } = req.params;
+    if (!id || String(id).startsWith('sample')) {
+      return res.status(400).json({ success: false, message: 'Yaroqsiz reklama ID' });
+    }
     const result = await query(
       `UPDATE ads 
        SET clicks_count = COALESCE(clicks_count, 0) + 1, updated_at = CURRENT_TIMESTAMP 

@@ -248,3 +248,171 @@ export const updateStationVerificationPhotos = async (req, res) => {
     res.status(500).json({ success: false, message: 'Rasmni saqlashda xatolik.' });
   }
 };
+
+// ============================================================
+// AUDIT LOGS (PostgreSQL admin_logs)
+// ============================================================
+export const getAdminLogs = async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT 
+        l.id,
+        l.action,
+        l.target_type AS "targetType",
+        l.target_id AS "targetId",
+        l.details,
+        l.created_at AS "createdAt",
+        COALESCE(u.first_name || ' ' || u.last_name, 'Super Admin') AS "adminName",
+        COALESCE(u.phone, '+998 77 278 18 08') AS "adminPhone"
+      FROM admin_logs l
+      LEFT JOIN users u ON l.admin_id = u.id
+      ORDER BY l.created_at DESC
+      LIMIT 200
+    `);
+
+    // Format logs to match UI expected format
+    const formatted = result.rows.map(r => {
+      const details = r.details || {};
+      const createdAt = r.createdAt ? new Date(r.createdAt) : new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const timestamp = `${createdAt.getFullYear()}-${pad(createdAt.getMonth()+1)}-${pad(createdAt.getDate())} ${pad(createdAt.getHours())}:${pad(createdAt.getMinutes())}:${pad(createdAt.getSeconds())}`;
+
+      return {
+        id: r.id,
+        timestamp,
+        action: r.action,
+        admin: details.admin || r.adminName || 'SuperAdmin (Ayubxon)',
+        ip: details.ip || '127.0.0.1',
+        location: details.location || 'Toshkent / Namangan',
+        device: details.device || 'Windows / Chrome',
+        status: details.status || 'Muvaffaqiyatli',
+        severity: details.severity || 'low',
+        createdAt: r.createdAt
+      };
+    });
+
+    res.json({ success: true, logs: formatted });
+  } catch (err) {
+    console.error('GetAdminLogs xatosi:', err);
+    res.status(500).json({ success: false, message: 'Audit jurnallarini olishda xato: ' + err.message });
+  }
+};
+
+export const createAdminLog = async (req, res) => {
+  try {
+    const { action, targetType, targetId, details, severity, status } = req.body;
+    const adminId = req.user?.id || null;
+    const logDetails = {
+      ...(details || {}),
+      severity: severity || details?.severity || 'low',
+      status: status || details?.status || 'Muvaffaqiyatli',
+      ip: req.ip || '127.0.0.1',
+      device: req.headers['user-agent'] ? 'Browser' : 'API Client'
+    };
+
+    const result = await query(`
+      INSERT INTO admin_logs (admin_id, action, target_type, target_id, details)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `, [adminId, action, targetType || 'system', targetId || null, JSON.stringify(logDetails)]);
+
+    res.json({ success: true, log: result.rows[0] });
+  } catch (err) {
+    console.error('CreateAdminLog xatosi:', err);
+    res.status(500).json({ success: false, message: 'Log yaratishda xato: ' + err.message });
+  }
+};
+
+// ============================================================
+// BILLING CARDS (PostgreSQL admin_cards)
+// ============================================================
+export const getAdminCards = async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT 
+        id, 
+        card_number AS "cardNumber", 
+        holder_name AS "holderName", 
+        bank_name AS "bankName", 
+        card_type AS "cardType", 
+        is_primary AS "isPrimary", 
+        balance, 
+        created_at AS "createdAt"
+      FROM admin_cards
+      ORDER BY is_primary DESC, created_at DESC
+    `);
+    res.json({ success: true, cards: result.rows });
+  } catch (err) {
+    console.error('GetAdminCards xatosi:', err);
+    res.status(500).json({ success: false, message: 'Kartalarni olishda xato.' });
+  }
+};
+
+export const createAdminCard = async (req, res) => {
+  try {
+    const { cardNumber, holderName, bankName, cardType, isPrimary, balance } = req.body;
+    if (!cardNumber) {
+      return res.status(400).json({ success: false, message: 'Karta raqami kiritilishi shart.' });
+    }
+
+    if (isPrimary) {
+      await query(`UPDATE admin_cards SET is_primary = false`);
+    }
+
+    const result = await query(`
+      INSERT INTO admin_cards (card_number, holder_name, bank_name, card_type, is_primary, balance)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING 
+        id, 
+        card_number AS "cardNumber", 
+        holder_name AS "holderName", 
+        bank_name AS "bankName", 
+        card_type AS "cardType", 
+        is_primary AS "isPrimary", 
+        balance, 
+        created_at AS "createdAt"
+    `, [cardNumber, holderName || 'Super Admin', bankName || 'Milliy Bank', cardType || 'uzcard', Boolean(isPrimary), balance || 0]);
+
+    res.json({ success: true, card: result.rows[0] });
+  } catch (err) {
+    console.error('CreateAdminCard xatosi:', err);
+    res.status(500).json({ success: false, message: 'Kartani saqlashda xato.' });
+  }
+};
+
+export const setPrimaryAdminCard = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await query(`UPDATE admin_cards SET is_primary = false`);
+    const result = await query(`
+      UPDATE admin_cards 
+      SET is_primary = true 
+      WHERE id = $1 
+      RETURNING 
+        id, 
+        card_number AS "cardNumber", 
+        holder_name AS "holderName", 
+        bank_name AS "bankName", 
+        card_type AS "cardType", 
+        is_primary AS "isPrimary", 
+        balance, 
+        created_at AS "createdAt"
+    `, [id]);
+
+    res.json({ success: true, card: result.rows[0] });
+  } catch (err) {
+    console.error('SetPrimaryAdminCard xatosi:', err);
+    res.status(500).json({ success: false, message: 'Asosiy kartani yangilashda xato.' });
+  }
+};
+
+export const deleteAdminCard = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await query(`DELETE FROM admin_cards WHERE id = $1`, [id]);
+    res.json({ success: true, message: 'Karta muvaffaqiyatli o\'chirildi.' });
+  } catch (err) {
+    console.error('DeleteAdminCard xatosi:', err);
+    res.status(500).json({ success: false, message: 'Kartani o\'chirishda xato.' });
+  }
+};

@@ -18,8 +18,16 @@ import {
   Coffee,
   ShoppingBag,
   Route,
+  BadgePercent,
+  Gauge,
+  AlertTriangle,
+  Radio,
+  Megaphone,
+  ExternalLink,
 } from 'lucide-react';
 import { calculateDistance, formatDistance } from '../utils/distance';
+import { stationMatchesFuel } from '../utils/fuel';
+import { getAppMapStyle } from '../utils/mapStyle';
 
 // Vite muhitida MapLibre web workerini to'g'ri ulash
 maplibregl.setWorkerUrl(workerUrl);
@@ -61,32 +69,269 @@ function getStationSvgIcon(station) {
   return FUEL_SVG;
 }
 
-export function stationMatchesFuel(st, fuel) {
-  if (!fuel || fuel === 'all') return true;
-  const target = fuel.toLowerCase();
-
-  if (Array.isArray(st.type) && st.type.some((t) => String(t).toLowerCase() === target)) return true;
-  if (typeof st.type === 'string' && st.type.toLowerCase().includes(target)) return true;
-  if (typeof st.fuelType === 'string' && st.fuelType.toLowerCase() === target) return true;
-  if (Array.isArray(st.fuelTypes) && st.fuelTypes.some((t) => String(t).toLowerCase() === target)) return true;
-  if (st.prices && typeof st.prices === 'object' && st.prices[target] > 0) return true;
-
-  if (target === 'gaz') {
-    return stationMatchesFuel(st, 'metan') || stationMatchesFuel(st, 'propan');
-  }
-  return false;
-}
+export { stationMatchesFuel };
 
 // Zaxira demo shahobchalar (agar ro'yxat bo'sh bo'lsa darhol ishlashi uchun)
 export const DEFAULT_DEMO_STATIONS = [];
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderStationPopupContent(station, onSelectStation, onNavigate, popup) {
+  const popupContent = document.createElement('div');
+  popupContent.className = 'myup-popup-card';
+  popupContent.addEventListener('click', (e) => e.stopPropagation());
+
+  const stationName = escapeHtml(station.name || "Yoqilg'i shahobchasi");
+  const stationAddress = escapeHtml(
+    station.address || station.city || "104, Qoratosh ko'chasi, Qoratosh, Shayxontohur tumani"
+  );
+  const isOpen = station.isOpen !== false;
+  const hoursText = escapeHtml(
+    station.workHours ||
+      station.workingHours ||
+      (isOpen ? '23:00 gacha' : (station.reopenTime ? `Ochiladi: ${station.reopenTime}` : 'Yopiq'))
+  );
+
+  let distText = '1,2 km';
+  if (station.distanceKm !== undefined && station.distanceKm !== null && !isNaN(station.distanceKm)) {
+    distText = formatDistance(station.distanceKm).replace('.', ',');
+  }
+
+  // Gaz bosimi hisoblash
+  const rawPressure = station.gasPressure || station.pressure;
+  const pressureNum = Number(rawPressure);
+  let pressureLabel = 'Yaxshi';
+  let activeBars = 3;
+
+  if (!isNaN(pressureNum) && pressureNum > 0) {
+    if (pressureNum >= 215) {
+      pressureLabel = "A'lo";
+      activeBars = 4;
+    } else if (pressureNum >= 185) {
+      pressureLabel = 'Yaxshi';
+      activeBars = 3;
+    } else if (pressureNum >= 150) {
+      pressureLabel = "O'rtacha";
+      activeBars = 2;
+    } else {
+      pressureLabel = 'Past';
+      activeBars = 1;
+    }
+  } else {
+    pressureLabel = 'Yaxshi';
+    activeBars = 3;
+  }
+
+  const updatedAgo = escapeHtml(station.updatedAgo || '5 daqiqa oldin yangilangan');
+
+  // Yoqilg'i turlari
+  const isElectricOnly =
+    station.type === 'elektr' ||
+    (Array.isArray(station.type) && station.type.length === 1 && station.type[0] === 'elektr');
+
+  const hasMetan = stationMatchesFuel(station, 'metan') || Number(station.prices?.metan) > 0;
+  const hasBenzin = stationMatchesFuel(station, 'benzin') || stationMatchesFuel(station, 'ai92') || stationMatchesFuel(station, 'ai95') || Number(station.prices?.benzin) > 0;
+  const hasPropan = stationMatchesFuel(station, 'propan') || Number(station.prices?.propan) > 0;
+  const hasElektr = stationMatchesFuel(station, 'elektr') || Number(station.prices?.elektr) > 0;
+
+  const fuelList = [];
+  if (hasBenzin) {
+    fuelList.push({ name: 'AI-92', active: true });
+    fuelList.push({ name: 'AI-95', active: true });
+  }
+  if (hasMetan) {
+    fuelList.push({ name: 'Metan', active: true });
+  }
+  if (hasPropan) {
+    fuelList.push({ name: 'Propan', active: true });
+  }
+  if (hasElektr) {
+    fuelList.push({ name: 'Elektr', active: true });
+  }
+  if (fuelList.length === 0) {
+    fuelList.push({ name: "Yoqilg'i mavjud", active: true });
+  }
+
+  const categoryTitle = isElectricOnly ? 'ELEKTR QUVVATLASH' : "YOQILG'I SHAHOBCHASI";
+
+  const pumpSvg = isElectricOnly
+    ? `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#11286b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22v-5"/>
+        <path d="M9 8V2"/>
+        <path d="M15 8V2"/>
+        <path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>
+      </svg>`
+    : `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#11286b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" x2="15" y1="22" y2="22"/>
+        <line x1="4" x2="14" y1="9" y2="9"/>
+        <path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/>
+        <path d="M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5"/>
+      </svg>`;
+
+  popupContent.innerHTML = `
+    <!-- HEADER -->
+    <div class="myup-popup-header">
+      <div class="myup-popup-header-left">
+        <div class="myup-popup-icon-box">
+          ${pumpSvg}
+        </div>
+        <div class="myup-popup-title-wrap">
+          <span class="myup-popup-subtitle">${categoryTitle}</span>
+          <h3 class="myup-popup-title" title="${stationName}">${stationName}</h3>
+        </div>
+      </div>
+      <button type="button" id="btn-close-${station.id}" class="myup-popup-close-btn" aria-label="Yopish">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- STATUS VA MASOFA -->
+    <div class="myup-popup-status-row">
+      <div class="myup-popup-status-left">
+        <span class="myup-popup-status-badge ${isOpen ? 'open' : 'closed'}">
+          <span class="myup-popup-status-dot"></span>
+          <span>${isOpen ? 'Ochiq' : 'Yopiq'}</span>
+        </span>
+        <span class="myup-popup-hours-text">${hoursText}</span>
+      </div>
+      <span class="myup-popup-dist-text">${distText}</span>
+    </div>
+
+    <!-- MANZIL -->
+    <div class="myup-popup-address-row">
+      <svg class="myup-popup-pin-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+        <circle cx="12" cy="10" r="3"/>
+      </svg>
+      <span class="myup-popup-address-text">${stationAddress}</span>
+    </div>
+
+    <!-- GAZ BOSIMI QUTISI (Faqat metan yoki propan sotilsa va bosim mavjud bo'lsa) -->
+    ${(hasMetan || hasPropan) && Number(rawPressure) > 0 ? `
+    <div class="myup-popup-pressure-box">
+      <div class="myup-popup-pressure-header">
+        <span class="myup-popup-pressure-title">Gaz bosimi</span>
+        <span class="myup-popup-pressure-status">${pressureLabel}</span>
+      </div>
+      <div class="myup-popup-pressure-bars">
+        <div class="myup-popup-meter-bar ${activeBars >= 1 ? 'active' : ''}"></div>
+        <div class="myup-popup-meter-bar ${activeBars >= 2 ? 'active' : ''}"></div>
+        <div class="myup-popup-meter-bar ${activeBars >= 3 ? 'active' : ''}"></div>
+        <div class="myup-popup-meter-bar ${activeBars >= 4 ? 'active' : ''}"></div>
+      </div>
+      <span class="myup-popup-pressure-updated">${updatedAgo}</span>
+    </div>` : ''}
+
+    <!-- YOQILG'I TURLARI -->
+    <div class="myup-popup-fuels-section">
+      <div class="myup-popup-fuels-title">Yoqilg'i turlari</div>
+      <div class="myup-popup-fuels-grid">
+        ${fuelList
+          .map(
+            (f) => `
+          <span class="myup-popup-fuel-chip ${f.active ? 'active' : 'inactive'}">
+            <span class="myup-popup-fuel-dot ${f.active ? 'dot-active' : 'dot-inactive'}"></span>
+            <span>${f.name}</span>
+          </span>
+        `
+          )
+          .join('')}
+      </div>
+    </div>
+
+    <!-- TUGMALAR -->
+    <div class="myup-popup-actions-row">
+      <button type="button" id="btn-nav-${station.id}" class="myup-popup-btn-nav">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+        </svg>
+        <span>Yo'nalish</span>
+      </button>
+      <button type="button" id="btn-detail-${station.id}" class="myup-popup-btn-detail">
+        <span>Batafsil</span>
+      </button>
+    </div>
+
+    <!-- XATOLIK BILDIRISH -->
+    <div class="myup-popup-report-row">
+      <span>Ma'lumot noto'g'rimi? </span>
+      <button type="button" id="btn-report-${station.id}" class="myup-popup-report-btn">Xabar bering</button>
+    </div>
+  `;
+
+  // Listenerlar
+  const closeBtn = popupContent.querySelector(`#btn-close-${station.id}`);
+  if (closeBtn && popup) {
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      popup.remove();
+    });
+  }
+
+  const navBtn = popupContent.querySelector(`#btn-nav-${station.id}`);
+  if (navBtn) {
+    navBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (popup) {
+        popup.remove();
+      }
+      if (onNavigate) {
+        onNavigate(station);
+      } else {
+        const url = `https://yandex.uz/maps/?rtext=~${station.lat},${station.lng}&rtt=auto`;
+        window.open(url, '_blank');
+      }
+    });
+  }
+
+  const detailBtn = popupContent.querySelector(`#btn-detail-${station.id}`);
+  if (detailBtn && onSelectStation) {
+    detailBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onSelectStation(station);
+    });
+  }
+
+  const reportBtn = popupContent.querySelector(`#btn-report-${station.id}`);
+  if (reportBtn) {
+    reportBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const btn = e.currentTarget;
+      const originalText = btn.innerHTML;
+      btn.innerText = 'Xabar qabul qilindi! ✓';
+      btn.style.color = '#10b981';
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.style.color = '';
+      }, 3500);
+    });
+  }
+
+  return popupContent;
+}
+
 export default function MapView({
   stations = [],
   activeFuelFilter = 'all',
+  onFuelFilterChange,
   onSelectStation,
+  onNavigate,
   searchQuery = '',
   showSidebar = false, // Faqat xarita bo'limida (activeTab === 'map') ko'rsatiladi
   userCoords = null,
+  ads = [],
+  onOpenAdvertising,
 }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
@@ -116,9 +361,48 @@ export default function MapView({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [quickSortMode, setQuickSortMode] = useState(null); // 'nearest' | 'cheapest' | null
-  const [selectedFuelType, setSelectedFuelType] = useState('all');
+  const [selectedFuelType, setSelectedFuelType] = useState(activeFuelFilter || 'all');
   const [highlightedStationId, setHighlightedStationId] = useState(null);
+  const [isBottomBannerClosed, setIsBottomBannerClosed] = useState(false);
+
+  // Kompyuter xaritasi uchun reklamalar: Xarita tagidagi katta banner va chap panel tagidagi to'rtburchak reklama
+  const mapBottomAd = useMemo(() => {
+    const list = Array.isArray(ads) ? ads : [];
+    return list.find((a) => a && a.is_active !== false && (a.side === 'map_bottom' || a.slot === 'map_bottom')) || null;
+  }, [ads]);
+
+  const mapSidebarAd = useMemo(() => {
+    const list = Array.isArray(ads) ? ads : [];
+    return list.find((a) => a && a.is_active !== false && (a.side === 'map_sidebar' || a.slot === 'map_sidebar')) || null;
+  }, [ads]);
+
+  useEffect(() => {
+    const targetAd = mapBottomAd || mapSidebarAd;
+    if (targetAd?.id && !String(targetAd.id).startsWith('sample')) {
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const timer = setTimeout(() => {
+        fetch(`${apiBase}/ads/${targetAd.id}/view`, { method: 'POST' }).catch(() => {});
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [mapBottomAd?.id, mapSidebarAd?.id]);
+
+  const handleOpenAdLink = (adItem) => {
+    if (adItem && adItem.id) {
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      fetch(`${apiBase}/ads/${adItem.id}/click`, { method: 'POST' }).catch(() => {});
+    }
+    const link = adItem?.target_link || adItem?.targetLink || 'https://t.me/amaps_support';
+    window.open(link.startsWith('http') ? link : `https://${link}`, '_blank');
+  };
+
+  useEffect(() => {
+    if (activeFuelFilter) {
+      setSelectedFuelType(activeFuelFilter);
+    }
+  }, [activeFuelFilter]);
   const [highlightBadgeText, setHighlightBadgeText] = useState('');
+  const [highlightBadgeType, setHighlightBadgeType] = useState('selected'); // 'cheapest' | 'nearest' | 'selected'
   const [sidebarSearch, setSidebarSearch] = useState('');
 
   // Masofalarni hisoblash
@@ -191,49 +475,11 @@ export default function MapView({
 
     let isMounted = true;
 
-    async function initMap() {
+    function initMap() {
       try {
-        let mapStyle;
+        const mapStyle = getAppMapStyle(protomapsKey);
 
-        if (protomapsKey) {
-          try {
-            const styleUrl = `https://api.protomaps.com/styles/v5/light/en.json?key=${protomapsKey}`;
-            const res = await fetch(styleUrl);
-            if (res.ok) {
-              mapStyle = await res.json();
-              if (mapStyle.layers && Array.isArray(mapStyle.layers)) {
-                mapStyle.layers = mapStyle.layers.filter((l) => l['source-layer'] !== 'pois');
-              }
-            }
-          } catch (e) {
-            console.warn("Protomaps yuklanmadi, OSM ga o'tilmoqda:", e);
-          }
-        }
-
-        if (!mapStyle) {
-          mapStyle = {
-            version: 8,
-            sources: {
-              'osm-tiles': {
-                type: 'raster',
-                tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-                tileSize: 256,
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-              },
-            },
-            layers: [
-              {
-                id: 'osm-layer',
-                type: 'raster',
-                source: 'osm-tiles',
-                minzoom: 0,
-                maxzoom: 19,
-              },
-            ],
-          };
-        }
-
-        if (!isMounted) return;
+        if (!isMounted || !mapContainerRef.current) return;
 
         const initialCenter = userPos ? [userPos[1], userPos[0]] : [69.240562, 41.311081];
 
@@ -281,6 +527,18 @@ export default function MapView({
       }
     };
   }, [protomapsKey]);
+
+  // Xarita konteyneri o'lchami o'zgarganda (balandlik oshirilganda) MapLibre'ni darhol qayta moslash
+  useEffect(() => {
+    if (!mapContainerRef.current || !mapInstance) return;
+    const ro = new ResizeObserver(() => {
+      if (mapInstance && typeof mapInstance.resize === 'function') {
+        mapInstance.resize();
+      }
+    });
+    ro.observe(mapContainerRef.current);
+    return () => ro.disconnect();
+  }, [mapInstance]);
 
   // 2. Foydalanuvchi GPS joylashuvini kuzatish
   useEffect(() => {
@@ -381,34 +639,15 @@ export default function MapView({
       `;
 
       // Popup kontenti
-      const popupContent = document.createElement('div');
-      popupContent.style.padding = '8px';
-      popupContent.style.fontFamily = 'inherit';
-      popupContent.innerHTML = `
-        <div style="font-weight: 700; font-size: 14px; color: #ef4444; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-          ${svgIcon}
-          <span>${station.name}</span>
-        </div>
-        <div style="font-size: 12px; color: #64748b; margin-bottom: 6px;">📍 ${station.address || 'Manzil koʻrsatilmagan'}</div>
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-          <span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: ${station.isOpen ? '#dcfce7' : '#fee2e2'}; color: ${station.isOpen ? '#15803d' : '#b91c1c'}; font-weight: 600;">
-            ${station.isOpen ? 'Ochiq' : 'Yopiq'}
-          </span>
-          ${station.price ? `<span style="font-size: 12px; font-weight: 700; color: #ef4444;">${station.price.toLocaleString()} so'm</span>` : ''}
-        </div>
-        <button id="btn-station-${station.id}" style="width: 100%; padding: 7px 10px; background: #ef4444; color: #fff; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; transition: background 0.2s;">
-          Batafsil ko'rish
-        </button>
-      `;
+      const popup = new maplibregl.Popup({
+        offset: 25,
+        closeButton: false,
+        className: 'myup-station-maplibre-popup',
+        maxWidth: '340px',
+      });
 
-      const actionBtn = popupContent.querySelector(`#btn-station-${station.id}`);
-      if (actionBtn && onSelectStation) {
-        actionBtn.addEventListener('click', () => {
-          onSelectStation(station);
-        });
-      }
-
-      const popup = new maplibregl.Popup({ offset: 25, closeButton: true }).setDOMContent(popupContent);
+      const popupContent = renderStationPopupContent(station, onSelectStation, onNavigate, popup);
+      popup.setDOMContent(popupContent);
 
       const marker = new maplibregl.Marker({
         element: el,
@@ -420,15 +659,16 @@ export default function MapView({
         .addTo(map);
 
       // Popap faqat marker bosilganda ochiladi
-
+      marker.station = station;
       markersRef.current.push(marker);
     });
-  }, [filteredStationList, onSelectStation, mapInstance, highlightedStationId, highlightBadgeText]);
+  }, [filteredStationList, onSelectStation, onNavigate, mapInstance, highlightedStationId, highlightBadgeText]);
 
   // Shahobchani tanlash va unga sal yaqinlashtirib yonib-yonib ko'rsatish
-  const triggerStationHighlight = (station, badgeText) => {
+  const triggerStationHighlight = (station, badgeText, badgeType = 'selected') => {
     setHighlightedStationId(station.id);
     setHighlightBadgeText(badgeText);
+    setHighlightBadgeType(badgeType);
 
     const map = mapRef.current || mapInstance;
     if (map && station.lat && station.lng) {
@@ -440,6 +680,15 @@ export default function MapView({
         curve: 1.4,
         essential: true,
       });
+
+      // Tanlangan shahobcha markerining popupini ochish
+      const targetMarker = markersRef.current.find((m) => m.station && m.station.id === station.id);
+      if (targetMarker && targetMarker.getPopup) {
+        const p = targetMarker.getPopup();
+        if (p && !p.isOpen()) {
+          targetMarker.togglePopup();
+        }
+      }
 
       if (window.innerWidth <= 768) {
         setIsSidebarOpen(false);
@@ -458,7 +707,7 @@ export default function MapView({
 
     if (list.length > 0) {
       const best = list[0];
-      triggerStationHighlight(best, '⚡ Eng yaqin shahobcha');
+      triggerStationHighlight(best, "Eng yaqin shahobcha", "nearest");
     }
   };
 
@@ -483,7 +732,7 @@ export default function MapView({
 
     if (list.length > 0) {
       const best = list[0];
-      triggerStationHighlight(best, '💰 Eng arzon shahobcha');
+      triggerStationHighlight(best, "Eng arzon shahobcha", "cheapest");
     }
   };
 
@@ -555,7 +804,9 @@ export default function MapView({
           }
 
           .hide-on-mobile,
-          .yandex-sidebar-toggle-btn {
+          .yandex-sidebar-toggle-btn,
+          .yandex-sidebar-ad-slot-wrapper,
+          .map-bottom-ad-banner-slot {
             display: none !important;
           }
 
@@ -1005,66 +1256,260 @@ export default function MapView({
           border-color: #ef4444;
         }
 
-        /* Highlight Card (Faol tanlangan zapravka) */
+        /* Modern Highlight Card (Faol tanlangan zapravka) */
         .yandex-highlight-card {
-          background: linear-gradient(135deg, #fff1f2 0%, #fee2e2 100%);
-          border: 1.5px solid #fca5a5;
+          background: #ffffff;
+          border: 1px solid rgba(226, 232, 240, 0.95);
           border-radius: 14px;
-          padding: 12px;
-          box-shadow: 0 4px 16px rgba(239, 68, 68, 0.15);
+          padding: 13px 15px;
+          box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 4px 10px -3px rgba(15, 23, 42, 0.04);
+          transition: all 0.2s ease-in-out;
+          margin-top: 6px;
         }
 
         .yandex-highlight-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 6px;
+          margin-bottom: 8px;
+        }
+
+        .yandex-highlight-header-left {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
         }
 
         .yandex-highlight-badge {
-          font-size: 0.78rem;
-          font-weight: 800;
-          color: #dc2626;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 0.72rem;
+          font-weight: 700;
+          padding: 3px 8px;
+          border-radius: 6px;
+          letter-spacing: -0.01em;
+        }
+
+        .yandex-highlight-badge.badge-cheapest {
+          background: #ecfdf5;
+          color: #059669;
+          border: 1px solid #a7f3d0;
+        }
+
+        .yandex-highlight-badge.badge-nearest {
+          background: #f0f9ff;
+          color: #0284c7;
+          border: 1px solid #bae6fd;
+        }
+
+        .yandex-highlight-badge.badge-selected {
+          background: #eef2ff;
+          color: #4f46e5;
+          border: 1px solid #c7d2fe;
         }
 
         .yandex-highlight-dist {
-          font-size: 0.76rem;
-          font-weight: 700;
-          color: #0f172a;
-          background: rgba(255, 255, 255, 0.75);
-          padding: 2px 6px;
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+          font-size: 0.72rem;
+          font-weight: 600;
+          color: #475569;
+          background: #f1f5f9;
+          padding: 3px 7px;
           border-radius: 6px;
+          border: 1px solid #e2e8f0;
+        }
+
+        .yandex-highlight-close-btn {
+          width: 22px;
+          height: 22px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: none;
+          background: #f1f5f9;
+          color: #64748b;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          padding: 0;
+        }
+
+        .yandex-highlight-close-btn:hover {
+          background: #e2e8f0;
+          color: #0f172a;
         }
 
         .yandex-highlight-name {
-          font-size: 0.95rem;
+          font-size: 0.96rem;
           font-weight: 700;
-          color: #991b1b;
-          margin: 0 0 2px 0;
+          color: #0f172a;
+          margin: 0 0 3px 0;
+          line-height: 1.3;
         }
 
         .yandex-highlight-address {
-          font-size: 0.76rem;
+          font-size: 0.74rem;
           color: #64748b;
-          margin: 0 0 8px 0;
+          margin: 0 0 10px 0;
+          line-height: 1.35;
         }
 
         .yandex-highlight-footer {
           display: flex;
           align-items: center;
+          justify-content: space-between;
           gap: 8px;
-          font-size: 0.76rem;
+          flex-wrap: wrap;
+          padding-top: 8px;
+          border-top: 1px solid #f1f5f9;
+        }
+
+        .yandex-highlight-tags {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
+        }
+
+        .yandex-status-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 0.72rem;
           font-weight: 600;
+          padding: 3px 8px;
+          border-radius: 6px;
         }
 
-        .yandex-highlight-price {
+        .yandex-status-pill.open {
+          background: #f0fdf4;
+          color: #16a34a;
+          border: 1px solid #bbf7d0;
+        }
+
+        .yandex-status-pill.closed {
+          background: #fef2f2;
           color: #dc2626;
-          font-weight: 800;
+          border: 1px solid #fecaca;
         }
 
-        .yandex-highlight-pressure {
+        .yandex-status-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+        }
+
+        .yandex-status-pill.open .yandex-status-dot {
+          background: #22c55e;
+          box-shadow: 0 0 5px rgba(34, 197, 94, 0.6);
+        }
+
+        .yandex-status-pill.closed .yandex-status-dot {
+          background: #ef4444;
+        }
+
+        .yandex-metric-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 0.72rem;
+          font-weight: 600;
+          padding: 3px 7px;
+          border-radius: 6px;
+        }
+
+        .yandex-metric-pill.price {
+          background: #faf5ff;
+          color: #7e22ce;
+          border: 1px solid #e9d5ff;
+        }
+
+        .yandex-metric-pill.pressure {
+          background: #f0f9ff;
           color: #0284c7;
-          font-weight: 700;
+          border: 1px solid #bae6fd;
+        }
+
+        .yandex-highlight-actions {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin-left: auto;
+        }
+
+        .yandex-highlight-btn-route {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 5px 10px;
+          font-size: 0.72rem;
+          font-weight: 600;
+          background: #2563eb;
+          color: #ffffff;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: background 0.15s ease;
+        }
+
+        .yandex-highlight-btn-route:hover {
+          background: #1d4ed8;
+        }
+
+        .yandex-highlight-btn-detail {
+          padding: 5px 9px;
+          font-size: 0.72rem;
+          font-weight: 600;
+          background: #f1f5f9;
+          color: #334155;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+
+        .yandex-highlight-btn-detail:hover {
+          background: #e2e8f0;
+          color: #0f172a;
+        }
+
+        [data-theme='dark'] .yandex-highlight-card,
+        .is-dark .yandex-highlight-card {
+          background: #1e293b;
+          border-color: rgba(255, 255, 255, 0.1);
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35);
+        }
+
+        [data-theme='dark'] .yandex-highlight-name,
+        .is-dark .yandex-highlight-name {
+          color: #f8fafc;
+        }
+
+        [data-theme='dark'] .yandex-highlight-address,
+        .is-dark .yandex-highlight-address {
+          color: #94a3b8;
+        }
+
+        [data-theme='dark'] .yandex-highlight-footer,
+        .is-dark .yandex-highlight-footer {
+          border-top-color: rgba(255, 255, 255, 0.08);
+        }
+
+        [data-theme='dark'] .yandex-highlight-dist,
+        .is-dark .yandex-highlight-dist {
+          background: rgba(255, 255, 255, 0.08);
+          color: #cbd5e1;
+          border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        [data-theme='dark'] .yandex-highlight-close-btn,
+        .is-dark .yandex-highlight-close-btn {
+          background: rgba(255, 255, 255, 0.08);
+          color: #94a3b8;
         }
 
         /* Hali ma'lumot yo'q kartochkasi */
@@ -1430,6 +1875,806 @@ export default function MapView({
           font-size: 0.7rem;
           font-weight: 600;
         }
+
+        /* ===================================================
+           MAXSUS MYUP SHAHOBCHA POPUP (DIZAYN ASOSIDA)
+           =================================================== */
+        .myup-station-maplibre-popup {
+          z-index: 1000 !important;
+        }
+
+        .myup-station-maplibre-popup .maplibregl-popup-content {
+          padding: 0 !important;
+          background: transparent !important;
+          box-shadow: none !important;
+          border-radius: 20px !important;
+        }
+
+        .myup-station-maplibre-popup .maplibregl-popup-close-button {
+          display: none !important;
+        }
+
+        .myup-station-maplibre-popup .maplibregl-popup-tip {
+          border-width: 10px !important;
+        }
+
+        .myup-station-maplibre-popup[class*="maplibregl-popup-anchor-bottom"] .maplibregl-popup-tip {
+          border-top-color: #ffffff !important;
+        }
+        .myup-station-maplibre-popup[class*="maplibregl-popup-anchor-top"] .maplibregl-popup-tip {
+          border-bottom-color: #ffffff !important;
+        }
+        .myup-station-maplibre-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+          border-right-color: #ffffff !important;
+        }
+        .myup-station-maplibre-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+          border-left-color: #ffffff !important;
+        }
+
+        .myup-popup-card {
+          width: 320px;
+          max-width: calc(100vw - 32px);
+          background: #ffffff;
+          border-radius: 20px;
+          padding: 18px 18px 16px 18px;
+          box-shadow: 0 16px 36px -6px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(15, 23, 42, 0.05);
+          font-family: inherit;
+          color: #0f172a;
+          box-sizing: border-box;
+          text-align: left;
+          user-select: text;
+        }
+
+        .myup-popup-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 10px;
+          position: relative;
+        }
+
+        .myup-popup-header-left {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex: 1;
+          min-width: 0;
+        }
+
+        .myup-popup-icon-box {
+          width: 44px;
+          height: 44px;
+          min-width: 44px;
+          background: #eff4fe;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .myup-popup-title-wrap {
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+        }
+
+        .myup-popup-subtitle {
+          font-size: 10.5px;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+          color: #64748b;
+          text-transform: uppercase;
+        }
+
+        .myup-popup-title {
+          font-size: 19px;
+          font-weight: 800;
+          color: #0f172a;
+          margin: 1px 0 0 0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          line-height: 1.25;
+        }
+
+        .myup-popup-close-btn {
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          padding: 3px 5px;
+          color: #64748b;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s;
+          flex-shrink: 0;
+        }
+
+        .myup-popup-close-btn:hover {
+          background: #f1f5f9;
+          color: #0f172a;
+        }
+
+        .myup-popup-status-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-top: 14px;
+        }
+
+        .myup-popup-status-left {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .myup-popup-status-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 3px 9px;
+          border-radius: 9999px;
+          font-size: 12px;
+          font-weight: 700;
+        }
+
+        .myup-popup-status-badge.open {
+          background: #e6f7ef;
+          color: #047857;
+        }
+
+        .myup-popup-status-badge.closed {
+          background: #fee2e2;
+          color: #b91c1c;
+        }
+
+        .myup-popup-status-dot {
+          width: 6.5px;
+          height: 6.5px;
+          border-radius: 50%;
+          background: currentColor;
+        }
+
+        .myup-popup-hours-text {
+          font-size: 13px;
+          font-weight: 500;
+          color: #475569;
+        }
+
+        .myup-popup-dist-text {
+          font-size: 13.5px;
+          font-weight: 800;
+          color: #0f2868;
+        }
+
+        .myup-popup-address-row {
+          display: flex;
+          align-items: flex-start;
+          gap: 8px;
+          margin-top: 12px;
+        }
+
+        .myup-popup-pin-icon {
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+
+        .myup-popup-address-text {
+          font-size: 12px;
+          line-height: 1.45;
+          color: #475569;
+          font-weight: 500;
+        }
+
+        .myup-popup-pressure-box {
+          background: #f3f6fb;
+          border-radius: 14px;
+          padding: 12px 14px;
+          margin-top: 13px;
+        }
+
+        .myup-popup-pressure-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .myup-popup-pressure-title {
+          font-size: 12.5px;
+          font-weight: 700;
+          color: #0f172a;
+        }
+
+        .myup-popup-pressure-status {
+          font-size: 12px;
+          font-weight: 700;
+          color: #059669;
+        }
+
+        .myup-popup-pressure-bars {
+          display: flex;
+          gap: 6px;
+          margin: 8px 0;
+        }
+
+        .myup-popup-meter-bar {
+          flex: 1;
+          height: 5px;
+          border-radius: 3px;
+          background: #cbd5e1;
+          transition: background 0.2s;
+        }
+
+        .myup-popup-meter-bar.active {
+          background: #10b981;
+        }
+
+        .myup-popup-pressure-updated {
+          display: block;
+          font-size: 11px;
+          color: #94a3b8;
+          font-weight: 500;
+        }
+
+        .myup-popup-fuels-section {
+          margin-top: 13px;
+        }
+
+        .myup-popup-fuels-title {
+          font-size: 12.5px;
+          font-weight: 700;
+          color: #0f172a;
+          margin-bottom: 8px;
+        }
+
+        .myup-popup-fuels-grid {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+
+        .myup-popup-fuel-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 4px 10px;
+          border-radius: 8px;
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          font-size: 11.5px;
+          font-weight: 600;
+        }
+
+        .myup-popup-fuel-chip.active {
+          color: #0f172a;
+          border-color: #e2e8f0;
+        }
+
+        .myup-popup-fuel-chip.inactive {
+          color: #64748b;
+          border-color: #edf2f7;
+        }
+
+        .myup-popup-fuel-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+
+        .myup-popup-fuel-dot.dot-active {
+          background: #10b981;
+        }
+
+        .myup-popup-fuel-dot.dot-inactive {
+          background: #94a3b8;
+        }
+
+        .myup-popup-actions-row {
+          display: flex;
+          gap: 8px;
+          margin-top: 15px;
+        }
+
+        .myup-popup-btn-nav {
+          flex: 1.15;
+          background: #11286b;
+          color: #ffffff;
+          border: none;
+          border-radius: 12px;
+          padding: 9.5px 12px;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          transition: background 0.15s, transform 0.1s;
+        }
+
+        .myup-popup-btn-nav:hover {
+          background: #0d1e52;
+        }
+
+        .myup-popup-btn-nav:active {
+          transform: scale(0.98);
+        }
+
+        .myup-popup-btn-detail {
+          flex: 1;
+          background: #ffffff;
+          color: #11286b;
+          border: 1.5px solid #11286b;
+          border-radius: 12px;
+          padding: 9.5px 12px;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: background 0.15s, transform 0.1s;
+        }
+
+        .myup-popup-btn-detail:hover {
+          background: #f8fafc;
+        }
+
+        .myup-popup-btn-detail:active {
+          transform: scale(0.98);
+        }
+
+        .myup-popup-report-row {
+          margin-top: 13px;
+          text-align: center;
+          font-size: 11.5px;
+          color: #475569;
+          font-weight: 500;
+        }
+
+        .myup-popup-report-btn {
+          background: none;
+          border: none;
+          padding: 0;
+          font-family: inherit;
+          font-size: 11.5px;
+          color: #11286b;
+          font-weight: 700;
+          text-decoration: underline;
+          cursor: pointer;
+          transition: color 0.15s;
+        }
+
+        .myup-popup-report-btn:hover {
+          color: #0d1e52;
+        }
+
+        /* ========================================================
+           AD SLOTS STYLES (DESKTOP)
+           1. Sidebar Bottom Rectangular Ad
+           2. Map Bottom Leaderboard Banner
+           ======================================================== */
+
+        /* 1. Sidebar Bottom Rectangular Ad */
+        .yandex-sidebar-ad-slot-wrapper {
+          margin-top: auto;
+          padding: 14px 16px 16px 16px;
+          border-top: 1px solid #e2e8f0;
+          background: #f8fafc;
+          flex-shrink: 0;
+        }
+
+        .yandex-sidebar-ad-card {
+          border-radius: 14px;
+          padding: 16px;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          cursor: pointer;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .yandex-sidebar-ad-card.placeholder-ad {
+          background: #eef2f6;
+          border: 1.5px dashed #94a3b8;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .yandex-sidebar-ad-card.placeholder-ad:hover {
+          border-color: #2563eb;
+          background: #e2e8f0;
+          transform: translateY(-2px);
+          box-shadow: 0 6px 18px rgba(37, 99, 235, 0.16);
+        }
+
+        .yandex-sidebar-ad-head-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .yandex-sidebar-ad-tag {
+          font-size: 0.65rem;
+          font-weight: 800;
+          letter-spacing: 0.05em;
+          color: #2563eb;
+          background: rgba(37, 99, 235, 0.08);
+          padding: 2px 6px;
+          border-radius: 4px;
+        }
+
+        .yandex-sidebar-ad-size {
+          font-size: 0.68rem;
+          font-weight: 600;
+          color: #94a3b8;
+        }
+
+        .yandex-sidebar-ad-center {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          padding: 4px 0;
+        }
+
+        .yandex-sidebar-ad-icon-ring {
+          width: 38px;
+          height: 38px;
+          border-radius: 50%;
+          background: #ffffff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
+          margin-bottom: 6px;
+        }
+
+        .yandex-sidebar-ad-cta-title {
+          font-size: 0.88rem;
+          font-weight: 700;
+          color: #0f172a;
+          margin-bottom: 2px;
+        }
+
+        .yandex-sidebar-ad-cta-sub {
+          font-size: 0.72rem;
+          color: #64748b;
+          line-height: 1.3;
+          max-width: 240px;
+        }
+
+        .yandex-sidebar-ad-action-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          width: 100%;
+          padding: 7px 12px;
+          background: #2563eb;
+          color: #ffffff;
+          border: none;
+          border-radius: 8px;
+          font-size: 0.76rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.15s ease;
+        }
+
+        .yandex-sidebar-ad-action-btn:hover {
+          background: #1d4ed8;
+        }
+
+        /* Sidebar active ad */
+        .yandex-sidebar-ad-card.active-ad {
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+          padding: 8px;
+        }
+
+        .yandex-sidebar-ad-media-wrap {
+          position: relative;
+          width: 100%;
+          height: 90px;
+          border-radius: 8px;
+          overflow: hidden;
+          background: #000000;
+        }
+
+        .yandex-sidebar-ad-media {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .yandex-sidebar-ad-badge {
+          position: absolute;
+          top: 6px;
+          left: 6px;
+          font-size: 0.62rem;
+          font-weight: 700;
+          background: rgba(0, 0, 0, 0.65);
+          backdrop-filter: blur(4px);
+          color: #ffffff;
+          padding: 2px 6px;
+          border-radius: 4px;
+        }
+
+        .yandex-sidebar-ad-info {
+          padding: 8px 4px 4px 4px;
+        }
+
+        .yandex-sidebar-ad-title {
+          font-size: 0.86rem;
+          font-weight: 700;
+          color: #0f172a;
+          margin: 0 0 2px 0;
+        }
+
+        .yandex-sidebar-ad-desc {
+          font-size: 0.72rem;
+          color: #64748b;
+          margin: 0 0 8px 0;
+          line-height: 1.3;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .yandex-sidebar-ad-cta {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 5px 10px;
+          background: #f1f5f9;
+          color: #2563eb;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          font-size: 0.72rem;
+          font-weight: 600;
+          cursor: pointer;
+        }
+
+        /* 2. Map Bottom Leaderboard Banner */
+        .map-bottom-ad-banner-slot {
+          position: absolute;
+          bottom: 14px;
+          z-index: 25;
+          min-height: 72px;
+          background: #ffffff;
+          border: 1px solid rgba(226, 232, 240, 0.95);
+          border-radius: 16px;
+          box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.12), 0 4px 12px -2px rgba(15, 23, 42, 0.05);
+          display: flex;
+          align-items: center;
+          padding: 8px 18px;
+          transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), right 0.3s ease;
+          overflow: hidden;
+        }
+
+        .map-bottom-ad-banner-slot.sidebar-open {
+          left: 400px;
+          right: 76px;
+        }
+
+        .map-bottom-ad-banner-slot.sidebar-closed {
+          left: 20px;
+          right: 76px;
+        }
+
+        .map-bottom-ad-inner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+          gap: 16px;
+          cursor: pointer;
+        }
+
+        .map-bottom-ad-left-wrap {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          flex: 1;
+          min-width: 0;
+        }
+
+        .map-bottom-ad-icon-box {
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
+          background: #eff6ff;
+          border: 1px solid #bfdbfe;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .map-bottom-ad-text {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .map-bottom-ad-title-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 2px;
+        }
+
+        .map-bottom-ad-title {
+          font-size: 0.92rem;
+          font-weight: 700;
+          color: #0f172a;
+          margin: 0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .map-bottom-ad-badge-promo,
+        .map-bottom-ad-tag {
+          font-size: 0.65rem;
+          font-weight: 700;
+          color: #2563eb;
+          background: #eff6ff;
+          border: 1px solid #dbeafe;
+          padding: 2px 7px;
+          border-radius: 5px;
+          white-space: nowrap;
+        }
+
+        .map-bottom-ad-desc {
+          font-size: 0.76rem;
+          color: #64748b;
+          margin: 0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          line-height: 1.35;
+        }
+
+        .map-bottom-ad-media-thumb {
+          position: relative;
+          width: 80px;
+          height: 52px;
+          border-radius: 8px;
+          overflow: hidden;
+          background: #000000;
+          flex-shrink: 0;
+        }
+
+        .map-bottom-thumb-media {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .map-bottom-badge-label {
+          position: absolute;
+          bottom: 3px;
+          left: 4px;
+          font-size: 0.58rem;
+          font-weight: 700;
+          background: rgba(0, 0, 0, 0.7);
+          color: #ffffff;
+          padding: 1px 4px;
+          border-radius: 3px;
+        }
+
+        .map-bottom-ad-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-shrink: 0;
+        }
+
+        .map-bottom-ad-btn-cta {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          background: #f1f5f9;
+          color: #1e293b;
+          border: 1px solid #cbd5e1;
+          border-radius: 10px;
+          font-size: 0.78rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          white-space: nowrap;
+        }
+
+        .map-bottom-ad-btn-cta.primary-cta {
+          background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+          color: #ffffff;
+          border: none;
+          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+        }
+
+        .map-bottom-ad-btn-cta.primary-cta:hover {
+          background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+        }
+
+        .map-bottom-ad-btn-close {
+          width: 28px;
+          height: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: none;
+          background: #f1f5f9;
+          color: #64748b;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+
+        .map-bottom-ad-btn-close:hover {
+          background: #e2e8f0;
+          color: #0f172a;
+        }
+
+        /* Dark Mode Support for Ad Slots */
+        [data-theme='dark'] .yandex-sidebar-ad-slot-wrapper,
+        .is-dark .yandex-sidebar-ad-slot-wrapper {
+          background: #1e293b;
+          border-top-color: rgba(255, 255, 255, 0.08);
+        }
+
+        [data-theme='dark'] .yandex-sidebar-ad-card.placeholder-ad,
+        .is-dark .yandex-sidebar-ad-card.placeholder-ad {
+          background: rgba(15, 23, 42, 0.6);
+          border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        [data-theme='dark'] .yandex-sidebar-ad-cta-title,
+        .is-dark .yandex-sidebar-ad-cta-title,
+        [data-theme='dark'] .map-bottom-ad-title,
+        .is-dark .map-bottom-ad-title {
+          color: #f8fafc;
+        }
+
+        [data-theme='dark'] .yandex-sidebar-ad-cta-sub,
+        .is-dark .yandex-sidebar-ad-cta-sub,
+        [data-theme='dark'] .map-bottom-ad-desc,
+        .is-dark .map-bottom-ad-desc {
+          color: #94a3b8;
+        }
+
+        [data-theme='dark'] .map-bottom-ad-banner-slot,
+        .is-dark .map-bottom-ad-banner-slot {
+          background: #1e293b;
+          border-color: rgba(255, 255, 255, 0.1);
+          box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.4);
+        }
+
+        [data-theme='dark'] .map-bottom-ad-icon-box,
+        .is-dark .map-bottom-ad-icon-box {
+          background: rgba(37, 99, 235, 0.15);
+          border-color: rgba(37, 99, 235, 0.3);
+        }
+
+        [data-theme='dark'] .map-bottom-ad-btn-close,
+        .is-dark .map-bottom-ad-btn-close {
+          background: rgba(255, 255, 255, 0.08);
+          color: #94a3b8;
+        }
+
+        @media (max-width: 768px) {
+          .yandex-sidebar-ad-slot-wrapper,
+          .map-bottom-ad-banner-slot {
+            display: none !important;
+          }
+        }
       `}</style>
 
       {/* YANDEX USLUBIDAGI CHAP PANEL (Faqat xarita bo'limida) */}
@@ -1582,7 +2827,12 @@ export default function MapView({
                 <button
                   key={pill.id}
                   className={`yandex-pill-chip ${selectedFuelType === pill.id ? 'active' : ''}`}
-                  onClick={() => setSelectedFuelType(pill.id)}
+                  onClick={() => {
+                    setSelectedFuelType(pill.id);
+                    if (typeof onFuelFilterChange === 'function') {
+                      onFuelFilterChange(pill.id);
+                    }
+                  }}
                   type="button"
                 >
                   {pill.label}
@@ -1594,30 +2844,83 @@ export default function MapView({
             {highlightedStation && (
               <div className="yandex-highlight-card desktop-only-highlight">
                 <div className="yandex-highlight-header">
-                  <span className="yandex-highlight-badge">
-                    {highlightBadgeText || '⚡ Tanlangan shahobcha'}
-                  </span>
-                  <span className="yandex-highlight-dist">
-                    📍 {formatDistance(highlightedStation.distanceKm)}
-                  </span>
+                  <div className="yandex-highlight-header-left">
+                    <span className={`yandex-highlight-badge badge-${highlightBadgeType || 'selected'}`}>
+                      {highlightBadgeType === 'cheapest' ? (
+                        <BadgePercent size={13} strokeWidth={2.4} />
+                      ) : highlightBadgeType === 'nearest' ? (
+                        <Navigation size={13} strokeWidth={2.4} />
+                      ) : (
+                        <Sparkles size={13} strokeWidth={2.4} />
+                      )}
+                      <span>{highlightBadgeText || "Tanlangan shahobcha"}</span>
+                    </span>
+                    <span className="yandex-highlight-dist">
+                      <MapPin size={11} strokeWidth={2.2} />
+                      <span>{formatDistance(highlightedStation.distanceKm)}</span>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="yandex-highlight-close-btn"
+                    onClick={() => setHighlightedStationId(null)}
+                    title="Yopish"
+                    aria-label="Yopish"
+                  >
+                    <X size={13} />
+                  </button>
                 </div>
+
                 <div className="yandex-highlight-body">
                   <h4 className="yandex-highlight-name">{highlightedStation.name}</h4>
-                  <p className="yandex-highlight-address">{highlightedStation.address}</p>
+                  <p className="yandex-highlight-address">
+                    {highlightedStation.address || highlightedStation.city || "Manzil ko'rsatilmagan"}
+                  </p>
+
                   <div className="yandex-highlight-footer">
-                    <span className="yandex-highlight-status">
-                      {highlightedStation.isOpen ? '🟢 Ochiq' : '🔴 Yopiq'}
-                    </span>
-                    {highlightedStation.price && (
-                      <span className="yandex-highlight-price">
-                        {highlightedStation.price.toLocaleString()} so'm
+                    <div className="yandex-highlight-tags">
+                      <span className={`yandex-status-pill ${highlightedStation.isOpen !== false ? 'open' : 'closed'}`}>
+                        <span className="yandex-status-dot"></span>
+                        <span>{highlightedStation.isOpen !== false ? 'Ochiq' : 'Yopiq'}</span>
                       </span>
-                    )}
-                    {highlightedStation.gasPressure && (
-                      <span className="yandex-highlight-pressure">
-                        ⚡ {highlightedStation.gasPressure} atm
-                      </span>
-                    )}
+
+                      {highlightedStation.price && (
+                        <span className="yandex-metric-pill price">
+                          <span className="pill-val">{Number(highlightedStation.price).toLocaleString()} so'm</span>
+                        </span>
+                      )}
+
+                      {highlightedStation.gasPressure && (
+                        <span className="yandex-metric-pill pressure">
+                          <Gauge size={12} strokeWidth={2.2} />
+                          <span>{highlightedStation.gasPressure} atm</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="yandex-highlight-actions">
+                      {typeof onNavigate === 'function' && (
+                        <button
+                          type="button"
+                          className="yandex-highlight-btn-route"
+                          onClick={() => onNavigate(highlightedStation)}
+                          title="Marshrut tuzish"
+                        >
+                          <Navigation size={12} strokeWidth={2.4} />
+                          <span>Borish</span>
+                        </button>
+                      )}
+                      {typeof onSelectStation === 'function' && (
+                        <button
+                          type="button"
+                          className="yandex-highlight-btn-detail"
+                          onClick={() => onSelectStation(highlightedStation)}
+                          title="Batafsil ma'lumot"
+                        >
+                          <span>Batafsil</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1629,13 +2932,98 @@ export default function MapView({
         {/* 4. OSHXONA, KAFELAR YOKI BOSHQA JOYLAR BOSILGANDA: HALI MA'LUMOT YO'Q */}
         {selectedCategory && selectedCategory !== 'shahobcha' && (
           <div className="yandex-no-data-box">
-            <div className="yandex-no-data-icon">📍</div>
+            <div className="yandex-no-data-icon">
+              <MapPin size={24} color="#64748b" />
+            </div>
             <span className="yandex-no-data-title">Hali ma'lumot yo'q</span>
             <p className="yandex-no-data-desc">
               Ushbu bo'lim bo'yicha ma'lumotlar tez kunda qo'shiladi
             </p>
           </div>
         )}
+
+        {/* 5. REKLAMA JOYLASHTIRISH UCHUN TO'RTBURCHAK BLOK (Eng tagida, rasmdagi joy) */}
+        <div className="yandex-sidebar-ad-slot-wrapper hide-on-mobile">
+          {mapSidebarAd ? (
+            (() => {
+              const mediaUrl = mapSidebarAd.video_url || mapSidebarAd.media_url || mapSidebarAd.image_url || '';
+              const isVideo = mediaUrl && (mediaUrl.endsWith('.mp4') || mediaUrl.endsWith('.webm') || mediaUrl.startsWith('data:video'));
+              return (
+                <div
+                  className="yandex-sidebar-ad-card active-ad"
+                  onClick={() => handleOpenAdLink(mapSidebarAd)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  {mediaUrl && (
+                    <div className="yandex-sidebar-ad-media-wrap">
+                      {isVideo ? (
+                        <video
+                          src={mediaUrl}
+                          className="yandex-sidebar-ad-media"
+                          autoPlay
+                          muted
+                          loop
+                          playsInline
+                        />
+                      ) : (
+                        <img
+                          src={mediaUrl}
+                          alt={mapSidebarAd.title || 'Reklama'}
+                          className="yandex-sidebar-ad-media"
+                        />
+                      )}
+                      <span className="yandex-sidebar-ad-badge">Reklama</span>
+                    </div>
+                  )}
+                  <div className="yandex-sidebar-ad-info">
+                    <h5 className="yandex-sidebar-ad-title">{mapSidebarAd.title || "Maxsus taklif"}</h5>
+                    {mapSidebarAd.description && (
+                      <p className="yandex-sidebar-ad-desc">{mapSidebarAd.description}</p>
+                    )}
+                    <div className="yandex-sidebar-ad-cta">
+                      <span>Batafsil ko'rish</span>
+                      <ExternalLink size={11} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })()
+          ) : (
+            <div
+              className="yandex-sidebar-ad-card placeholder-ad"
+              onClick={() => (onOpenAdvertising ? onOpenAdvertising() : handleOpenAdLink())}
+              role="button"
+              tabIndex={0}
+              title="Batafsil ma'lumot olish"
+            >
+              <div className="yandex-sidebar-ad-center">
+                <div className="yandex-sidebar-ad-icon-ring">
+                  <Megaphone size={20} color="#2563eb" />
+                </div>
+                <span className="yandex-sidebar-ad-cta-title">Reklama joylash</span>
+                <span className="yandex-sidebar-ad-cta-sub">
+                  Bu yerda sizning biznesingiz reklamasi bo'lishi mumkin
+                </span>
+              </div>
+              <button
+                type="button"
+                className="yandex-sidebar-ad-action-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (typeof onOpenAdvertising === 'function') {
+                    onOpenAdvertising();
+                  } else {
+                    handleOpenAdLink();
+                  }
+                }}
+              >
+                <span>Batafsil</span>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
+        </div>
         </div>
       )}
 
@@ -1648,7 +3036,9 @@ export default function MapView({
       )}
       {errorMsg && !locating && (
         <div className="map-status-banner" style={{ background: 'rgba(239,68,68,0.9)' }}>
-          <span>⚠️ {errorMsg}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <AlertTriangle size={14} /> {errorMsg}
+          </span>
         </div>
       )}
 
@@ -1667,7 +3057,141 @@ export default function MapView({
       />
 
       {/* Aniqlik ko'rsatkichi */}
-      {accuracy && !locating && <div className="map-accuracy-badge">📡 ~{Math.round(accuracy)} m aniqlik</div>}
+      {accuracy && !locating && (
+        <div className="map-accuracy-badge">
+          <Radio size={12} style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: 4 }} />
+          ~{Math.round(accuracy)} m aniqlik
+        </div>
+      )}
+
+      {/* KATTA BANNER REKLAMA (Faqat xarita bo'limida ko'rsatiladi, asosiy bo'limda xarita ustiga chiqmaydi) */}
+      {showSidebar && !isBottomBannerClosed && (
+        <div
+          className={`map-bottom-ad-banner-slot hide-on-mobile ${
+            isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'
+          }`}
+        >
+          {mapBottomAd ? (
+            (() => {
+              const mediaUrl = mapBottomAd.video_url || mapBottomAd.media_url || mapBottomAd.image_url || '';
+              const isVideo = mediaUrl && (mediaUrl.endsWith('.mp4') || mediaUrl.endsWith('.webm') || mediaUrl.startsWith('data:video'));
+              return (
+                <div
+                  className="map-bottom-ad-inner"
+                  onClick={() => handleOpenAdLink(mapBottomAd)}
+                >
+                  <div className="map-bottom-ad-left-wrap">
+                    {mediaUrl && (
+                      <div className="map-bottom-ad-media-thumb">
+                        {isVideo ? (
+                          <video
+                            src={mediaUrl}
+                            className="map-bottom-thumb-media"
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                          />
+                        ) : (
+                          <img
+                            src={mediaUrl}
+                            alt={mapBottomAd.title || 'Reklama'}
+                            className="map-bottom-thumb-media"
+                          />
+                        )}
+                        <span className="map-bottom-badge-label">Reklama</span>
+                      </div>
+                    )}
+                    <div className="map-bottom-ad-text">
+                      <div className="map-bottom-ad-title-row">
+                        <span className="map-bottom-ad-badge-promo">MAXSUS</span>
+                        <h5 className="map-bottom-ad-title">{mapBottomAd.title || "Hamkorimiz taklifi"}</h5>
+                      </div>
+                      <p className="map-bottom-ad-desc">
+                        {mapBottomAd.description || "Ushbu xizmat yoki mahsulot haqida ko'proq ma'lumot olish uchun bosing"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="map-bottom-ad-actions">
+                    <button
+                      type="button"
+                      className="map-bottom-ad-btn-cta primary-cta"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenAdLink(mapBottomAd);
+                      }}
+                    >
+                      <span>Batafsil</span>
+                      <ExternalLink size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      className="map-bottom-ad-btn-close"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsBottomBannerClosed(true);
+                      }}
+                      title="Yopish"
+                      aria-label="Yopish"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })()
+          ) : (
+            <div
+              className="map-bottom-ad-inner"
+              onClick={() => (onOpenAdvertising ? onOpenAdvertising() : handleOpenAdLink())}
+            >
+              <div className="map-bottom-ad-left-wrap">
+                <div className="map-bottom-ad-icon-box">
+                  <Megaphone size={20} color="#2563eb" />
+                </div>
+                <div className="map-bottom-ad-text">
+                  <div className="map-bottom-ad-title-row">
+                    <h5 className="map-bottom-ad-title">Reklama joylash</h5>
+                    <span className="map-bottom-ad-tag">Banner joyi (728 × 90)</span>
+                  </div>
+                  <p className="map-bottom-ad-desc">
+                    Milliardlab ko'rishlar: ushbu joyda brendingiz yoki xizmatingiz reklamasini joylashtiring
+                  </p>
+                </div>
+              </div>
+              <div className="map-bottom-ad-actions">
+                <button
+                  type="button"
+                  className="map-bottom-ad-btn-cta primary-cta"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (typeof onOpenAdvertising === 'function') {
+                      onOpenAdvertising();
+                    } else {
+                      handleOpenAdLink();
+                    }
+                  }}
+                >
+                  <span>Batafsil</span>
+                  <ChevronRight size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="map-bottom-ad-btn-close"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsBottomBannerClosed(true);
+                  }}
+                  title="Yopish"
+                  aria-label="Yopish"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Joylashuvni aniqlash tugmasi */}
       <button className="locate-me-btn" onClick={handleLocateMe} title="Mening joylashuvim">

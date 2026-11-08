@@ -60,6 +60,14 @@ export const api = {
       return request(`/stations${qs ? `?${qs}` : ''}`);
     },
 
+    getMyStations: (params = {}) => {
+      const query = new URLSearchParams();
+      if (params.userId) query.set('userId', params.userId);
+      if (params.phone) query.set('phone', params.phone);
+      const qs = query.toString();
+      return request(`/stations/my${qs ? `?${qs}` : ''}`);
+    },
+
     create: (stationData) =>
       request('/stations', {
         method: 'POST',
@@ -76,6 +84,11 @@ export const api = {
       request(`/stations/${stationId}/fuels/${fuelType}`, {
         method: 'PUT',
         body: JSON.stringify(fuelData),
+      }),
+
+    deleteFuel: (stationId, fuelType) =>
+      request(`/stations/${stationId}/fuels/${fuelType}`, {
+        method: 'DELETE',
       }),
 
     delete: (id, data = null) =>

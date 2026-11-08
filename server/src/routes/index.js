@@ -15,6 +15,7 @@ apiRouter.use('/stations', stationRoutes);
 apiRouter.use('/feedbacks', feedbackRoutes);
 apiRouter.use('/admin', adminRoutes);
 apiRouter.use('/ads', adRoutes);
+apiRouter.use('/banners', adRoutes);
 apiRouter.use('/analytics', analyticsRoutes);
 apiRouter.use('/notifications', notificationRoutes);
 

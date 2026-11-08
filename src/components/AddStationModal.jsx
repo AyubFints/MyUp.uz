@@ -7,6 +7,7 @@ import * as maplibregl from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import * as pmtiles from 'pmtiles';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { getAppMapStyle } from '../utils/mapStyle';
 
 // MapLibre Web Worker va PMTiles protokoli
 maplibregl.setWorkerUrl(workerUrl);
@@ -26,59 +27,21 @@ function AddStationMapPicker({ position, onLocationSelect }) {
     if (!mapContainerRef.current) return;
     let isMounted = true;
 
-    async function initMap() {
-      const protomapsKey = import.meta.env.VITE_PROTOMAPS_KEY || '9fc0781e9f3a803f';
-      let mapStyle;
+    function initMap() {
+      try {
+        const mapStyle = getAppMapStyle();
 
-      if (protomapsKey) {
-        try {
-          const styleUrl = `https://api.protomaps.com/styles/v5/light/en.json?key=${protomapsKey}`;
-          const res = await fetch(styleUrl);
-          if (res.ok) {
-            mapStyle = await res.json();
-            if (mapStyle.layers && Array.isArray(mapStyle.layers)) {
-              mapStyle.layers = mapStyle.layers.filter((l) => l['source-layer'] !== 'pois');
-            }
-          }
-        } catch (e) {
-          console.warn("Protomaps yuklanmadi, OSM ga o'tilmoqda:", e);
-        }
-      }
+        if (!isMounted || !mapContainerRef.current) return;
 
-      if (!mapStyle) {
-        mapStyle = {
-          version: 8,
-          sources: {
-            'osm-tiles': {
-              type: 'raster',
-              tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-              tileSize: 256,
-              attribution: '&copy; OpenStreetMap',
-            },
-          },
-          layers: [
-            {
-              id: 'osm-layer',
-              type: 'raster',
-              source: 'osm-tiles',
-              minzoom: 0,
-              maxzoom: 19,
-            },
-          ],
-        };
-      }
+        const initialLngLat = [position[1], position[0]];
 
-      if (!isMounted || !mapContainerRef.current) return;
-
-      const initialLngLat = [position[1], position[0]];
-
-      const map = new maplibregl.Map({
-        container: mapContainerRef.current,
-        style: mapStyle,
-        center: initialLngLat,
-        zoom: 14.5,
-        attributionControl: false,
-      });
+        const map = new maplibregl.Map({
+          container: mapContainerRef.current,
+          style: mapStyle,
+          center: initialLngLat,
+          zoom: 14.5,
+          attributionControl: false,
+        });
 
       map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
 
@@ -121,7 +84,10 @@ function AddStationMapPicker({ position, onLocationSelect }) {
 
       mapRef.current = map;
       markerRef.current = marker;
+    } catch (err) {
+      console.error('Xaritani yuklashda xatolik:', err);
     }
+  }
 
     initMap();
 
@@ -482,12 +448,17 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
     if (selectedTypes.includes(typeId)) {
       if (selectedTypes.length > 1) {
         setSelectedTypes(selectedTypes.filter(t => t !== typeId));
+        setFuelPrices(prev => {
+          const next = { ...prev };
+          delete next[typeId];
+          return next;
+        });
       }
     } else {
       setSelectedTypes([...selectedTypes, typeId]);
       if (!fuelPrices[typeId]) {
-        const defaultPrice = typeId === 'metan' ? '3800' : typeId === 'propan' ? '5500' : '9500';
-        setFuelPrices({ ...fuelPrices, [typeId]: defaultPrice });
+        const defaultPrice = typeId === 'metan' ? '3800' : typeId === 'propan' ? '5500' : typeId === 'elektr' ? '2500' : '9500';
+        setFuelPrices(prev => ({ ...prev, [typeId]: defaultPrice }));
       }
     }
   };
@@ -522,6 +493,7 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
   const handleSubmit = () => {
     const parsedPrices = Object.fromEntries(
       Object.entries(fuelPrices)
+        .filter(([k]) => selectedTypes.includes(k))
         .map(([k, v]) => [k, parseInt(v, 10)])
         .filter(([k, v]) => !isNaN(v) && v > 0)
     );
@@ -543,8 +515,6 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
     }
 
     // Tekshiruv uchun 3 ta rasm:
-    // Agar foydalanuvchi alohida 3 ta katakchaga yuklagan bo'lsa - o'shalar olinadi.
-    // Agar umumiy rasmlar bo'limiga 3 ta rasm yuklagan bo'lsa - avtomatik ravishda 1-, 2-, 3-rasmlar moslashtiriladi!
     const finalVerification = {
       exterior: verificationImages.exterior || images[0] || combinedImgs[0] || '',
       interior: verificationImages.interior || images[1] || combinedImgs[1] || '',
@@ -553,9 +523,10 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
 
     const newStation = {
       id: editStation?.id || `st_user_${Date.now()}`,
-      name: name.trim() || 'A-Maps Shahobchasi',
+      name: name.trim() || 'AX-Map Shahobchasi',
       type: selectedTypes,
-      prices: Object.keys(parsedPrices).length > 0 ? parsedPrices : { metan: 3800 },
+      types: selectedTypes,
+      prices: parsedPrices,
       phone,
       lat: mapPos[0],
       lng: mapPos[1],
@@ -563,8 +534,8 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
       description,
       images: combinedImgs,
       verificationImages: finalVerification,
-      gasPressure: selectedTypes.includes('metan') ? 200 : '',
-      pressures: selectedTypes.includes('metan') ? { metan: 200 } : {},
+      gasPressure: selectedTypes.includes('metan') ? 200 : null,
+      pressures: selectedTypes.includes('metan') ? { metan: 200 } : (selectedTypes.includes('propan') ? { propan: 16 } : {}),
       amenities: {
         coffee: !!amenities.coffee,
         toilet: !!amenities.toilet,
@@ -615,7 +586,7 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
         <div className="modern-add-station-header">
           <div className="modern-add-station-badge">
             <Sparkles size={14} className="badge-sparkle-icon" />
-            <span>A-Maps • Yangi joylashuv</span>
+            <span>AX-Map • Yangi joylashuv</span>
           </div>
 
           <div className="modern-add-step-counter">
@@ -641,7 +612,7 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
             </div>
             <h2 className="modern-add-step-title">Joylashuv qo'shish</h2>
             <p className="modern-add-step-desc">
-              O'zingizga tegishli yoki xaritada mavjud bo'lmagan yangi joylashuvni A-Maps xaritasiga qo'shishingiz mumkin.
+              O'zingizga tegishli yoki xaritada mavjud bo'lmagan yangi joylashuvni AX-Map xaritasiga qo'shishingiz mumkin.
             </p>
 
             <div className="modern-add-confirm-callout">

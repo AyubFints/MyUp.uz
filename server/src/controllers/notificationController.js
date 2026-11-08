@@ -13,6 +13,7 @@ export const getUserNotifications = async (req, res) => {
 
     const userId = req.user?.id || req.query.userId || null;
     const phone = req.query.phone || req.user?.phone || null;
+    const cleanPhone = phone ? phone.replace(/\s+/g, '') : null;
 
     let sql = `
       SELECT id, user_id AS "userId", station_id AS "stationId",
@@ -26,14 +27,14 @@ export const getUserNotifications = async (req, res) => {
     const isUUID = userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
 
     if (isUUID && phone) {
-      params.push(userId, phone);
-      sql += ` AND (user_id = $1 OR user_phone = $2)`;
+      params.push(userId, phone, cleanPhone);
+      sql += ` AND (user_id = $1 OR user_phone = $2 OR REPLACE(user_phone, ' ', '') = $3)`;
     } else if (isUUID) {
       params.push(userId);
       sql += ` AND user_id = $1`;
     } else if (phone) {
-      params.push(phone);
-      sql += ` AND user_phone = $1`;
+      params.push(phone, cleanPhone);
+      sql += ` AND (user_phone = $1 OR REPLACE(user_phone, ' ', '') = $2)`;
     }
 
     sql += ` ORDER BY created_at DESC LIMIT 50`;
@@ -53,6 +54,7 @@ export const markNotificationsRead = async (req, res) => {
   try {
     const userId = req.user?.id || req.body?.userId || null;
     const phone = req.body?.phone || req.user?.phone || null;
+    const cleanPhone = phone ? phone.replace(/\s+/g, '') : null;
     const { id } = req.body || {};
 
     let sql = `
@@ -69,14 +71,14 @@ export const markNotificationsRead = async (req, res) => {
     } else {
       const isUUID = userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
       if (isUUID && phone) {
-        params.push(userId, phone);
-        sql += ` AND (user_id = $1 OR user_phone = $2)`;
+        params.push(userId, phone, cleanPhone);
+        sql += ` AND (user_id = $1 OR user_phone = $2 OR REPLACE(user_phone, ' ', '') = $3)`;
       } else if (isUUID) {
         params.push(userId);
         sql += ` AND user_id = $1`;
       } else if (phone) {
-        params.push(phone);
-        sql += ` AND user_phone = $1`;
+        params.push(phone, cleanPhone);
+        sql += ` AND (user_phone = $1 OR REPLACE(user_phone, ' ', '') = $2)`;
       }
     }
 

@@ -8,7 +8,13 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+const prodEnv = path.resolve(__dirname, '../.env.production');
+const defaultEnv = path.resolve(__dirname, '../.env');
+if (process.env.NODE_ENV === 'production' && fs.existsSync(prodEnv)) {
+  dotenv.config({ path: prodEnv });
+} else {
+  dotenv.config({ path: defaultEnv });
+}
 
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',

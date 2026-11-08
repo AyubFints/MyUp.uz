@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  ChevronLeft, ChevronRight, MapPin, Phone, Info, Navigation, X, Maximize2
+  ChevronLeft, ChevronRight, MapPin, Phone, Info, Navigation, X, Maximize2, Edit3
 } from 'lucide-react';
 import { formatDistance } from '../utils/distance';
 
@@ -50,6 +50,7 @@ export default function StationDetailModal({
   onStartNavigation,
   isMyStation = false,
   onDeleteStation,
+  onManageStation,
 }) {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
@@ -78,15 +79,37 @@ export default function StationDetailModal({
   const stationAddress = station.address || station.city || "Besh-Yog`och mahallasi, Chilonzor Tumani, Toshkent, 100000";
   const stationPhone = station.phone || "+998 77 278 18 08";
 
+  // Yoqilg'i turlari ma'lumotlari
+  const FUEL_META = {
+    metan: { label: 'Metan', unit: 'm³' },
+    propan: { label: 'Propan', unit: 'litr' },
+    benzin: { label: 'Benzin', unit: 'litr' },
+    ai80: { label: 'AI-80', unit: 'litr' },
+    ai92: { label: 'AI-92', unit: 'litr' },
+    ai95: { label: 'AI-95', unit: 'litr' },
+    ai98: { label: 'AI-98', unit: 'litr' },
+    ai100: { label: 'AI-100', unit: 'litr' },
+    dizel: { label: 'Dizel', unit: 'litr' },
+    elektr: { label: 'Elektr', unit: 'kVt' },
+  };
+
   // Narx formatlash
-  const formatPrice = (val, fallback = 20000) => {
-    const num = Number(val || fallback);
+  const formatPrice = (val) => {
+    if (val === undefined || val === null || val === '') return null;
+    const num = Number(val);
     return isNaN(num) ? `${val} so'm` : `${num.toLocaleString('en-US')} so'm`;
   };
 
-  const metanPrice = formatPrice(station.prices?.metan, 20000);
-  const propanPrice = formatPrice(station.prices?.propan, 20000);
-  const gasPressureVal = station.gasPressure || station.pressure || 220;
+  // Faol sotiladigan yoqilg'ilar ro'yxati
+  const rawTypes = Array.isArray(station.types) && station.types.length > 0
+    ? station.types
+    : (Array.isArray(station.type) && station.type.length > 0
+      ? station.type
+      : Object.keys(station.prices || {}));
+
+  const stationFuelTypes = Array.from(new Set(rawTypes));
+  const hasGas = stationFuelTypes.some((t) => t === 'metan' || t === 'propan');
+  const gasPressureVal = station.gasPressure || station.pressure || (station.pressures?.metan) || null;
 
   // Qulayliklar va to'lov turlarining mavjudligi
   const amenities = station.amenities || {
@@ -186,8 +209,27 @@ export default function StationDetailModal({
             ======================================================== */}
         <div className="sd-sheet-body">
           
-          {/* Manzil nomi */}
-          <h2 className="sd-station-name">{stationName}</h2>
+          {/* Manzil nomi va baho */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
+            <h2 className="sd-station-name" style={{ margin: 0 }}>{stationName}</h2>
+            {station.rating && (
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '12px',
+                fontWeight: '700',
+                padding: '3px 8px',
+                borderRadius: '8px',
+                background: '#fef3c7',
+                color: '#d97706',
+                border: '1px solid #fde68a',
+                boxShadow: '0 1px 3px rgba(217, 119, 6, 0.12)',
+              }}>
+                ⭐ {Number(station.rating).toFixed(1)} {station.reviewsCount ? `(${station.reviewsCount})` : ''}
+              </span>
+            )}
+          </div>
 
           {/* Manzil (Location) */}
           <div className="sd-meta-line">
@@ -208,7 +250,7 @@ export default function StationDetailModal({
           )}
 
           {/* ========================================================
-              3. YOQILG'I NARXLARI (Ruchka iconsiz toza kartochkalar)
+              3. YOQILG'I NARXLARI (Haqiqiy faol yoqilg'ilar)
               ======================================================== */}
           <div className="sd-section-block">
             <div className="sd-sec-title-row">
@@ -216,30 +258,40 @@ export default function StationDetailModal({
               <Info size={16} className="sd-info-circle-icon" />
             </div>
 
-            <div className="sd-fuel-grid">
-              {/* Metan kartochkasi */}
-              <div className="sd-fuel-card">
-                <span className="sd-fuel-card-title">Metan</span>
-                <span className="sd-fuel-card-price">{metanPrice}</span>
+            {stationFuelTypes.length > 0 ? (
+              <div className="sd-fuel-grid">
+                {stationFuelTypes.map((fuelKey) => {
+                  const meta = FUEL_META[fuelKey] || { label: fuelKey.toUpperCase(), unit: 'litr' };
+                  const pVal = station.prices?.[fuelKey];
+                  const formatted = formatPrice(pVal);
+                  return (
+                    <div key={fuelKey} className="sd-fuel-card">
+                      <span className="sd-fuel-card-title">{meta.label}</span>
+                      <span className="sd-fuel-card-price">
+                        {formatted ? formatted : "Belgilanmagan"}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
+            ) : (
+              <p style={{ color: 'var(--theme-muted, #94a3b8)', fontSize: '0.88rem', margin: '4px 0 10px' }}>
+                Yoqilg'i turlari kiritilmagan
+              </p>
+            )}
 
-              {/* Propan kartochkasi */}
-              <div className="sd-fuel-card">
-                <span className="sd-fuel-card-title">Propan</span>
-                <span className="sd-fuel-card-price">{propanPrice}</span>
+            {/* Gaz bosimi (Faqat Metan yoki Propan sotilsa va bosim mavjud bo'lsa) */}
+            {hasGas && gasPressureVal && Number(gasPressureVal) > 0 && (
+              <div className="sd-pressure-card">
+                <div className="sd-pressure-meter-halo">
+                  <GaugeMeterIcon />
+                </div>
+                <div className="sd-pressure-text-wrap">
+                  <span className="sd-pressure-label">Gaz bosimi:</span>
+                  <strong className="sd-pressure-val">{gasPressureVal} atm</strong>
+                </div>
               </div>
-            </div>
-
-            {/* Gaz bosimi (Ruchka iconsiz) */}
-            <div className="sd-pressure-card">
-              <div className="sd-pressure-meter-halo">
-                <GaugeMeterIcon />
-              </div>
-              <div className="sd-pressure-text-wrap">
-                <span className="sd-pressure-label">Gaz bosimi:</span>
-                <strong className="sd-pressure-val">{gasPressureVal} atm</strong>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* ========================================================
@@ -357,12 +409,42 @@ export default function StationDetailModal({
           </div>
 
           {/* ========================================================
-              6. BORISH TUGMASI
+              6. BORISH VA BOSHQARISH TUGMALARI
               ======================================================== */}
           <div className="sd-bottom-actions">
+            {isMyStation && onManageStation && (
+              <button
+                type="button"
+                className="sd-manage-action-btn"
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '14px 18px',
+                  borderRadius: '16px',
+                  background: 'rgba(59, 130, 246, 0.1)',
+                  border: '1.5px solid rgba(59, 130, 246, 0.4)',
+                  color: '#3b82f6',
+                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                onClick={() => {
+                  onClose();
+                  onManageStation(station);
+                }}
+              >
+                <Edit3 size={18} />
+                <span>Boshqarish</span>
+              </button>
+            )}
             <button
               type="button"
               className="sd-borish-action-btn"
+              style={{ flex: isMyStation && onManageStation ? 1.4 : 1 }}
               onClick={() => {
                 onClose();
                 if (onStartNavigation) {

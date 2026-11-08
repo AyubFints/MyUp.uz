@@ -1,0 +1,580 @@
+/* ==========================================================================
+   NAVIGATION MODE - 2-RASM ZAMONAVIY DIZAYNI
+   ========================================================================== */
+
+.nav-mode-container {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #0b1120;
+  display: flex;
+  flex-direction: column;
+  font-family: inherit;
+}
+
+/* 2-RASM: Tepadagi Zamonaviy To'q Ko'k Burilish Paneli */
+.nav-modern-top-banner {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  background: #0c2340;
+  border-radius: 22px;
+  box-shadow: 0 10px 30px rgba(12, 35, 64, 0.45);
+  z-index: 1000;
+  overflow: hidden;
+  animation: navSlideDown 0.35s ease-out;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.nav-arrived-banner {
+  background: #0c2340;
+}
+
+.nav-top-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+}
+
+.nav-turn-squircle {
+  width: 52px;
+  height: 52px;
+  background: #ffffff;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.nav-check-squircle {
+  width: 52px;
+  height: 52px;
+  background: #dcfce7;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-inst-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nav-dist-row {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  line-height: 1;
+}
+
+.nav-dist-val {
+  font-size: 26px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+}
+
+.nav-dist-unit {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.nav-action-text {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-top: 3px;
+}
+
+.nav-street-text {
+  font-size: 12.5px;
+  color: #93c5fd;
+  font-weight: 500;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-top-subbar {
+  background: rgba(0, 0, 0, 0.22);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 7px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #bfdbfe;
+  font-weight: 600;
+}
+
+.nav-arrived-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.nav-arrived-sub {
+  font-size: 12.5px;
+  color: #93c5fd;
+  margin-top: 2px;
+}
+
+/* 2-RASM: O'ng Tomondagi Dumaloq Oq Boshqaruv Tugmalari */
+.nav-floating-right-controls {
+  position: absolute;
+  right: 16px;
+  bottom: 235px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 1000;
+}
+
+.nav-circle-action-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.nav-circle-action-btn:active {
+  transform: scale(0.92);
+}
+
+/* 2-RASM: Pastki Chap Tomon: Spidometr va 60 Tezlik Belgisi */
+.nav-floating-speed-group {
+  position: absolute;
+  left: 16px;
+  bottom: 235px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 1000;
+}
+
+.nav-speed-circle {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #0f172a;
+}
+
+.nav-speed-num {
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.nav-speed-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.nav-speed-limit-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3.5px solid #dc2626;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 900;
+  color: #000000;
+  line-height: 1;
+}
+
+/* 2-RASM: Pastki Oq Karta (Harakatlanayotganda va Yetib kelganda) */
+.nav-modern-bottom-card {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 16px 18px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
+  z-index: 1000;
+  color: #0f172a;
+  animation: navSlideUp 0.35s ease-out;
+}
+
+.nav-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-station-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #eff6ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-station-header-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nav-station-name {
+  font-size: 16.5px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.nav-station-address {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-station-status-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  margin-top: 2px;
+}
+
+.nav-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.nav-status-dot.green {
+  background: #16a34a;
+}
+
+.nav-status-open {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.nav-status-sep {
+  color: #94a3b8;
+}
+
+.nav-status-pressure {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.nav-badge-pill-open {
+  background: #f0fdf4;
+  color: #16a34a;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.nav-metrics-grid {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 14px;
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  text-align: center;
+  margin: 14px 0;
+}
+
+.nav-metric-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.nav-metric-col:not(:last-child) {
+  border-right: 1px solid #e2e8f0;
+}
+
+.nav-metric-val {
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.nav-metric-lbl {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.nav-btn-end-route {
+  background: #dc2626;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 16px;
+  width: 100%;
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.3);
+}
+
+.nav-btn-end-route:active {
+  transform: scale(0.98);
+  background: #b91c1c;
+}
+
+.nav-btn-finish {
+  background: #0c2340;
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 13px 16px;
+  width: 100%;
+  font-size: 15.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+  box-shadow: 0 4px 14px rgba(12, 35, 64, 0.3);
+}
+
+.nav-btn-finish:active {
+  transform: scale(0.98);
+  background: #08172c;
+}
+
+/* Gaz bosimi blok */
+.nav-pressure-box {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 14px;
+  padding: 10px 12px;
+  margin: 12px 0;
+}
+
+.nav-pressure-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.nav-pressure-title {
+  color: #0f172a;
+}
+
+.nav-pressure-status {
+  color: #16a34a;
+}
+
+.nav-pressure-segments {
+  display: flex;
+  gap: 4px;
+  height: 6px;
+  margin-bottom: 6px;
+}
+
+.nav-seg {
+  flex: 1;
+  border-radius: 3px;
+}
+
+.nav-seg.active {
+  background: #16a34a;
+}
+
+.nav-seg.inactive {
+  background: #e2e8f0;
+}
+
+.nav-pressure-time {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.nav-fuels-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.nav-fuel-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.nav-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.nav-dot.green {
+  background: #16a34a;
+}
+
+.nav-dot.gray {
+  background: #94a3b8;
+}
+
+.nav-report-footer {
+  text-align: center;
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 10px;
+}
+
+.nav-report-link {
+  color: #2563eb;
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* Xaritadagi nishonlar */
+.nav-dest-pin-modern {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #0c2340;
+  border: 3px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(12, 35, 64, 0.4);
+}
+
+.nav-dest-pin-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #f97316;
+}
+
+.nav-dest-label-modern {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: #0f172a;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 8px;
+  margin-top: 4px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.nav-rerouted-floating-badge {
+  position: absolute;
+  top: 115px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  background: rgba(245, 158, 11, 0.95);
+  border-radius: 20px;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+  z-index: 1000;
+  animation: navSlideDown 0.25s ease-out;
+}
+
+/* Desktopda markazlashtirish */
+@media (min-width: 768px) {
+  .nav-modern-top-banner,
+  .nav-modern-bottom-card {
+    max-width: 440px;
+    left: 50% !important;
+    transform: translateX(-50%);
+    right: auto;
+    width: calc(100% - 32px);
+  }
+  .nav-floating-right-controls {
+    right: calc(50% - 210px);
+  }
+  .nav-floating-speed-group {
+    left: calc(50% - 210px);
+  }
+}
+
+@keyframes navSlideDown {
+  from {
+    transform: translateY(-40px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes navSlideUp {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

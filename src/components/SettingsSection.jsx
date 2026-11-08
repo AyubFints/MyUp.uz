@@ -9,8 +9,9 @@ import {
   Clock,
   Trash2,
   X,
+  Megaphone,
 } from 'lucide-react';
-import amapsEmptyMascot from '../assets/amaps-empty-notif.png';
+import amapsEmptyMascot from '../assets/amaps-empty-notif.webp';
 import api from '../api/client';
 
 // Sana formatlovchi yordamchi funksiya: masalan, "25-okt 14:30"
@@ -251,6 +252,7 @@ export default function SettingsSection({
   onOpenNotifications,
   hasUnreadNotification,
   unreadCount = 0,
+  onOpenAdvertising,
 }) {
   const [selectedTheme, setSelectedTheme] = useState(currentTheme || TWELVE_PRESETS[0]);
   const [customHex, setCustomHex] = useState(selectedTheme?.bg || '#0e0e10');
@@ -395,7 +397,7 @@ export default function SettingsSection({
 
   return (
     <div className={`new-settings-wrapper ${isLight ? 'is-light' : ''}`}>
-      {/* 1. TEPADAGI QATOR: "Sozlamalar" (chapda A-Maps.uz tagida) va Kalakolchik (o'ng burchakda 10px joy bilan) */}
+      {/* 1. TEPADAGI QATOR: "Sozlamalar" (chapda AX-Map.uz tagida) va Kalakolchik (o'ng burchakda 10px joy bilan) */}
       <div className="new-settings-header-row">
         <h1 className="new-settings-title">Sozlamalar</h1>
         <button
@@ -450,6 +452,26 @@ export default function SettingsSection({
           </div>
 
           <ChevronRight size={20} className="new-profile-arrow" />
+        </div>
+
+        {/* REKLAMA HAQIDA BO'LIMI: Fon rangining tepasida */}
+        <div
+          className="new-settings-ad-card"
+          onClick={onOpenAdvertising}
+          role="button"
+          tabIndex={0}
+          title="Reklama haqida bo'limiga o'tish"
+        >
+          <div className="new-settings-ad-icon-wrap">
+            <Megaphone size={22} color="#38bdf8" />
+          </div>
+
+          <div className="new-settings-ad-details">
+            <span className="new-settings-ad-title">Reklama haqida</span>
+            <span className="new-settings-ad-subtitle">Platformada reklama berish ma'lumotlari</span>
+          </div>
+
+          <ChevronRight size={20} className="new-settings-ad-arrow" />
         </div>
 
         {/* 3. FON RANGI BO'LIMI:
@@ -666,7 +688,7 @@ export default function SettingsSection({
                         } : {}}
                       >
                         {isApprovedNotif ? <CheckCircle2 size={13} color="#10b981" /> : isRejectedNotif ? <X size={13} color="#ef4444" /> : null}
-                        {item.badge || (isApprovedNotif ? "Tasdiqlandi" : "A-Maps Tizimi")}
+                        {item.badge || (isApprovedNotif ? "Tasdiqlandi" : "AX-Map Tizimi")}
                       </span>
                       <div className="notif-message-date-box">
                         <Clock size={12} />
@@ -707,12 +729,12 @@ export default function SettingsSection({
               })}
             </div>
           ) : (
-            /* BO'SH HOLAT: A-Maps Limon personaji */
+            /* BO'SH HOLAT: AX-Map Limon personaji */
             <div className="notif-empty-state-box">
               <div className="notif-empty-illustration-wrapper">
                 <img
                   src={amapsEmptyMascot}
-                  alt="A-Maps bildirishnoma yo'q"
+                  alt="AX-Map bildirishnoma yo'q"
                   className="notif-empty-character-img"
                 />
               </div>

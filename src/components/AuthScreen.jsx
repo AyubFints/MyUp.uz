@@ -111,20 +111,6 @@ export default function AuthScreen({
       return;
     }
 
-    let newUser = {
-      id: 'usr_' + Date.now(),
-      firstName: formData.firstName.trim(),
-      lastName: formData.lastName.trim(),
-      phoneNumber: formData.phone,
-      birthDate: `${formData.bYear}-${String(formData.bMonth).padStart(2, '0')}-${String(formData.bDay).padStart(2, '0')}`,
-      registeredAt: new Date().toISOString(),
-      avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${formData.firstName}`,
-      role: 'user',
-      hasLocation: false, // Joylashuvi yo'q, oddiy foydalanuvchi
-      registeredViaLocation: false,
-      userProfileCompleted: true,
-    };
-
     try {
       const res = await api.auth.register({
         phone: cleanPhone,
@@ -132,23 +118,34 @@ export default function AuthScreen({
         lastName: formData.lastName.trim(),
         password: formData.password,
         hasLocation: false,
+        role: 'user',
       });
 
       if (res.success && res.token && res.user) {
         localStorage.setItem('myup_token', res.token);
-        newUser = {
-          ...newUser,
+        const newUser = {
           id: res.user.id,
+          firstName: res.user.first_name || formData.firstName.trim(),
+          lastName: res.user.last_name || formData.lastName.trim(),
+          phoneNumber: res.user.phone || formData.phone,
+          birthDate: `${formData.bYear}-${String(formData.bMonth).padStart(2, '0')}-${String(formData.bDay).padStart(2, '0')}`,
+          registeredAt: res.user.created_at || new Date().toISOString(),
+          avatar: res.user.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanPhone}`,
           role: res.user.role || 'user',
           hasLocation: false,
+          registeredViaLocation: false,
+          userProfileCompleted: true,
         };
+        localStorage.setItem('myup_user', JSON.stringify(newUser));
+        onLoginSuccess(newUser, null, []);
+        return;
+      } else {
+        setErrorMsg(res.message || "Ro'yxatdan o'tishda xatolik yuz berdi.");
       }
     } catch (apiErr) {
-      console.warn("PostgreSQL ga ro'yxatdan o'tkazishda xato (offline zaxira ishlatildi):", apiErr.message);
+      console.warn("Ro'yxatdan o'tish xatosi:", apiErr.message);
+      setErrorMsg(apiErr.message || "Ushbu telefon raqam allaqachon ro'yxatdan o'tgan bo'lishi mumkin.");
     }
-    
-    localStorage.setItem('myup_user', JSON.stringify(newUser));
-    onLoginSuccess(newUser);
   };
 
   // ========================================================
@@ -195,88 +192,127 @@ export default function AuthScreen({
 
   // Joylashuv registratsiyasini yakunlash (Tasdiqlash yoki Tashlab ketish)
   const handleFinishLocationRegister = async (chosenImage = null) => {
+    setErrorMsg('');
     const finalImage = chosenImage || locationData.locationImage || null;
-    const locId = 'st_' + Date.now();
-    const userId = 'usr_' + Date.now();
-
-    // 1. Yangi joylashuv obyekti
-    const newLocation = {
-      id: locId,
-      name: locationData.locationName.trim(),
-      responsiblePerson: locationData.responsiblePerson.trim(),
-      address: locationData.locationAddress.trim(),
-      city: "Toshkent",
-      phone: locationData.phone,
-      isOpen: true,
-      status: 'approved',
-      isApproved: true,
-      image: finalImage,
-      images: finalImage ? [finalImage] : [],
-      lat: 41.311081,
-      lng: 69.240562,
-      prices: { metan: '3800' },
-      createdBy: userId,
-      createdAt: new Date().toISOString(),
-    };
-
-    // Mening joylashuvlarim (myStations) ga qo'shish
-    try {
-      const savedStations = localStorage.getItem('myup_my_stations');
-      const list = savedStations ? JSON.parse(savedStations) : [];
-      const updatedList = [newLocation, ...list.filter(s => s.id !== locId)];
-      localStorage.setItem('myup_my_stations', JSON.stringify(updatedList));
-    } catch (err) {
-      console.error("Local joylashuv saqlash xatosi:", err);
+    const cleanPhone = locationData.phone.replace(/\s+/g, '');
+    if (cleanPhone.length < 13) {
+      setErrorMsg("Joylashuv telefon raqamini to'liq kiriting!");
+      return;
+    }
+    if (!locationData.password || locationData.password.length < 4) {
+      setErrorMsg("Parol kamida 4 ta belgidan iborat bo'lishi kerak!");
+      return;
     }
 
-    // Backend PostgreSQL ga ham yuborish
     try {
-      await api.stations.create({
-        name: newLocation.name,
-        address: newLocation.address,
-        phone: newLocation.phone,
-        isOpen: true,
-        images: newLocation.images,
-        prices: newLocation.prices,
-        createdBy: userId,
+      // 1. Foydalanuvchini PostgreSQL users jadvaliga ro'yxatdan o'tkazamiz (Instagram kabi yangi profil)
+      const regRes = await api.auth.register({
+        phone: cleanPhone,
+        firstName: locationData.responsiblePerson.trim(),
+        lastName: '',
+        password: locationData.password,
+        hasLocation: true,
+        role: 'owner',
+        avatarUrl: finalImage || null,
       });
-    } catch (apiErr) {
-      console.warn("Backend shahobcha yaratish:", apiErr.message);
+
+      if (!regRes.success || !regRes.user || !regRes.token) {
+        setErrorMsg(regRes.message || "Ro'yxatdan o'tishda xatolik yuz berdi.");
+        return;
+      }
+
+      const realUser = regRes.user;
+      localStorage.setItem('myup_token', regRes.token);
+
+      // 2. Yangi shahobchani PostgreSQL stations jadvaliga saqlaymiz (owner_id bilan bog'langan)
+      let createdStation = null;
+      try {
+        const locRes = await api.stations.create({
+          name: locationData.locationName.trim(),
+          address: locationData.locationAddress.trim(),
+          phone: locationData.phone,
+          isOpen: true,
+          images: finalImage ? [finalImage] : [],
+          prices: { metan: '3800' },
+          lat: 41.311081,
+          lng: 69.240562,
+          city: 'Toshkent',
+          ownerId: realUser.id,
+        });
+        if (locRes.success && locRes.station) {
+          createdStation = locRes.station;
+        }
+      } catch (locErr) {
+        console.warn("Backend shahobcha yaratish ogohlantirish:", locErr.message);
+      }
+
+      if (!createdStation) {
+        createdStation = {
+          id: 'st_' + Date.now(),
+          name: locationData.locationName.trim(),
+          responsiblePerson: locationData.responsiblePerson.trim(),
+          address: locationData.locationAddress.trim(),
+          city: "Toshkent",
+          phone: locationData.phone,
+          isOpen: true,
+          status: 'approved',
+          isApproved: true,
+          image: finalImage,
+          images: finalImage ? [finalImage] : [],
+          lat: 41.311081,
+          lng: 69.240562,
+          prices: { metan: '3800' },
+          ownerId: realUser.id,
+          createdAt: new Date().toISOString(),
+        };
+      }
+
+      // Mening joylashuvlarim (myStations) ga qo'shish
+      try {
+        const savedStations = localStorage.getItem('myup_my_stations');
+        const list = savedStations ? JSON.parse(savedStations) : [];
+        const updatedList = [createdStation, ...list.filter(s => s.id !== createdStation.id)];
+        localStorage.setItem('myup_my_stations', JSON.stringify(updatedList));
+      } catch (err) {
+        console.error("Local joylashuv saqlash xatosi:", err);
+      }
+
+      // 3. Foydalanuvchi ma'lumotlarini tayyorlash
+      const newUser = {
+        id: realUser.id,
+        role: 'owner',
+        hasLocation: true,
+        registeredViaLocation: true,
+        isLocationOnly: true,
+        userProfileCompleted: false,
+        firstName: locationData.responsiblePerson.trim(),
+        lastName: '',
+        locationName: locationData.locationName.trim(),
+        responsiblePerson: locationData.responsiblePerson.trim(),
+        locationAddress: locationData.locationAddress.trim(),
+        locationPhone: locationData.phone,
+        locationImage: finalImage,
+        phoneNumber: locationData.phone,
+        registeredAt: realUser.created_at || new Date().toISOString(),
+        avatar: finalImage || `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanPhone}`,
+      };
+
+      localStorage.setItem('myup_user', JSON.stringify(newUser));
+      onLoginSuccess(newUser, createdStation, [createdStation]);
+    } catch (err) {
+      console.error("Joylashuv ro'yxatdan o'tish xatosi:", err);
+      setErrorMsg(err.message || "Ro'yxatdan o'tishda xatolik yuz berdi. Ushbu telefon raqam allaqachon ro'yxatdan o'tgan bo'lishi mumkin.");
     }
-
-    // 2. Yangi foydalanuvchi (Joylashuv egasi - hali shaxsiy user profile to'ldirilmagan)
-    const newUser = {
-      id: userId,
-      role: 'business',
-      hasLocation: true,
-      registeredViaLocation: true, // "Joylashuv joylash" orqali ro'yxatdan o'tgan
-      isLocationOnly: true, // Hali pastdagi oddiy user registratsiyasidan o'tmagan
-      userProfileCompleted: false,
-      firstName: '', // Oddiy user ma'lumotlari kiritilmagan
-      lastName: '',
-      locationName: locationData.locationName.trim(),
-      responsiblePerson: locationData.responsiblePerson.trim(),
-      locationAddress: locationData.locationAddress.trim(),
-      locationPhone: locationData.phone,
-      locationImage: finalImage,
-      phoneNumber: locationData.phone,
-      password: locationData.password,
-      registeredAt: new Date().toISOString(),
-      avatar: finalImage || null,
-    };
-
-    localStorage.setItem('myup_user', JSON.stringify(newUser));
-    onLoginSuccess(newUser, newLocation);
   };
 
   // ========================================================
-  // TIZIMGA KIRISH (LOGIN)
+  // TIZIMGA KIRISH (LOGIN - Har qanday qurilmadan o'z hisobiga kirish)
   // ========================================================
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     const cleanPhone = loginPhone.replace(/\s+/g, '');
-    if (cleanPhone.length < 13) {
+    if (cleanPhone.length < 13 && !['admin', 'ayubxon', 'superadmin', 'admin@amaps.uz', 'ayub'].includes(loginPhone.trim().toLowerCase())) {
       setErrorMsg("Telefon raqamingizni to'liq kiriting!");
       return;
     }
@@ -285,63 +321,50 @@ export default function AuthScreen({
       return;
     }
 
-    // 1. PostgreSQL Backend API orqali tekshirish
+    // PostgreSQL Backend API orqali tekshirish
     try {
       const res = await api.auth.login(loginPhone, loginPassword);
       if (res.success && res.token && res.user) {
         localStorage.setItem('myup_token', res.token);
+        const userStations = Array.isArray(res.stations) ? res.stations : [];
+        const primaryStation = userStations[0] || null;
+
         const loggedUser = {
           id: res.user.id,
           firstName: res.user.first_name || 'Foydalanuvchi',
           lastName: res.user.last_name || '',
           phoneNumber: res.user.phone || loginPhone,
           role: res.user.role || 'user',
-          hasLocation: Boolean(res.user.has_location),
+          hasLocation: Boolean(res.user.has_location || userStations.length > 0),
+          locationName: primaryStation?.name || '',
+          responsiblePerson: primaryStation?.responsiblePerson || (res.user.first_name ? `${res.user.first_name} ${res.user.last_name || ''}`.trim() : ''),
+          locationAddress: primaryStation?.address || '',
+          locationPhone: primaryStation?.phone || res.user.phone || loginPhone,
+          locationImage: primaryStation?.image || (Array.isArray(primaryStation?.images) ? primaryStation.images[0] : null) || null,
           bio: res.user.bio || '',
-          avatar: res.user.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanPhone}`,
+          avatar: res.user.avatar_url || primaryStation?.image || `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanPhone}`,
           registeredAt: res.user.created_at || new Date().toISOString(),
         };
+
         localStorage.setItem('myup_user', JSON.stringify(loggedUser));
-        onLoginSuccess(loggedUser);
+        localStorage.setItem('myup_my_stations', JSON.stringify(userStations));
+
+        if (Array.isArray(res.notifications)) {
+          localStorage.setItem('myup_incoming_notifications', JSON.stringify(res.notifications));
+          const unreadCount = res.notifications.filter(n => !n.isRead && !n.readAt).length;
+          localStorage.setItem('myup_notif_unread_count', String(unreadCount));
+          localStorage.setItem('myup_notif_unread', unreadCount > 0 ? 'true' : 'false');
+        }
+
+        onLoginSuccess(loggedUser, primaryStation, userStations);
         return;
+      } else {
+        setErrorMsg(res.message || "Kirishda xatolik yuz berdi.");
       }
     } catch (apiErr) {
       console.warn("Backend login javobi:", apiErr.message);
-      if (apiErr.message && !apiErr.message.includes('Failed to fetch') && !apiErr.message.includes('NetworkError')) {
-        setErrorMsg(apiErr.message);
-        return;
-      }
+      setErrorMsg(apiErr.message || "Telefon raqam yoki parol noto'g'ri.");
     }
-
-    // 2. Offline / local fallback rejim
-    const saved = localStorage.getItem('myup_user');
-    let userToLogin = null;
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.phoneNumber === loginPhone || parsed.locationPhone === loginPhone) {
-          userToLogin = parsed;
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
-    if (!userToLogin) {
-      userToLogin = {
-        id: 'usr_' + Date.now(),
-        firstName: 'Foydalanuvchi',
-        lastName: '',
-        phoneNumber: loginPhone,
-        registeredAt: new Date().toISOString(),
-        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanPhone}`,
-        role: 'user',
-        hasLocation: false,
-      };
-      localStorage.setItem('myup_user', JSON.stringify(userToLogin));
-    }
-
-    onLoginSuccess(userToLogin);
   };
 
   // Demo foydalanuvchi bilan tezkor kirish
@@ -377,11 +400,11 @@ export default function AuthScreen({
         <div className="modern-auth-header">
           <div className="modern-auth-brand-badge">
             <img 
-              src="/amaps-logo.png" 
-              alt="A-Maps Logo" 
+              src="/amaps-logo.webp" 
+              alt="AX-Map Logo" 
               className="modern-auth-badge-logo" 
             />
-            <span>A-Maps.uz</span>
+            <span>AX-Map.uz</span>
           </div>
 
           <h2 className="modern-auth-title">
@@ -466,8 +489,35 @@ export default function AuthScreen({
         {/* XATOLIK BILDIRISHNOMASI */}
         {errorMsg && (
           <div className="modern-auth-error-alert">
-            <AlertCircle size={18} className="error-icon" />
-            <span>{errorMsg}</span>
+            <AlertCircle size={18} className="error-icon" style={{ flexShrink: 0 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+              <span>{errorMsg}</span>
+              {errorMsg.toLowerCase().includes('allaqachon') && authMode !== 'login' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('login');
+                    if (formData.phone && formData.phone.length > 5) setLoginPhone(formData.phone);
+                    else if (locationData.phone && locationData.phone.length > 5) setLoginPhone(locationData.phone);
+                    setErrorMsg('');
+                  }}
+                  style={{
+                    alignSelf: 'flex-start',
+                    marginTop: '4px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#38bdf8',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    padding: 0,
+                    textDecoration: 'underline',
+                  }}
+                >
+                  Profilga kirish (Login) ga o'tish →
+                </button>
+              )}
+            </div>
           </div>
         )}
 

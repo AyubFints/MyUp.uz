@@ -13,14 +13,11 @@
     "server:init": "node server/scripts/initDb.js"
   },
   "dependencies": {
-    "firebase": "^12.19.0",
-    "leaflet": "^1.9.4",
     "lucide-react": "^1.33.0",
     "maplibre-gl": "^6.13.0",
     "pmtiles": "^4.5.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "react-leaflet": "^5.0.0"
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",

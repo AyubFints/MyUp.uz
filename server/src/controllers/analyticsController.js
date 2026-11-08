@@ -1,30 +1,22 @@
 import { query } from '../config/db.js';
 
-// Xotirada onlayn foydalanuvchilarni saqlash (tezkor real-time hisob uchun)
-const activeVisitors = new Map(); // visitorId -> lastActiveTimestamp
-const ONLINE_WINDOW_MS = 3 * 60 * 1000; // 3 daqiqa davomida faol bo'lsa onlayn hisoblanadi
-
-// Faol bo'lmaganlarni tozalash
-function cleanOldVisitors() {
-  const now = Date.now();
-  for (const [vId, lastSeen] of activeVisitors.entries()) {
-    if (now - lastSeen > ONLINE_WINDOW_MS) {
-      activeVisitors.delete(vId);
-    }
-  }
-}
-
-// Tashrif va onlaynlar sonini olish (adminController uchun ham xizmat qiladi)
+// Tashrif va onlaynlar sonini olish (PM2 klaster rejimiga to'liq mos, bazaga asoslangan)
 export async function getLiveTrafficStats() {
-  cleanOldVisitors();
-  const onlineUsers = Math.max(activeVisitors.size, 0);
-
+  let onlineUsers = 0;
   let todayVisits = 0;
   let yesterdayVisits = 0;
   let dailyHistory = [];
 
   try {
-    // 1. Bugungi tashriflar soni (Toshkent vaqti: Asia/Tashkent)
+    // 1. Jonli onlayn foydalanuvchilar (oxirgi 3 daqiqada faol bo'lgan unikal tashrifchilar - klaster xavfsiz)
+    const onlineRes = await query(`
+      SELECT COUNT(DISTINCT visitor_id)::int AS count
+      FROM app_visits
+      WHERE last_seen >= NOW() - INTERVAL '3 minutes'
+    `);
+    onlineUsers = onlineRes.rows[0]?.count || 0;
+
+    // 2. Bugungi tashriflar soni (Toshkent vaqti: Asia/Tashkent)
     const todayRes = await query(`
       SELECT COUNT(*)::int AS count
       FROM app_visits
@@ -32,7 +24,7 @@ export async function getLiveTrafficStats() {
     `);
     todayVisits = todayRes.rows[0]?.count || 0;
 
-    // 2. Kechagi kunlik to'liq tashriflar soni (Toshkent vaqti)
+    // 3. Kechagi kunlik to'liq tashriflar soni (Toshkent vaqti)
     const yestRes = await query(`
       SELECT COUNT(*)::int AS count
       FROM app_visits
@@ -40,7 +32,7 @@ export async function getLiveTrafficStats() {
     `);
     yesterdayVisits = yestRes.rows[0]?.count || 0;
 
-    // 3. Oxirgi 30 kunlik to'liq tashriflar dinamikasi (kunma-kun tartibda)
+    // 4. Oxirgi 30 kunlik to'liq tashriflar dinamikasi (kunma-kun tartibda)
     const histRes = await query(`
       SELECT 
         TO_CHAR(d.day, 'YYYY-MM-DD') AS date_str,
@@ -57,7 +49,6 @@ export async function getLiveTrafficStats() {
     dailyHistory = histRes.rows.map(r => r.visitors);
   } catch (err) {
     console.warn('Tashrif statistikasini olishda xato:', err.message);
-    todayVisits = activeVisitors.size;
   }
 
   return {
@@ -74,16 +65,26 @@ export const recordVisit = async (req, res) => {
     const { visitorId, action } = req.body;
     const vId = visitorId || req.ip || `vis_${Date.now()}`;
 
-    cleanOldVisitors();
-
     if (action === 'LEAVE') {
-      activeVisitors.delete(vId);
-      return res.json({ success: true, message: 'Foydalanuvchi chiqdi', onlineUsers: activeVisitors.size });
+      try {
+        await query(
+          `UPDATE app_visits 
+           SET last_seen = NOW() - INTERVAL '10 minutes'
+           WHERE visitor_id = $1 AND last_seen >= NOW() - INTERVAL '3 minutes'`,
+          [vId]
+        );
+      } catch (dbErr) {
+        console.warn('Foydalanuvchi chiqishini bazaga yozishda xato:', dbErr.message);
+      }
+      const stats = await getLiveTrafficStats();
+      return res.json({
+        success: true,
+        message: 'Foydalanuvchi chiqdi',
+        ...stats,
+      });
     }
 
-    // ENTER bo'lganda (birinchi kirish yoki sahifa refresh qilinganda) yangi tashrif sifatida yoziladi
     if (action === 'ENTER') {
-      activeVisitors.set(vId, Date.now());
       try {
         await query(
           `INSERT INTO app_visits (visitor_id, visited_at, last_seen)
@@ -95,7 +96,29 @@ export const recordVisit = async (req, res) => {
       }
     } else {
       // PING (faollikni yangilab turish)
-      activeVisitors.set(vId, Date.now());
+      try {
+        const updateRes = await query(
+          `UPDATE app_visits
+           SET last_seen = CURRENT_TIMESTAMP
+           WHERE id = (
+             SELECT id FROM app_visits
+             WHERE visitor_id = $1
+             ORDER BY last_seen DESC
+             LIMIT 1
+           )
+           RETURNING id`,
+          [vId]
+        );
+        if (updateRes.rows.length === 0) {
+          await query(
+            `INSERT INTO app_visits (visitor_id, visited_at, last_seen)
+             VALUES ($1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+            [vId]
+          );
+        }
+      } catch (dbErr) {
+        console.warn('Faollikni yangilashda xato:', dbErr.message);
+      }
     }
 
     const stats = await getLiveTrafficStats();
@@ -123,3 +146,4 @@ export const getTrafficStats = async (req, res) => {
     res.status(500).json({ success: false, message: 'Statistikani olishda xatolik' });
   }
 };
+

@@ -97,6 +97,94 @@ export const getAllStations = async (req, res) => {
   }
 };
 
+// Foydalanuvchining o'z shahobchalarini olish (Tasdiqlangan va tasdiqlanmagan barchasi)
+export const getMyStations = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.query.userId || null;
+    const phone = req.user?.phone || req.query.phone || null;
+
+    if (!userId && !phone) {
+      return res.json({ success: true, count: 0, stations: [] });
+    }
+
+    const cleanPhone = phone ? phone.replace(/\s+/g, '') : '';
+    const isUuid = userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+
+    let whereConditions = [];
+    let params = [];
+
+    if (isUuid) {
+      params.push(userId);
+      whereConditions.push(`s.owner_id = $${params.length}`);
+    }
+    if (cleanPhone) {
+      params.push(cleanPhone, phone);
+      whereConditions.push(`(REPLACE(s.phone, ' ', '') = $${params.length - 1} OR s.phone = $${params.length})`);
+    }
+
+    if (whereConditions.length === 0) {
+      return res.json({ success: true, count: 0, stations: [] });
+    }
+
+    // Egasi bo'lmagan, lekin telefoni mos keladigan shahobchalarni biriktirish
+    if (isUuid && cleanPhone) {
+      await query(
+        `UPDATE stations SET owner_id = $1 WHERE owner_id IS NULL AND (REPLACE(phone, ' ', '') = $2 OR phone = $3)`,
+        [userId, cleanPhone, phone]
+      ).catch(() => {});
+    }
+
+    const baseQuery = `
+      SELECT 
+        s.id, s.name, s.lat, s.lng, s.address, s.city, s.phone,
+        s.is_open AS "isOpen", s.reopen_time AS "reopenTime",
+        s.rating, s.rating_count AS "ratingCount", s.owner_id AS "ownerId",
+        s.is_approved AS "isApproved", s.status, s.rejected_at AS "rejectedAt", s.created_at AS "createdAt",
+        s.description, s.images, s.verification_images AS "verificationImages", s.types, s.gas_pressure AS "gasPressure",
+        COALESCE(
+          json_object_agg(
+            fp.fuel_type, fp.price
+          ) FILTER (WHERE fp.fuel_type IS NOT NULL AND fp.is_available = true), '{}'::json
+        ) AS prices,
+        COALESCE(
+          json_object_agg(
+            fp.fuel_type, fp.pressure_atm
+          ) FILTER (WHERE fp.fuel_type IS NOT NULL AND fp.pressure_atm > 0), '{}'::json
+        ) AS pressures,
+        to_jsonb(sa.*) - 'station_id' AS amenities,
+        to_jsonb(sp.*) - 'station_id' AS payments
+      FROM stations s
+      LEFT JOIN fuel_prices fp ON s.id = fp.station_id
+      LEFT JOIN station_amenities sa ON s.id = sa.station_id
+      LEFT JOIN station_payments sp ON s.id = sp.station_id
+      WHERE ${whereConditions.join(' OR ')}
+      GROUP BY s.id, sa.station_id, sp.station_id
+      ORDER BY s.created_at DESC
+    `;
+
+    const result = await query(baseQuery, params);
+    const stations = result.rows.map((st) => {
+      const typeList = Array.isArray(st.types) && st.types.length > 0 
+        ? st.types 
+        : Object.keys(st.prices || {});
+      const metanP = st.pressures?.metan || st.gasPressure || (typeList.includes('metan') ? 200 : null);
+      return {
+        ...st,
+        type: typeList,
+        gasPressure: metanP,
+        images: Array.isArray(st.images) && st.images.length > 0 
+          ? st.images 
+          : ['https://images.unsplash.com/photo-1545459720-aac8509eb02c?auto=format&fit=crop&w=600&q=80'],
+      };
+    });
+
+    res.json({ success: true, count: stations.length, stations });
+  } catch (err) {
+    console.error('GetMyStations xatosi:', err);
+    res.status(500).json({ success: false, message: 'Shahobchalarni yuklashda xatolik: ' + err.message });
+  }
+};
+
 // Yangi shahobcha qo'shish
 export const createStation = async (req, res) => {
   try {
@@ -124,7 +212,17 @@ export const createStation = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Nomi va geolokatsiya (lat/lng) kiritilishi shart.' });
     }
 
-    const ownerId = req.user ? req.user.id : null;
+    let ownerId = req.user ? req.user.id : null;
+    if (!ownerId && (phone || req.body.ownerPhone || req.body.createdBy)) {
+      const searchPhone = phone || req.body.ownerPhone || '';
+      const cleanPhone = searchPhone.replace(/\s+/g, '');
+      if (cleanPhone) {
+        const uRes = await query(`SELECT id FROM users WHERE REPLACE(phone, ' ', '') = $1 OR phone = $2 LIMIT 1`, [cleanPhone, searchPhone]);
+        if (uRes.rows.length > 0) {
+          ownerId = uRes.rows[0].id;
+        }
+      }
+    }
     // Super admin yaratgan shahobcha avtomatik tasdiqlanadi
     const isApproved = req.user ? (req.user.role === 'super_admin') : false;
 
@@ -317,27 +415,76 @@ export const updateFuelPrice = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Shahobcha topilmadi.' });
     }
     const { price, pressure, isAvailable } = req.body;
+    const numPrice = price !== undefined && price !== null ? Number(price) : null;
+    const numPressure = pressure !== undefined && pressure !== null ? Number(pressure) : null;
 
     const result = await query(
       `INSERT INTO fuel_prices (station_id, fuel_type, price, pressure_atm, is_available, updated_at)
        VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
        ON CONFLICT (station_id, fuel_type) DO UPDATE SET
-         price = COALESCE($3, fuel_prices.price),
-         pressure_atm = COALESCE($4, fuel_prices.pressure_atm),
-         is_available = COALESCE($5, fuel_prices.is_available),
+         price = CASE WHEN $3::numeric IS NOT NULL THEN $3::numeric ELSE fuel_prices.price END,
+         pressure_atm = CASE WHEN $4::integer IS NOT NULL THEN $4::integer ELSE fuel_prices.pressure_atm END,
+         is_available = CASE WHEN $5::boolean IS NOT NULL THEN $5::boolean ELSE fuel_prices.is_available END,
          updated_at = CURRENT_TIMESTAMP
        RETURNING *`,
-      [id, fuelType, price || 0, pressure || 0, isAvailable ?? true]
+      [id, fuelType, numPrice, numPressure, isAvailable ?? true]
     );
 
-    if (fuelType === 'metan' && pressure > 0) {
-      await query(`UPDATE stations SET gas_pressure = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`, [pressure, id]);
+    if (fuelType === 'metan' && numPressure !== null && numPressure > 0) {
+      await query(`UPDATE stations SET gas_pressure = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`, [numPressure, id]);
+    }
+
+    // Shahobchaning types massiviga fuelType mavjudligini ta'minlash
+    const stQuery = await query(`SELECT types FROM stations WHERE id = $1`, [id]);
+    if (stQuery.rows.length > 0) {
+      const curTypes = Array.isArray(stQuery.rows[0].types) ? stQuery.rows[0].types : [];
+      if (!curTypes.includes(fuelType)) {
+        const nextTypes = [...curTypes, fuelType];
+        await query(`UPDATE stations SET types = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`, [JSON.stringify(nextTypes), id]);
+      }
     }
 
     res.json({ success: true, fuel: result.rows[0] });
   } catch (err) {
     console.error('UpdateFuelPrice xatosi:', err);
     res.status(500).json({ success: false, message: 'Yoqilg\'i ma\'lumotini yangilashda xatolik: ' + err.message });
+  }
+};
+
+// Yoqilg'ini o'chirish (masalan: gaz sotilmaydigan bo'lsa yoqilg'i turini o'chirib yuborish)
+export const deleteFuel = async (req, res) => {
+  try {
+    const { id, fuelType } = req.params;
+    if (!isUuid(id)) {
+      return res.json({ success: true, message: 'Yoqilg\'i muvaffaqiyatli o\'chirildi.' });
+    }
+
+    // 1. fuel_prices jadvalidan o'chirish
+    await query(`DELETE FROM fuel_prices WHERE station_id = $1 AND fuel_type = $2`, [id, fuelType]);
+
+    // 2. stations jadvalidagi types massividan o'chirish
+    const stQuery = await query(`SELECT types, gas_pressure FROM stations WHERE id = $1`, [id]);
+    if (stQuery.rows.length > 0) {
+      const curTypes = Array.isArray(stQuery.rows[0].types) ? stQuery.rows[0].types : [];
+      const updatedTypes = curTypes.filter((t) => t !== fuelType);
+
+      let updateSql = `UPDATE stations SET types = $1, updated_at = CURRENT_TIMESTAMP`;
+      const updateParams = [JSON.stringify(updatedTypes)];
+
+      if (fuelType === 'metan') {
+        updateSql += `, gas_pressure = 0`;
+      }
+      updateSql += ` WHERE id = $${updateParams.length + 1} RETURNING *`;
+      updateParams.push(id);
+
+      const updRes = await query(updateSql, updateParams);
+      return res.json({ success: true, message: `${fuelType} yoqilg'isi o'chirildi.`, station: updRes.rows[0] });
+    }
+
+    res.json({ success: true, message: `${fuelType} yoqilg'isi o'chirildi.` });
+  } catch (err) {
+    console.error('DeleteFuel xatosi:', err);
+    res.status(500).json({ success: false, message: 'Yoqilg\'ini o\'chirishda xatolik: ' + err.message });
   }
 };
 

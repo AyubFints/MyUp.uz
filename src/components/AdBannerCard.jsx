@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Sparkles, Play } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { Fuel, ArrowRight, Megaphone, Sparkles, Zap, X, Phone, Send, Image as ImageIcon } from 'lucide-react';
 
 function isVideoUrl(url) {
   if (!url) return false;
@@ -14,356 +15,660 @@ function isVideoUrl(url) {
   );
 }
 
-/**
- * 3D Qavatdagi alohida video slayd:
- * Hech qanday qora ekran bo'lmaydi - 1-video o'sha holatida aylanib chiqib ketadi,
- * 2-video esa o'sha zahoti aylanib kirib keladi!
- */
-function DesktopAdSlideItem({ item, isActive, isPrev, isSingle, onEnded, onSelect, onClick }) {
-  const videoRef = useRef(null);
-  const mediaUrl = item?.video_url || item?.media_url || item?.imageUrl || '';
-  const isVideo = isVideoUrl(mediaUrl);
-
-  // Har safar reklama ekranda faol bo'lib ko'ringanda ko'rishlar sonini oshirish
-  useEffect(() => {
-    if (!item?.id || !isActive) return;
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-    fetch(`${apiBase}/ads/${item.id}/view`, { method: 'POST' }).catch(() => {});
-  }, [item?.id, isActive]);
-
-  useEffect(() => {
-    if (!videoRef.current || !isVideo) return;
-    if (isActive) {
-      videoRef.current.currentTime = 0;
-      const p = videoRef.current.play();
-      if (p !== undefined) {
-        p.catch(() => {});
-      }
+function formatTelUri(phone) {
+  if (!phone) return 'tel:+998901234567';
+  let cleaned = phone.toString().replace(/[^\d+]/g, '');
+  if (!cleaned.startsWith('+')) {
+    if (cleaned.startsWith('998')) {
+      cleaned = '+' + cleaned;
     } else {
-      // Faol bo'lmaganda videoni to'xtatib turadi
-      videoRef.current.pause();
+      cleaned = '+998' + cleaned;
     }
-  }, [isActive, isVideo]);
+  }
+  return `tel:${cleaned}`;
+}
 
-  return (
+function getInitials(name) {
+  if (!name) return 'AX';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return parts[0].substring(0, 2).toUpperCase();
+}
+
+/**
+ * Reklama bosilishini (Click) PostgreSQL bazasida qayd etish
+ */
+export function sendAdClick(slide) {
+  if (!slide?.id) return;
+  const slideId = String(slide.id);
+  if (slideId.startsWith('sample')) return;
+
+  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  fetch(`${apiBase}/ads/${slideId}/click`, { method: 'POST' }).catch(() => {});
+}
+
+/**
+ * Reklama ko'rilishini (View/Impression) PostgreSQL bazasida qayd etish
+ */
+export function sendAdView(slide) {
+  if (!slide?.id) return;
+  const slideId = String(slide.id);
+  if (slideId.startsWith('sample')) return;
+
+  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  fetch(`${apiBase}/ads/${slideId}/view`, { method: 'POST' }).catch(() => {});
+}
+
+// Standart gradient ranglar (Rasmsiz haqiqiy reklamalar foni uchun)
+const DEFAULT_BG_GRADIENTS = [
+  'radial-gradient(circle at 85% 20%, rgba(56, 189, 248, 0.35) 0%, transparent 60%), radial-gradient(circle at 15% 85%, rgba(14, 165, 233, 0.28) 0%, transparent 50%), linear-gradient(175deg, #0e3b54 0%, #082333 55%, #04141e 100%)',
+  'radial-gradient(circle at 85% 20%, rgba(99, 102, 241, 0.35) 0%, transparent 60%), radial-gradient(circle at 15% 85%, rgba(59, 130, 246, 0.28) 0%, transparent 50%), linear-gradient(175deg, #1e1b4b 0%, #0f172a 55%, #080d1a 100%)',
+  'radial-gradient(circle at 85% 20%, rgba(16, 185, 129, 0.35) 0%, transparent 60%), radial-gradient(circle at 15% 85%, rgba(14, 165, 233, 0.28) 0%, transparent 50%), linear-gradient(175deg, #064e3b 0%, #022c22 55%, #021a14 100%)',
+];
+
+/**
+ * Reklama haqida modal oyna (Foydalanuvchi yuborgan rasmdagi holatda)
+ */
+export function AdDetailModal({ slide, onClose, onOpenAdvertising }) {
+  useEffect(() => {
+    if (!slide) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [slide, onClose]);
+
+  if (!slide || typeof document === 'undefined') return null;
+
+  const telUri = formatTelUri(slide.phone);
+
+  const handleCallClick = () => {
+    sendAdClick(slide);
+  };
+
+  const handleTelegramClick = (e) => {
+    e.stopPropagation();
+    sendAdClick(slide);
+    if (slide.telegram) {
+      window.open(slide.telegram, '_blank', 'noopener,noreferrer');
+    } else if (slide.phone) {
+      const cleanNum = slide.phone.replace(/[^\d]/g, '');
+      window.open(`https://t.me/+${cleanNum}`, '_blank', 'noopener,noreferrer');
+    } else {
+      window.open('https://t.me/amaps_support', '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleFooterAdPlace = (e) => {
+    e.stopPropagation();
+    onClose();
+    if (typeof onOpenAdvertising === 'function') {
+      onOpenAdvertising();
+    }
+  };
+
+  return createPortal(
     <div
-      className={`ad-3d-slide ${isActive ? 'is-active' : ''} ${isPrev ? 'is-prev' : ''}`}
-      style={{
-        pointerEvents: isActive ? 'auto' : 'none',
-      }}
+      className="ad-detail-modal-overlay"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
     >
-      {isVideo ? (
-        <video
-          ref={videoRef}
-          src={mediaUrl}
-          autoPlay={isActive}
-          loop={isSingle}
-          muted
-          playsInline
-          onEnded={isActive ? onEnded : undefined}
-          onError={isActive ? onEnded : undefined}
-          className="side-ad-media-bg"
-        />
-      ) : (
-        <img
-          src={mediaUrl}
-          alt={item.title || "Reklama"}
-          className="side-ad-media-bg"
-        />
-      )}
-      <div className="side-ad-media-overlay" />
+      <div
+        className="ad-detail-modal-card"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal Yuqori qatori: [REKLAMA] va [X] yopish tugmasi */}
+        <div className="ad-detail-modal-header">
+          <div className="ad-detail-modal-badge-reklama">
+            REKLAMA
+          </div>
 
-      <div className="side-video-bottom-content">
-        <div className="side-video-text-box">
-          <h4 className="video-ad-title">{item.title}</h4>
-          {item.description && (
-            <p className="video-ad-desc">{item.description}</p>
+          <button
+            type="button"
+            className="ad-detail-modal-close-btn"
+            onClick={onClose}
+            aria-label="Yopish"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* 16:9 Reklama Rasmi / Videosi */}
+        <div className="ad-detail-modal-media-wrap">
+          {slide.mediaUrl ? (
+            isVideoUrl(slide.mediaUrl) ? (
+              <video
+                src={slide.mediaUrl}
+                autoPlay
+                loop
+                muted
+                playsInline
+                controls
+                className="ad-detail-modal-video"
+              />
+            ) : (
+              <img
+                src={slide.mediaUrl}
+                alt={slide.title}
+                className="ad-detail-modal-image"
+              />
+            )
+          ) : (
+            <div
+              className="ad-detail-modal-placeholder-box"
+              style={{ background: slide.bgGradient || DEFAULT_BG_GRADIENTS[0] }}
+            >
+              <div className="side-banner-glow-circle-1" />
+              <div className="side-banner-glow-circle-2" />
+              <div className="ad-detail-modal-placeholder-content">
+                <div className="ad-detail-modal-placeholder-icon-wrap">
+                  <ImageIcon size={34} color="#ffffff" strokeWidth={1.8} />
+                </div>
+                <span className="ad-detail-modal-placeholder-text">
+                  Reklama rasmi (16:9)
+                </span>
+              </div>
+            </div>
           )}
         </div>
 
-        <div className="side-video-bottom-bar" style={{ marginTop: '6px' }}>
-          <button className="side-video-cta" onClick={() => onClick(item)}>
-            {item?.target_link ? "Batafsil ma'lumot" : "Bog'lanish"}
+        {/* Modal Matnlari va Bog'lanish Tugmalari */}
+        <div className="ad-detail-modal-body">
+          {/* Avatar, Brend nomi va kategoriya qatori */}
+          <div className="ad-detail-modal-advertiser-row">
+            <div className="ad-detail-modal-avatar">
+              {getInitials(slide.brand)}
+            </div>
+            <span className="ad-detail-modal-brand-name">
+              {slide.brand || "AX-Map Hamkor"}
+            </span>
+            {slide.category && (
+              <span className="ad-detail-modal-category">
+                {slide.category}
+              </span>
+            )}
+          </div>
+
+          {/* Qalin Katta Sarlavha (Smart Do'kon dasturi) */}
+          <h3 className="ad-detail-modal-title">
+            {slide.title}
+          </h3>
+
+          {/* Tavsif matni */}
+          {slide.description && (
+            <p className="ad-detail-modal-desc">
+              {slide.description}
+            </p>
+          )}
+
+          {/* Asosiy Amallar Qatori: Moviy [Qo'ng'iroq qilish] va [Telegram] */}
+          <div className="ad-detail-modal-actions-row">
+            <a
+              href={telUri}
+              className="ad-detail-modal-btn-call"
+              onClick={handleCallClick}
+              title="Qo'ng'iroq qilish (bosing)"
+            >
+              <Phone size={18} />
+              <span>Qo'ng'iroq qilish</span>
+            </a>
+
+            <button
+              type="button"
+              className="ad-detail-modal-btn-telegram"
+              onClick={handleTelegramClick}
+              title="Telegram orqali bog'lanish"
+            >
+              <Send size={18} />
+            </button>
+          </div>
+
+          {/* Telefon Raqami (bosganda telefon terish ochiladi) */}
+          <div className="ad-detail-modal-phone-row">
+            <a
+              href={telUri}
+              className="ad-detail-modal-phone-text-link"
+              onClick={handleCallClick}
+            >
+              {slide.phone || "+998 90 123 45 67"}
+            </a>
+          </div>
+        </div>
+
+        {/* Modal Pastki Qatori: [Reklama] va [Reklama joylash] */}
+        <div className="ad-detail-modal-footer">
+          <span className="ad-detail-modal-footer-tag">Reklama</span>
+          <button
+            type="button"
+            className="ad-detail-modal-footer-link"
+            onClick={handleFooterAdPlace}
+          >
+            Reklama joylash
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
 /**
- * Desktop Side Video Ad Banner:
- * Orada qora joy bo'lmasdan, 3D aylanma holatda almashadi
+ * Desktop Side Graphic/Video Ad Banner
  */
-export function DesktopSideBanner({ ads = [], ad = null, side = 'left', customClass = '' }) {
-  const playlist = useMemo(() => {
+export function DesktopSideBanner({
+  ads = [],
+  ad = null,
+  side = 'left',
+  customClass = '',
+  onOpenAdvertising,
+}) {
+  const slides = useMemo(() => {
     const rawList = Array.isArray(ads) && ads.length > 0 ? ads : (ad ? [ad] : []);
-    return rawList.filter(item => Boolean(item && (item.video_url || item.media_url || item.imageUrl)));
+    const valid = rawList.filter(item => Boolean(item && (item.title || item.video_url || item.media_url || item.imageUrl)));
+    if (valid.length > 0) {
+      return valid.map((item, idx) => ({
+        id: item.id || `ad-${idx}`,
+        brand: item.brand || item.company_name || item.advertiser_name || item.advertiserName || "AX-Map Hamkor",
+        category: item.category || item.target_audience || "",
+        title: item.title || "Reklama",
+        highlightWord: item.highlightWord || (item.title ? item.title.split(' ')[2] : null),
+        description: item.description || "",
+        mediaUrl: item.video_url || item.media_url || item.imageUrl || null,
+        target_link: item.target_link || item.targetLink || item.link || null,
+        phone: item.advertiser_phone || item.advertiserPhone || item.phone || item.phone_number || "+998 90 123 45 67",
+        telegram: item.telegram || item.telegram_link || null,
+        bgGradient: DEFAULT_BG_GRADIENTS[idx % DEFAULT_BG_GRADIENTS.length],
+        iconType: 'fuel',
+      }));
+    }
+    // Faqat admin kiritgan haqiqiy reklamalar ko'rsatiladi (namuna slaydlar yo'q)
+    return [];
   }, [ads, ad]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [prevIndex, setPrevIndex] = useState(null);
+  const [activeModalSlide, setActiveModalSlide] = useState(null);
 
-  const safeIndex = playlist.length > 0 ? (currentIndex % playlist.length) : 0;
-  const currentAd = playlist[safeIndex] || null;
-  const hasAd = Boolean(currentAd);
-  const isVideo = isVideoUrl(currentAd?.video_url || currentAd?.media_url || currentAd?.imageUrl);
+  const totalCount = slides.length;
+  const safeIndex = totalCount > 0 ? (currentIndex % totalCount) : 0;
+  const currentSlide = totalCount > 0 ? slides[safeIndex] : null;
 
-  // Keyingi reklamaga sekin 3D aylanma o'tish (hech qanday qora uzilishsiz)
   const handleNext = useCallback(() => {
-    if (playlist.length <= 1) return;
-    setPrevIndex(safeIndex);
-    setCurrentIndex(prev => (prev + 1) % playlist.length);
-  }, [playlist.length, safeIndex]);
+    if (totalCount <= 1) return;
+    setCurrentIndex(prev => (prev + 1) % totalCount);
+  }, [totalCount]);
 
-  const handleSelect = (idx) => {
-    if (idx === safeIndex || playlist.length <= 1) return;
-    setPrevIndex(safeIndex);
-    setCurrentIndex(idx);
-  };
-
-  // Rasm bo'lsa 5 soniya kutib keyingisiga aylanadi
+  // Avtomatik 6 soniyada keyingi slaydga o'tish
   useEffect(() => {
-    if (playlist.length <= 1 || isVideo || !hasAd) return;
-
-    const timer = setTimeout(() => {
+    if (totalCount <= 1) return;
+    const timer = setInterval(() => {
       handleNext();
-    }, 5000);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [totalCount, handleNext]);
 
+  // Slayd kamida 1 soniya ko'rsatilganda ko'rishlar sonini avtomatik qayd etish (view tracking)
+  useEffect(() => {
+    if (!currentSlide?.id) return;
+    const timer = setTimeout(() => {
+      sendAdView(currentSlide);
+    }, 1000);
     return () => clearTimeout(timer);
-  }, [safeIndex, isVideo, playlist.length, hasAd, handleNext]);
+  }, [currentSlide?.id]);
 
-  const handleClick = (item) => {
-    const target = item || currentAd;
-    if (!target) return;
+  /**
+   * Reklama yoki Batafsil bosilganda:
+   * 1. Click hisoblagichiga yoziladi (POST /ads/:id/click)
+   * 2. Reklama bo'limiga OLIB BORMAYDI!
+   * 3. Agar Havolasi bo'lsa -> havola yangi oynada ochiladi.
+   * 4. Agar Havolasi bo'lmasa -> modal oyna ochiladi.
+   */
+  const handleAdAction = (slide) => {
+    if (!slide) return;
+    sendAdClick(slide);
 
-    if (target.id) {
-      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-      fetch(`${apiBase}/ads/${target.id}/click`, { method: 'POST' }).catch(() => {});
-    }
-
-    if (target.target_link) {
-      window.open(target.target_link, '_blank');
+    const hasLink = Boolean(slide.target_link && slide.target_link.trim());
+    if (hasLink) {
+      window.open(slide.target_link, '_blank', 'noopener,noreferrer');
     } else {
-      alert("Reklama berish uchun: @amaps_support");
+      setActiveModalSlide(slide);
     }
   };
+
+  /**
+   * FAQAT "Reklama joylash" tugmasi bosilganda reklama bo'limiga olib boradi
+   */
+  const handleOpenAdSection = (e) => {
+    if (e && typeof e.stopPropagation === 'function') {
+      e.stopPropagation();
+    }
+    if (typeof onOpenAdvertising === 'function') {
+      onOpenAdvertising();
+    }
+  };
+
+  // AGAR REKLAMA BO'LMASA:
+  // Faqat o'rtada "Reklama joylash" yozuvi va icon tursin xolos (hech qanday namuna reklamalarsiz)
+  if (totalCount === 0) {
+    return (
+      <aside className={`profile-side-video-banner ${side}-banner ${customClass}`}>
+        <div
+          className="side-banner-card-wrap is-empty"
+          onClick={handleOpenAdSection}
+          role="button"
+          tabIndex={0}
+          title="Reklama joylash"
+        >
+          <div className="side-banner-empty-box">
+            <div className="side-banner-empty-icon-wrap">
+              <Megaphone size={28} className="side-banner-empty-icon" />
+            </div>
+            <span className="side-banner-empty-text">Reklama joylash</span>
+          </div>
+        </div>
+      </aside>
+    );
+  }
 
   return (
-    <aside className={`profile-side-video-banner ${side}-banner ${customClass}`}>
-      <div className="side-banner-inner">
-        <div className="side-banner-tag">
-          <Sparkles size={13} />
-          <span>{hasAd ? "Hamkor Reklamasi" : "Reklama"}</span>
-          {playlist.length > 1 && (
-            <span className="side-banner-count-badge" title="${playlist.length} ta reklama navbat bilan aylanmoqda">
-              {safeIndex + 1}/{playlist.length}
-            </span>
-          )}
-        </div>
+    <>
+      <aside className={`profile-side-video-banner ${side}-banner ${customClass}`}>
+        <div className="side-banner-card-wrap">
+          {/* Yuqori qator: Chapda [• Reklama] va o'ngda [1/3] (faqat 1 tadan ko'p bo'lsa) */}
+          <div className="side-banner-top-bar">
+            <div className="side-banner-badge-reklama">
+              <span className="side-banner-badge-dot" />
+              <span>Reklama</span>
+            </div>
 
-        <div className={`side-video-box ${hasAd ? 'has-ad-playing' : ''}`}>
-          {hasAd ? (
-            <div className="side-video-3d-stage">
-              {/* Bir nechta reklama bo'lganda ko'rsatkich nuqtalari */}
-              {playlist.length > 1 && (
-                <div className="side-ad-indicators" title="Reklamani tanlash">
-                  {playlist.map((item, idx) => (
-                    <button
-                      key={item.id || idx}
-                      type="button"
-                      className={`side-ad-dot ${idx === safeIndex ? 'active' : ''}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelect(idx);
-                      }}
-                      aria-label={`Reklama ${idx + 1}`}
-                    />
-                  ))}
-                </div>
+            {totalCount > 1 && (
+              <div className="side-banner-badge-count">
+                {safeIndex + 1}/{totalCount}
+              </div>
+            )}
+          </div>
+
+          {/* Asosiy grafik karta (bosilganda havola ochiladi yoki modal chiqadi) */}
+          <div
+            className="side-banner-visual-box"
+            style={{ background: currentSlide.bgGradient }}
+            onClick={() => handleAdAction(currentSlide)}
+            role="button"
+            tabIndex={0}
+            title={currentSlide.target_link ? "Havolani ochish" : "Batafsil ma'lumot"}
+          >
+            <div className="side-banner-glow-circle-1" />
+            <div className="side-banner-glow-circle-2" />
+
+            {/* Markazdagi muzlatilgan shisha (frosted glass) kvadrati yoki media */}
+            {currentSlide.mediaUrl ? (
+              isVideoUrl(currentSlide.mediaUrl) ? (
+                <video
+                  src={currentSlide.mediaUrl}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="side-banner-media-fill"
+                />
+              ) : (
+                <img
+                  src={currentSlide.mediaUrl}
+                  alt={currentSlide.title}
+                  className="side-banner-media-fill"
+                />
+              )
+            ) : (
+              <div key={currentSlide.id || safeIndex} className="side-banner-frosted-icon-wrap is-animated">
+                {currentSlide.iconType === 'fuel' && <Fuel size={42} color="#ffffff" strokeWidth={2.2} />}
+                {currentSlide.iconType === 'sparkles' && <Sparkles size={42} color="#38bdf8" strokeWidth={2.2} />}
+                {currentSlide.iconType === 'zap' && <Zap size={42} color="#10b981" strokeWidth={2.2} />}
+              </div>
+            )}
+          </div>
+
+          {/* Reklama tagida FAQAT reklama nomi (Kim berayotgan sarlavhalarsiz) */}
+          <div
+            key={currentSlide.id || safeIndex}
+            className="side-banner-info-below is-animated"
+            onClick={() => handleAdAction(currentSlide)}
+            style={{ cursor: 'pointer' }}
+          >
+            <h4 className="side-banner-main-title">
+              {currentSlide.highlightWord && currentSlide.title.includes(currentSlide.highlightWord) ? (
+                currentSlide.title.split(currentSlide.highlightWord).map((part, i, arr) => (
+                  <React.Fragment key={i}>
+                    {part}
+                    {i < arr.length - 1 && (
+                      <span className="side-banner-title-highlight">
+                        {currentSlide.highlightWord}
+                      </span>
+                    )}
+                  </React.Fragment>
+                ))
+              ) : (
+                currentSlide.title
               )}
+            </h4>
+          </div>
 
-              {/* Barcha videolar 3D qavatlarda tayyor turadi. 
-                  1-video qora bo'lib o'chmaydi, aylanib chiqadi va 2-video aylanib kiradi! */}
-              {playlist.map((item, idx) => (
-                <DesktopAdSlideItem
-                  key={item.id || idx}
-                  item={item}
-                  isActive={idx === safeIndex}
-                  isPrev={idx === prevIndex && playlist.length > 1}
-                  isSingle={playlist.length === 1}
-                  onEnded={handleNext}
-                  onClick={handleClick}
+          {/* 1-Tugma: Batafsil -> */}
+          <button
+            type="button"
+            className="side-banner-btn-batafsil"
+            onClick={() => handleAdAction(currentSlide)}
+          >
+            <span>Batafsil</span>
+            <ArrowRight size={16} />
+          </button>
+
+          {/* 2-Tugma: FAQAT shu tugma reklama joylash bo'limiga olib boradi */}
+          <button
+            type="button"
+            className="side-banner-btn-joylash"
+            onClick={handleOpenAdSection}
+            title="Reklama joylashtirish bo'limiga o'tish"
+          >
+            <Megaphone size={15} />
+            <span>Reklama joylash</span>
+          </button>
+
+          {/* Sahifalash indikatorlari (faqat 1 tadan ko'p bo'lsa) */}
+          {totalCount > 1 && (
+            <div className="side-banner-pagination">
+              {slides.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className={`side-banner-pagination-dot ${idx === safeIndex ? 'active' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentIndex(idx);
+                  }}
+                  aria-label={`Slayd ${idx + 1}`}
                 />
               ))}
             </div>
-          ) : (
-            /* Reklama yo'q holatda (placeholder) */
-            <>
-              <div className="side-video-center-content">
-                <div className="video-play-button-ring" onClick={() => handleClick(null)}>
-                  <div className="video-play-pulse"></div>
-                  <Play size={24} className="video-play-icon" fill="currentColor" />
-                </div>
-                <h4 className="video-ad-title">
-                  Bu yerda sizning reklamangiz bo'lishi mumkin
-                </h4>
-                <p className="video-ad-desc">
-                  A-Maps ilovasida minglab faol haydovchilarga o'z biznesingizni video orqali taniting
-                </p>
-              </div>
-
-              <div className="side-video-bottom-bar">
-                <button className="side-video-cta" onClick={() => handleClick(null)}>
-                  Reklama berish
-                </button>
-              </div>
-            </>
           )}
         </div>
-      </div>
-    </aside>
+      </aside>
+
+      {/* Modal Dialog */}
+      {activeModalSlide && (
+        <AdDetailModal
+          slide={activeModalSlide}
+          onClose={() => setActiveModalSlide(null)}
+          onOpenAdvertising={onOpenAdvertising}
+        />
+      )}
+    </>
   );
 }
 
 /**
- * Mobil banner uchun ham aynan shunday uzilishsiz silliq almashuv
+ * Mobil banner uchun ham moslashtirilgan ko'rinish
  */
-export function MobileAdBanner({ ads = [], ad = null }) {
-  const playlist = useMemo(() => {
+export function MobileAdBanner({ ads = [], ad = null, onOpenAdvertising }) {
+  const slides = useMemo(() => {
     const rawList = Array.isArray(ads) && ads.length > 0 ? ads : (ad ? [ad] : []);
-    return rawList.filter(item => Boolean(item && (item.video_url || item.media_url || item.imageUrl)));
+    const valid = rawList.filter(item => Boolean(item && (item.title || item.video_url || item.media_url || item.imageUrl)));
+    if (valid.length > 0) {
+      return valid.map((item, idx) => ({
+        id: item.id || `ad-${idx}`,
+        brand: item.brand || item.company_name || item.advertiser_name || item.advertiserName || "AX-Map Hamkor",
+        category: item.category || item.target_audience || "",
+        title: item.title || "Reklama",
+        highlightWord: item.highlightWord || (item.title ? item.title.split(' ')[2] : null),
+        description: item.description || "",
+        mediaUrl: item.video_url || item.media_url || item.imageUrl || null,
+        target_link: item.target_link || item.targetLink || item.link || null,
+        phone: item.advertiser_phone || item.advertiserPhone || item.phone || item.phone_number || "+998 90 123 45 67",
+        telegram: item.telegram || item.telegram_link || null,
+        bgGradient: DEFAULT_BG_GRADIENTS[idx % DEFAULT_BG_GRADIENTS.length],
+        iconType: 'fuel',
+      }));
+    }
+    return [];
   }, [ads, ad]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [prevIndex, setPrevIndex] = useState(null);
+  const [activeModalSlide, setActiveModalSlide] = useState(null);
 
-  const safeIndex = playlist.length > 0 ? (currentIndex % playlist.length) : 0;
-  const currentAd = playlist[safeIndex] || null;
+  const totalCount = slides.length;
+  const safeIndex = totalCount > 0 ? (currentIndex % totalCount) : 0;
+  const currentSlide = totalCount > 0 ? slides[safeIndex] : null;
 
   const handleNext = useCallback(() => {
-    if (playlist.length <= 1) return;
-    setPrevIndex(safeIndex);
-    setCurrentIndex(prev => (prev + 1) % playlist.length);
-  }, [playlist.length, safeIndex]);
-
-  const handleSelect = (idx) => {
-    if (idx === safeIndex || playlist.length <= 1) return;
-    setPrevIndex(safeIndex);
-    setCurrentIndex(idx);
-  };
-
-  const isVideo = isVideoUrl(currentAd?.video_url || currentAd?.media_url || currentAd?.imageUrl);
+    if (totalCount <= 1) return;
+    setCurrentIndex(prev => (prev + 1) % totalCount);
+  }, [totalCount]);
 
   useEffect(() => {
-    if (playlist.length <= 1 || isVideo || !currentAd) return;
-
-    const timer = setTimeout(() => {
+    if (totalCount <= 1) return;
+    const timer = setInterval(() => {
       handleNext();
-    }, 5000);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [totalCount, handleNext]);
 
-    return () => clearTimeout(timer);
-  }, [safeIndex, isVideo, playlist.length, currentAd, handleNext]);
-
-  // Mobil reklamada ko'rishlar sonini oshirish
+  // Slayd ko'rilganda view tracking
   useEffect(() => {
-    if (!currentAd?.id) return;
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-    fetch(`${apiBase}/ads/${currentAd.id}/view`, { method: 'POST' }).catch(() => {});
-  }, [currentAd?.id, safeIndex]);
+    if (!currentSlide?.id) return;
+    const timer = setTimeout(() => {
+      sendAdView(currentSlide);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [currentSlide?.id]);
 
-  if (!currentAd) return null;
+  const handleAdAction = (slide) => {
+    if (!slide) return;
+    sendAdClick(slide);
 
-  const handleClick = (item) => {
-    const target = item || currentAd;
-    if (!target) return;
-
-    if (target.id) {
-      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-      fetch(`${apiBase}/ads/${target.id}/click`, { method: 'POST' }).catch(() => {});
-    }
-
-    if (target.target_link) {
-      window.open(target.target_link, '_blank');
+    const hasLink = Boolean(slide.target_link && slide.target_link.trim());
+    if (hasLink) {
+      window.open(slide.target_link, '_blank', 'noopener,noreferrer');
     } else {
-      alert("Reklama berish uchun: @amaps_support");
+      setActiveModalSlide(slide);
     }
   };
+
+  const handleOpenAdSection = (e) => {
+    if (e && typeof e.stopPropagation === 'function') {
+      e.stopPropagation();
+    }
+    if (typeof onOpenAdvertising === 'function') {
+      onOpenAdvertising();
+    }
+  };
+
+  if (totalCount === 0) {
+    return (
+      <div className="mobile-ad-banner-box">
+        <div
+          className="side-banner-card-wrap is-empty mobile-version"
+          onClick={handleOpenAdSection}
+          role="button"
+          tabIndex={0}
+          title="Reklama joylash"
+        >
+          <div className="side-banner-empty-box">
+            <div className="side-banner-empty-icon-wrap">
+              <Megaphone size={24} className="side-banner-empty-icon" />
+            </div>
+            <span className="side-banner-empty-text">Reklama joylash</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="mobile-ad-banner-box">
-      <div className="mobile-ad-header">
-        <span className="side-banner-tag">
-          <Sparkles size={12} /> Hamkor Reklamasi
-          {playlist.length > 1 && (
-            <span className="side-banner-count-badge">
-              {safeIndex + 1}/{playlist.length}
-            </span>
-          )}
-        </span>
-        {playlist.length > 1 && (
-          <div className="mobile-ad-indicators">
-            {playlist.map((item, idx) => (
-              <button
-                key={item.id || idx}
-                type="button"
-                className={`mobile-ad-dot ${idx === safeIndex ? 'active' : ''}`}
-                onClick={() => handleSelect(idx)}
-                aria-label={`Reklama ${idx + 1}`}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="mobile-ad-content-stage">
-        {playlist.map((item, idx) => {
-          const isActive = idx === safeIndex;
-          const isPrev = idx === prevIndex && playlist.length > 1;
-          const mediaUrl = item?.video_url || item?.media_url || item?.imageUrl || '';
-          const isVid = isVideoUrl(mediaUrl);
-
-          return (
-            <div
-              key={item.id || idx}
-              className={`mobile-ad-slide ${isActive ? 'is-active' : ''} ${isPrev ? 'is-prev' : ''}`}
-              style={{ pointerEvents: isActive ? 'auto' : 'none' }}
-            >
-              <div className="mobile-ad-content">
-                {mediaUrl && (
-                  <div className="mobile-ad-media-wrap">
-                    {isVid ? (
-                      <video
-                        src={mediaUrl}
-                        autoPlay={isActive}
-                        loop={playlist.length === 1}
-                        muted
-                        playsInline
-                        onEnded={isActive ? handleNext : undefined}
-                        onError={isActive ? handleNext : undefined}
-                        className="mobile-ad-media"
-                      />
-                    ) : (
-                      <img
-                        src={mediaUrl}
-                        alt={item.title || "Reklama"}
-                        className="mobile-ad-media"
-                      />
-                    )}
-                  </div>
-                )}
-                <div className="mobile-ad-info">
-                  <h4 className="mobile-ad-title">{item.title}</h4>
-                  {item.description && <p className="mobile-ad-desc">{item.description}</p>}
-                  <button className="mobile-ad-cta" onClick={() => handleClick(item)}>
-                    {item.target_link ? "Batafsil ma'lumot" : "Reklama berish"}
-                  </button>
-                </div>
-              </div>
+    <>
+      <div className="mobile-ad-banner-box">
+        <div className="side-banner-card-wrap mobile-version">
+          <div className="side-banner-top-bar">
+            <div className="side-banner-badge-reklama">
+              <span className="side-banner-badge-dot" />
+              <span>Reklama</span>
             </div>
-          );
-        })}
+            {totalCount > 1 && (
+              <div className="side-banner-badge-count">
+                {safeIndex + 1}/{totalCount}
+              </div>
+            )}
+          </div>
+
+          <div
+            className="side-banner-visual-box"
+            style={{ background: currentSlide.bgGradient, minHeight: '180px', height: '190px' }}
+            onClick={() => handleAdAction(currentSlide)}
+          >
+            <div className="side-banner-frosted-icon-wrap" style={{ margin: 'auto' }}>
+              {currentSlide.iconType === 'fuel' && <Fuel size={36} color="#ffffff" strokeWidth={2.2} />}
+              {currentSlide.iconType === 'sparkles' && <Sparkles size={36} color="#38bdf8" strokeWidth={2.2} />}
+              {currentSlide.iconType === 'zap' && <Zap size={36} color="#10b981" strokeWidth={2.2} />}
+            </div>
+          </div>
+
+          {/* Faqat reklama nomi */}
+          <div
+            key={currentSlide.id || safeIndex}
+            className="side-banner-info-below is-animated"
+            onClick={() => handleAdAction(currentSlide)}
+          >
+            <h4 className="side-banner-main-title">{currentSlide.title}</h4>
+          </div>
+
+          <button
+            type="button"
+            className="side-banner-btn-batafsil"
+            onClick={() => handleAdAction(currentSlide)}
+          >
+            <span>Batafsil</span>
+            <ArrowRight size={16} />
+          </button>
+
+          <button
+            type="button"
+            className="side-banner-btn-joylash"
+            onClick={handleOpenAdSection}
+          >
+            <Megaphone size={15} />
+            <span>Reklama joylash</span>
+          </button>
+        </div>
       </div>
-    </div>
+
+      {activeModalSlide && (
+        <AdDetailModal
+          slide={activeModalSlide}
+          onClose={() => setActiveModalSlide(null)}
+          onOpenAdvertising={onOpenAdvertising}
+        />
+      )}
+    </>
   );
 }

@@ -19,7 +19,7 @@ import {
   User,
   AlertCircle,
 } from "lucide-react";
-import amapsEmptyMascot from "../assets/amaps-empty-notif.png";
+import amapsEmptyMascot from "../assets/amaps-empty-notif.webp";
 import api from "../api/client";
 
 // Sana formatlovchi yordamchi funksiya: masalan, "25-okt 14:30"
@@ -589,7 +589,7 @@ export default function NotificationsView({
                   <div className="notif-admin-reply-card">
                     <div className="admin-reply-title-row">
                       <ShieldCheck size={15} color="#38bdf8" />
-                      <span>A-Maps Administratori javobi:</span>
+                      <span>AX-Map Administratori javobi:</span>
                     </div>
                     <p className="admin-reply-body">{item.adminReply}</p>
                   </div>
@@ -666,7 +666,7 @@ export default function NotificationsView({
                       } : {}}
                     >
                       {isApprovedNotif ? <CheckCircle2 size={13} color="#10b981" /> : isRejectedNotif ? <X size={13} color="#ef4444" /> : null}
-                      {item.badge || (isApprovedNotif ? "Tasdiqlandi" : "A-Maps Tizimi")}
+                      {item.badge || (isApprovedNotif ? "Tasdiqlandi" : "AX-Map Tizimi")}
                     </span>
                     <div className="notif-message-date-box">
                       <Clock size={12} />
@@ -707,12 +707,12 @@ export default function NotificationsView({
             })}
           </div>
         ) : (
-          /* BO'SH HOLAT: A-Maps Limon personaji */
+          /* BO'SH HOLAT: AX-Map Limon personaji */
           <div className="notif-empty-state-box">
             <div className="notif-empty-illustration-wrapper">
               <img
                 src={amapsEmptyMascot}
-                alt="A-Maps bildirishnoma yo'q"
+                alt="AX-Map bildirishnoma yo'q"
                 className="notif-empty-character-img"
               />
             </div>
@@ -738,8 +738,8 @@ export default function NotificationsView({
             <h4 className="notif-action-title">Joylashuv qo'shishni tasdiqlash</h4>
             <p className="notif-action-desc">
               {isLocationActive
-                ? "Sizda A-Maps ga joylashuv qo'shish faol"
-                : "A-Maps ga o'z xizmat ko'rsatish markazingizni qo'shish"}
+                ? "Sizda AX-Map ga joylashuv qo'shish faol"
+                : "AX-Map ga o'z xizmat ko'rsatish markazingizni qo'shish"}
             </p>
           </div>
           <button
@@ -779,7 +779,7 @@ export default function NotificationsView({
                 Joylashuv qo'shish imkoniyatini yoqish uchun avval dasturda ro'yxatdan o'tishingiz yoki profilingizga kirishingiz lozim.
               </p>
               <p className="notif-modal-sub-text">
-                Ro'yxatdan o'tgach, profilingiz orqali A-Maps dasturiga bemalol o'z xizmat ko'rsatish markazingizni joylashtirishingiz mumkin.
+                Ro'yxatdan o'tgach, profilingiz orqali AX-Map dasturiga bemalol o'z xizmat ko'rsatish markazingizni joylashtirishingiz mumkin.
               </p>
             </div>
 
@@ -828,7 +828,7 @@ export default function NotificationsView({
 
             <div className="notif-modal-body">
               <p className="notif-modal-main-text">
-                A-Maps dasturiga o'z xizmat ko'rsatish markazingiz yoki shaxobchangizni joylashtirmoqchimisiz?
+                AX-Map dasturiga o'z xizmat ko'rsatish markazingiz yoki shaxobchangizni joylashtirmoqchimisiz?
               </p>
 
               {/* Ha va Yo'q tanlash tugmalari */}

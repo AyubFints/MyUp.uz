@@ -68,7 +68,7 @@ export default function DeleteStationModal({
         </h3>
 
         <p className="delete-confirm-desc">
-          <strong>"{station.name}"</strong> manzili A-Maps tizimidan butunlay o'chiriladi.
+          <strong>"{station.name}"</strong> manzili AX-Map tizimidan butunlay o'chiriladi.
         </p>
 
         {/* O'chirish sababi kiritish maydoni */}

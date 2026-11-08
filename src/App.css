@@ -5725,7 +5725,8 @@
 .dark-theme-home .app-content {
   display: flex;
   flex: 1;
-  height: calc(100vh - 60px);
+  min-height: calc(100vh - 75px);
+  height: auto;
 }
 
 .dark-theme-home .left-panel {
@@ -6000,22 +6001,219 @@
     flex: 1;
     height: 100%;
     min-height: calc(100vh - 120px);
+    display: flex !important;
+    flex-direction: column !important;
+    padding-right: 40px;
+    box-sizing: border-box;
   }
   
-  .dark-theme-home .right-panel-map .real-map-wrapper {
-    position: absolute !important;
-    top: 16px !important;
-    bottom: 24px !important;
-    left: 0 !important;
-    right: 40px !important;
-    width: calc(100% - 40px) !important;
-    height: calc(100% - 40px) !important;
-    border-radius: 16px;
+  .dark-theme-home .right-panel-map {
+    position: relative;
+    flex: 1;
+    height: auto;
+    min-height: calc(100vh - 120px);
+    display: flex !important;
+    flex-direction: column !important;
+    padding-right: 40px;
+    box-sizing: border-box;
+  }
+  
+  .dark-theme-home .right-panel-map .home-map-container {
+    position: relative;
+    width: 100%;
+    height: clamp(580px, 64vh, 720px);
+    min-height: 560px;
+    margin-top: 16px;
+    margin-bottom: 20px;
+    border-radius: 18px;
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
     background: #1e293b;
+    flex-shrink: 0;
   }
+
+  .dark-theme-home .right-panel-map .home-map-container .real-map-wrapper {
+    position: absolute !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #1e293b;
+  }
+
+  /* Haritani tagi ochiq joyda ~300px balandlikdagi katta reklama bloki */
+  .home-desktop-ad-bar {
+    height: 300px;
+    min-height: 300px;
+    max-height: 300px;
+    width: 100%;
+    margin-bottom: 24px;
+    background: var(--card-bg, #222225);
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: 24px;
+    box-shadow: 0 4px 22px rgba(0, 0, 0, 0.28);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .home-desktop-ad-bar:hover {
+    border-color: rgba(56, 189, 248, 0.45);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.38);
+  }
+
+  .home-desktop-ad-content {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+  }
+
+  .home-desktop-ad-content.placeholder-300 {
+    align-items: center;
+    justify-content: center;
+  }
+
+  .home-desktop-ad-center-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    max-width: 540px;
+    margin: 0 auto;
+    gap: 10px;
+  }
+
+  .home-desktop-ad-icon-ring-large {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1.5px solid rgba(56, 189, 248, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(56, 189, 248, 0.15);
+    margin-bottom: 4px;
+  }
+
+  .home-desktop-ad-title-large {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: var(--text-main, #ffffff);
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .home-desktop-ad-desc-large {
+    font-size: 0.92rem;
+    color: var(--text-muted, #a0a0a5);
+    margin: 0;
+    line-height: 1.5;
+    max-width: 480px;
+  }
+
+  .home-desktop-ad-btn-large {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 28px;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+    transition: all 0.2s ease;
+    margin-top: 6px;
+  }
+
+  .home-desktop-ad-btn-large:hover {
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+  }
+
+  .home-desktop-ad-media-full {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .home-desktop-ad-cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .home-desktop-ad-media-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.2) 60%, rgba(0, 0, 0, 0.4) 100%);
+  }
+
+  .home-desktop-ad-media-content {
+    position: absolute;
+    bottom: 20px;
+    left: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    z-index: 2;
+  }
+
+  .home-desktop-ad-media-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #ffffff;
+    margin: 0;
+  }
+
+  .home-desktop-ad-media-desc {
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.85);
+    margin: 0;
+    line-height: 1.4;
+  }
+
+.dark-theme-home.is-light .home-desktop-ad-bar {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06) !important;
+}
+
+.dark-theme-home.is-light .home-desktop-ad-title-large {
+  color: #0f172a !important;
+}
+
+.dark-theme-home.is-light .home-desktop-ad-desc-large {
+  color: #64748b !important;
+}
+
+.dark-theme-home.is-light .home-desktop-ad-icon-ring-large {
+  background: #eff6ff !important;
+  border-color: #bfdbfe !important;
+  color: #2563eb !important;
+}
 }
 
 .fuel-btn.active {
@@ -7551,6 +7749,89 @@
 .new-settings-profile-card:hover .new-profile-arrow {
   color: #ffffff;
   transform: translateX(3px);
+}
+
+/* Reklama haqida sozlamalar kartasi */
+.new-settings-ad-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--panel-bg, #1a1a1e);
+  border: 1.5px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: 18px;
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.new-settings-ad-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.15);
+}
+
+.new-settings-ad-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.new-settings-ad-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+
+.new-settings-ad-title {
+  color: var(--text-main, #ffffff);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.new-settings-ad-subtitle {
+  color: var(--theme-muted, #94a3b8);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.new-settings-ad-arrow {
+  color: #64748b;
+  flex-shrink: 0;
+  transition: transform 0.2s, color 0.2s;
+}
+
+.new-settings-ad-card:hover .new-settings-ad-arrow {
+  color: #38bdf8;
+  transform: translateX(3px);
+}
+
+/* Light theme for new-settings-ad-card */
+.settings-three-col-layout.is-light .new-settings-ad-card {
+  background: #ffffff;
+  border: 1.5px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+}
+
+.settings-three-col-layout.is-light .new-settings-ad-card:hover {
+  border-color: #38bdf8;
+  box-shadow: 0 6px 18px rgba(56, 189, 248, 0.15);
+}
+
+.settings-three-col-layout.is-light .new-settings-ad-title {
+  color: #0f172a;
+}
+
+.settings-three-col-layout.is-light .new-settings-ad-subtitle {
+  color: #64748b;
 }
 
 /* 3. Color Customizer Card */
@@ -14500,7 +14781,1246 @@
   transform: scale(0.98);
 }
 
+/* ========================================================
+   YOQILG'I BOSHQARUVI: O'CHIRISH VA QO'SHISH USLUBLARI
+   ======================================================== */
+.fuel-row-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fuel-row-delete-btn {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  color: #ef4444;
+  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.fuel-row-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: #ef4444;
+  transform: scale(1.06);
+}
+
+.fuel-row-delete-btn:active {
+  transform: scale(0.96);
+}
+
+.add-fuel-trigger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 13px 18px;
+  border-radius: 14px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1.5px dashed rgba(59, 130, 246, 0.45);
+  color: #3b82f6;
+  font-weight: 700;
+  font-size: 0.93rem;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: all 0.2s ease;
+}
+
+.add-fuel-trigger-btn:hover {
+  background: rgba(59, 130, 246, 0.16);
+  border-style: solid;
+  border-color: #3b82f6;
+}
+
+.add-fuel-inline-card {
+  background: var(--theme-card, #1c1c1e);
+  border: 1.5px solid rgba(59, 130, 246, 0.4);
+  border-radius: 16px;
+  padding: 14px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.add-fuel-inline-fields {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.add-fuel-select {
+  flex: 1.2;
+  min-width: 130px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--theme-text, #ffffff);
+  border: 1.5px solid var(--theme-border, #475569);
+  font-size: 0.92rem;
+  font-weight: 600;
+  outline: none;
+}
+
+.add-fuel-price-wrap {
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1.5px solid var(--theme-border, #475569);
+  border-radius: 10px;
+  padding: 0 10px;
+}
+
+.add-fuel-price-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--theme-text, #ffffff);
+  padding: 9px 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  outline: none;
+}
+
+.add-fuel-price-suffix {
+  font-size: 0.8rem;
+  color: var(--theme-muted, #94a3b8);
+  margin-left: 4px;
+}
+
+.add-fuel-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.add-fuel-btn-confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 10px;
+  background: #10b981;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-fuel-btn-confirm:hover {
+  background: #059669;
+}
+
+.add-fuel-btn-cancel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--theme-muted, #94a3b8);
+  border: 1px solid var(--theme-border, #475569);
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
 
 
 
 
+
+
+
+/* ==========================================================================
+   ADVERTISING SECTION (Reklama bo'limi - To'liq dastur foni va orqa fonsiz)
+   ========================================================================== */
+
+.advertising-three-col-layout {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: calc(100vh - 75px);
+  width: 100%;
+  padding-top: 20px;
+  padding-bottom: 40px;
+  box-sizing: border-box;
+  background-color: var(--theme-bg, #0e0e10);
+  transition: background-color 0.3s ease;
+}
+
+.advertising-center-col {
+  flex: 1;
+  max-width: 680px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.advertising-page-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  width: 100%;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0;
+  margin-top: 4px;
+}
+
+.advertising-hero-subtitle {
+  margin: -2px 0 14px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--theme-muted, #94a3b8);
+  opacity: 0.75;
+  letter-spacing: 0.03em;
+  max-width: 540px;
+  line-height: 1.4;
+}
+
+.advertising-three-col-layout.is-light .advertising-hero-subtitle {
+  color: #64748b;
+}
+
+.advertising-hero-title {
+  margin: 0 0 10px;
+  font-size: 1.85rem;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--theme-text, #ffffff);
+  max-width: 620px;
+  font-family: inherit;
+  letter-spacing: -0.02em;
+}
+
+.advertising-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 9999px;
+  margin-bottom: 16px;
+}
+
+.advertising-status-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  animation: adStatusPulse 2s infinite ease-in-out;
+}
+
+@keyframes adStatusPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.6;
+  }
+}
+
+.advertising-status-text {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #10b981;
+}
+
+.advertising-mascot-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin: 4px 0 22px;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.advertising-mascot-img {
+  width: auto;
+  max-width: 310px;
+  max-height: 380px;
+  object-fit: contain;
+  display: block;
+  background: transparent !important;
+  filter: drop-shadow(0 16px 28px rgba(0, 0, 0, 0.5));
+  transition: transform 0.3s ease, filter 0.3s ease;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.advertising-mascot-img:hover {
+  transform: translateY(-4px) scale(1.02);
+  filter: drop-shadow(0 22px 34px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 20px rgba(56, 189, 248, 0.25));
+}
+
+.advertising-primary-return-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 13px 38px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0284c7, #0ea5e9);
+  color: #ffffff;
+  font-size: 0.98rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(14, 165, 233, 0.4);
+  transition: all 0.2s ease;
+}
+
+.advertising-primary-return-btn:hover {
+  background: linear-gradient(135deg, #0369a1, #0284c7);
+  box-shadow: 0 12px 30px rgba(14, 165, 233, 0.55);
+  transform: translateY(-2px);
+}
+
+.advertising-primary-return-btn:active {
+  transform: translateY(0);
+}
+
+/* Light theme overrides for advertising section */
+.advertising-three-col-layout.is-light {
+  background-color: var(--theme-bg, #f8fafc);
+}
+
+.advertising-three-col-layout.is-light .advertising-hero-title {
+  color: #0f172a;
+}
+
+.advertising-three-col-layout.is-light .advertising-mascot-img {
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.12));
+}
+
+.advertising-three-col-layout.is-light .advertising-mascot-img:hover {
+  filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.18)) drop-shadow(0 0 15px rgba(56, 189, 248, 0.2));
+}
+
+@media (max-width: 900px) {
+  .advertising-three-col-layout {
+    padding-top: 14px;
+    padding-bottom: 90px;
+  }
+
+  .advertising-hero-title {
+    font-size: 1.45rem;
+    margin-bottom: 8px;
+  }
+
+  .advertising-status-pill {
+    margin-bottom: 14px;
+  }
+
+  .advertising-mascot-img {
+    max-width: 250px;
+    max-height: 310px;
+  }
+
+  .advertising-primary-return-btn {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+
+/* ========================================================
+   MODERN SIDE AD BANNER (Rasmda ko'rsatilgan zamonaviy ko'rinish)
+   ======================================================== */
+.profile-side-video-banner {
+  flex: 0 0 260px;
+  width: 260px;
+  position: sticky;
+  top: 85px;
+  z-index: 5;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.profile-side-video-banner.left-banner {
+  margin-left: 16px;
+}
+
+.profile-side-video-banner.right-banner {
+  margin-right: 16px;
+}
+
+.side-banner-card-wrap {
+  width: 100%;
+  background: #0f1015;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 12px 12px 14px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.65);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.side-banner-card-wrap:hover {
+  border-color: rgba(56, 189, 248, 0.25);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.75), 0 0 20px rgba(56, 189, 248, 0.08);
+}
+
+/* Reklama bo'lmaganda o'rtada chiroyli "Reklama joylash" icon va yozuv holati */
+.side-banner-card-wrap.is-empty {
+  min-height: 480px;
+  height: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px dashed rgba(56, 189, 248, 0.28);
+  background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.04) 0%, rgba(15, 16, 21, 0.85) 100%), #0f1015;
+  cursor: pointer;
+  padding: 24px 16px;
+  box-sizing: border-box;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.side-banner-card-wrap.is-empty:hover {
+  border-color: #38bdf8;
+  background: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.08) 0%, rgba(15, 16, 21, 0.95) 100%), #0f1015;
+  box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.75), 0 0 24px rgba(56, 189, 248, 0.18);
+  transform: translateY(-2px);
+}
+
+.side-banner-empty-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.side-banner-empty-icon-wrap {
+  width: 60px;
+  height: 60px;
+  border-radius: 18px;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1.5px solid rgba(56, 189, 248, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #38bdf8;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 16px rgba(56, 189, 248, 0.12);
+}
+
+.side-banner-card-wrap.is-empty:hover .side-banner-empty-icon-wrap {
+  background: #38bdf8;
+  color: #04141e;
+  border-color: #38bdf8;
+  transform: scale(1.08);
+  box-shadow: 0 8px 24px rgba(56, 189, 248, 0.35);
+}
+
+.side-banner-empty-text {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #38bdf8;
+  letter-spacing: -0.01em;
+  transition: color 0.2s ease;
+}
+
+.side-banner-card-wrap.is-empty:hover .side-banner-empty-text {
+  color: #ffffff;
+}
+
+/* Mobil versiyadagi bo'sh reklama joyi */
+.side-banner-card-wrap.is-empty.mobile-version {
+  min-height: 120px;
+  height: auto;
+  padding: 18px;
+}
+
+.side-banner-card-wrap.is-empty.mobile-version .side-banner-empty-icon-wrap {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+}
+
+.side-banner-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 2px;
+}
+
+.side-banner-badge-reklama {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  backdrop-filter: blur(8px);
+}
+
+.side-banner-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+  flex-shrink: 0;
+}
+
+.side-banner-badge-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 10px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #38bdf8;
+  letter-spacing: 0.02em;
+}
+
+.side-banner-visual-box {
+  position: relative;
+  width: 100%;
+  min-height: 360px;
+  height: 380px;
+  border-radius: 18px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.side-banner-glow-circle-1 {
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.side-banner-glow-circle-2 {
+  position: absolute;
+  bottom: -20px;
+  left: -20px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.22) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.side-banner-frosted-icon-wrap {
+  margin: auto;
+  width: 86px;
+  height: 86px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.4);
+  z-index: 2;
+  transition: transform 0.3s ease;
+}
+
+.side-banner-visual-box:hover .side-banner-frosted-icon-wrap {
+  transform: scale(1.06);
+}
+
+.side-banner-media-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+}
+
+/* Sarlavha va matnlar reklama videosining tagida animatsiya bilan almashadi */
+.side-banner-info-below {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 2px 2px 0;
+  box-sizing: border-box;
+  min-height: 0;
+  overflow: hidden;
+}
+
+@keyframes adTextSlideUpFade {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.side-banner-info-below.is-animated .side-banner-brand-pill {
+  animation: adTextSlideUpFade 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.side-banner-info-below.is-animated .side-banner-main-title {
+  animation: adTextSlideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.05s backwards;
+}
+
+.side-banner-info-below.is-animated .side-banner-main-desc {
+  animation: adTextSlideUpFade 0.45s cubic-bezier(0.16, 1, 0.3, 1) 0.1s backwards;
+}
+
+@keyframes adIconPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.side-banner-frosted-icon-wrap.is-animated {
+  animation: adIconPopIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.side-banner-brand-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.side-banner-brand-square {
+  width: 8px;
+  height: 8px;
+  border-radius: 2.5px;
+  background: #38bdf8;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.side-banner-main-title {
+  margin: 1px 0 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.side-banner-title-highlight {
+  color: #38bdf8;
+}
+
+.side-banner-main-desc {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.side-banner-btn-batafsil {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 16px;
+  border-radius: 12px;
+  background: #0c2333;
+  border: 1.5px solid #164e63;
+  color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.side-banner-btn-batafsil:hover {
+  background: #0f3046;
+  border-color: #38bdf8;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(56, 189, 248, 0.2);
+}
+
+.side-banner-btn-joylash {
+  margin-top: 5px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.32);
+  color: #38bdf8;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.side-banner-btn-joylash:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: #38bdf8;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.side-banner-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 2px 0 0;
+}
+
+.side-banner-pagination-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #334155;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.side-banner-pagination-dot.active {
+  width: 22px;
+  height: 5px;
+  border-radius: 999px;
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+}
+
+/* Light Theme Overrides */
+.settings-three-col-layout.is-light .side-banner-card-wrap,
+.auth-three-col-layout.is-light .side-banner-card-wrap,
+.profile-three-col-layout.is-light .side-banner-card-wrap,
+.advertising-three-col-layout.is-light .side-banner-card-wrap {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+}
+
+.settings-three-col-layout.is-light .side-banner-badge-reklama,
+.auth-three-col-layout.is-light .side-banner-badge-reklama,
+.profile-three-col-layout.is-light .side-banner-badge-reklama,
+.advertising-three-col-layout.is-light .side-banner-badge-reklama {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #334155;
+}
+
+.settings-three-col-layout.is-light .side-banner-main-title,
+.auth-three-col-layout.is-light .side-banner-main-title,
+.profile-three-col-layout.is-light .side-banner-main-title,
+.advertising-three-col-layout.is-light .side-banner-main-title {
+  color: #0f172a;
+}
+
+.settings-three-col-layout.is-light .side-banner-main-desc,
+.auth-three-col-layout.is-light .side-banner-main-desc,
+.profile-three-col-layout.is-light .side-banner-main-desc,
+.advertising-three-col-layout.is-light .side-banner-main-desc {
+  color: #64748b;
+}
+
+.settings-three-col-layout.is-light .side-banner-card-wrap.is-empty,
+.auth-three-col-layout.is-light .side-banner-card-wrap.is-empty,
+.profile-three-col-layout.is-light .side-banner-card-wrap.is-empty,
+.advertising-three-col-layout.is-light .side-banner-card-wrap.is-empty {
+  background: #f8fafc;
+  border: 1.5px dashed rgba(14, 165, 233, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.settings-three-col-layout.is-light .side-banner-card-wrap.is-empty:hover,
+.auth-three-col-layout.is-light .side-banner-card-wrap.is-empty:hover,
+.profile-three-col-layout.is-light .side-banner-card-wrap.is-empty:hover,
+.advertising-three-col-layout.is-light .side-banner-card-wrap.is-empty:hover {
+  border-color: #0284c7;
+  background: #f0f9ff;
+  box-shadow: 0 8px 24px rgba(14, 165, 233, 0.12);
+}
+
+.settings-three-col-layout.is-light .side-banner-empty-icon-wrap,
+.auth-three-col-layout.is-light .side-banner-empty-icon-wrap,
+.profile-three-col-layout.is-light .side-banner-empty-icon-wrap,
+.advertising-three-col-layout.is-light .side-banner-empty-icon-wrap {
+  background: rgba(14, 165, 233, 0.1);
+  border-color: rgba(14, 165, 233, 0.3);
+  color: #0284c7;
+}
+
+.settings-three-col-layout.is-light .side-banner-card-wrap.is-empty:hover .side-banner-empty-icon-wrap,
+.auth-three-col-layout.is-light .side-banner-card-wrap.is-empty:hover .side-banner-empty-icon-wrap,
+.profile-three-col-layout.is-light .side-banner-card-wrap.is-empty:hover .side-banner-empty-icon-wrap,
+.advertising-three-col-layout.is-light .side-banner-card-wrap.is-empty:hover .side-banner-empty-icon-wrap {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+}
+
+.settings-three-col-layout.is-light .side-banner-empty-text,
+.auth-three-col-layout.is-light .side-banner-empty-text,
+.profile-three-col-layout.is-light .side-banner-empty-text,
+.advertising-three-col-layout.is-light .side-banner-empty-text {
+  color: #0284c7;
+}
+
+.settings-three-col-layout.is-light .side-banner-card-wrap.is-empty:hover .side-banner-empty-text,
+.auth-three-col-layout.is-light .side-banner-card-wrap.is-empty:hover .side-banner-empty-text,
+.profile-three-col-layout.is-light .side-banner-card-wrap.is-empty:hover .side-banner-empty-text,
+.advertising-three-col-layout.is-light .side-banner-card-wrap.is-empty:hover .side-banner-empty-text {
+  color: #0369a1;
+}
+
+@media (max-width: 1024px) {
+  .profile-side-video-banner {
+    display: none !important;
+  }
+}
+
+
+/* ========================================================
+   REKLAMA HAQIDA MODAL OYNA (AdDetailModal)
+   Foydalanuvchi tashlagan rasmdagi ko'rinish:
+   - [REKLAMA] burchak nishoni va [X] yopish tugmasi
+   - 16:9 formatdagi reklama rasmi yoki videosi
+   - [ND] Avatar, "Namuna Do'kon" va "Do'kon egalari uchun"
+   - Qalin katta sarlavha: "Smart Do'kon dasturi"
+   - Tavsif matni
+   - Moviy [Qo'ng'iroq qilish] va [Telegram] tugmasi
+   - Telefon raqami
+   - Pastki qism: "Reklama" va "Reklama joylash"
+   ======================================================== */
+.ad-detail-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: rgba(5, 8, 14, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  animation: adModalOverlayFade 0.22s ease-out;
+}
+
+@keyframes adModalOverlayFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.ad-detail-modal-card {
+  width: 100%;
+  max-width: 370px;
+  background: #0f131a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  box-sizing: border-box;
+  gap: 12px;
+  animation: adModalCardPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes adModalCardPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.ad-detail-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.ad-detail-modal-badge-reklama {
+  background: #181d28;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 7px;
+  padding: 4px 10px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #8b9bb4;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.ad-detail-modal-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #181d28;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: #8b9bb4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ad-detail-modal-close-btn:hover {
+  background: #232a3b;
+  color: #ffffff;
+  transform: scale(1.05);
+}
+
+/* 16:9 Reklama Media bloki */
+.ad-detail-modal-media-wrap {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  overflow: hidden;
+  position: relative;
+  background: #091722;
+}
+
+.ad-detail-modal-video,
+.ad-detail-modal-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ad-detail-modal-placeholder-box {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.ad-detail-modal-placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 2;
+}
+
+.ad-detail-modal-placeholder-icon-wrap {
+  opacity: 0.9;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+}
+
+.ad-detail-modal-placeholder-text {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: -0.01em;
+}
+
+/* Modal Asosiy Tana Qismi */
+.ad-detail-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.ad-detail-modal-advertiser-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ad-detail-modal-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #182232;
+  color: #38bdf8;
+  font-size: 0.72rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.ad-detail-modal-brand-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.ad-detail-modal-category {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.ad-detail-modal-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 2px 0 0;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+
+.ad-detail-modal-desc {
+  font-size: 0.84rem;
+  color: #8b9bb4;
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* Tugmalar qatori: Moviy Qo'ng'iroq qilish + Telegram */
+.ad-detail-modal-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.ad-detail-modal-btn-call {
+  flex: 1;
+  height: 46px;
+  border-radius: 12px;
+  background: #0ea5e9;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.3);
+}
+
+.ad-detail-modal-btn-call:hover {
+  background: #0284c7;
+  transform: translateY(-1px);
+}
+
+.ad-detail-modal-btn-telegram {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: #181d28;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.ad-detail-modal-btn-telegram:hover {
+  background: #232a3b;
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.3);
+  transform: translateY(-1px);
+}
+
+/* Telefon raqami */
+.ad-detail-modal-phone-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.ad-detail-modal-phone-text-link {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.ad-detail-modal-phone-text-link:hover {
+  color: #38bdf8;
+  text-decoration: underline;
+}
+
+/* Pastki chiziq va Havolalar */
+.ad-detail-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  margin-top: 2px;
+}
+
+.ad-detail-modal-footer-tag {
+  font-size: 0.72rem;
+  color: #526075;
+  font-weight: 600;
+}
+
+.ad-detail-modal-footer-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.74rem;
+  color: #8292a8;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.ad-detail-modal-footer-link:hover {
+  color: #38bdf8;
+}
+
+/* Light Theme for AdDetailModal */
+body.light-theme .ad-detail-modal-card {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
+}
+
+body.light-theme .ad-detail-modal-badge-reklama {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+body.light-theme .ad-detail-modal-close-btn {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+body.light-theme .ad-detail-modal-avatar {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+body.light-theme .ad-detail-modal-brand-name {
+  color: #0f172a;
+}
+
+body.light-theme .ad-detail-modal-category {
+  color: #64748b;
+}
+
+body.light-theme .ad-detail-modal-title {
+  color: #0f172a;
+}
+
+body.light-theme .ad-detail-modal-desc {
+  color: #475569;
+}
+
+body.light-theme .ad-detail-modal-btn-telegram {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #475569;
+}
+
+body.light-theme .ad-detail-modal-phone-text-link {
+  color: #0f172a;
+}
+
+body.light-theme .ad-detail-modal-footer {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+body.light-theme .ad-detail-modal-footer-tag {
+  color: #94a3b8;
+}
+
+body.light-theme .ad-detail-modal-footer-link {
+  color: #64748b;
+}

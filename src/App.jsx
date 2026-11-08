@@ -1,16 +1,8 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import AuthScreen from "./components/AuthScreen";
+import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense, lazy } from "react";
 import BottomNav from "./components/BottomNav";
 import StationCard from "./components/StationCard";
 import StationCardSkeleton from "./components/StationCardSkeleton";
-import StationDetailModal from "./components/StationDetailModal";
-import ProfileDetailModal from "./components/ProfileDetailModal";
-import NotificationsView from "./components/NotificationsView";
-import AddStationModal from "./components/AddStationModal";
-import MapView, { stationMatchesFuel, DEFAULT_DEMO_STATIONS } from "./components/MapView";
-import NavigationMode from "./components/NavigationMode";
 import SplashScreen from "./components/SplashScreen";
-import SettingsSection, { THEME_PRESETS } from "./components/SettingsSection";
 import { DesktopSideBanner, MobileAdBanner } from "./components/AdBannerCard";
 import DeleteStationModal from "./components/DeleteStationModal";
 import PendingInspectionModal from "./components/PendingInspectionModal";
@@ -18,7 +10,75 @@ import ServicesModal from "./components/ServicesModal";
 import LogoutConfirmModal from "./components/LogoutConfirmModal";
 import StationBellModal from "./components/StationBellModal";
 import PhoneEditModal from "./components/PhoneEditModal";
-import { CITIES, INITIAL_STATIONS, MOCK_NEWS } from "./data/mockData";
+import { CITIES, INITIAL_STATIONS, MOCK_NEWS, DEFAULT_DEMO_STATIONS, DEFAULT_THEME } from "./data/mockData";
+import { stationMatchesFuel } from "./utils/fuel";
+
+// Lazy loaded heavy views and modals for optimal code-splitting
+const AuthScreen = lazy(() => import("./components/AuthScreen"));
+const MapView = lazy(() => import("./components/MapView"));
+const NavigationMode = lazy(() => import("./components/NavigationMode"));
+const AddStationModal = lazy(() => import("./components/AddStationModal"));
+const SettingsSection = lazy(() => import("./components/SettingsSection"));
+const NotificationsView = lazy(() => import("./components/NotificationsView"));
+const StationDetailModal = lazy(() => import("./components/StationDetailModal"));
+const ProfileDetailModal = lazy(() => import("./components/ProfileDetailModal"));
+const StationReviewModal = lazy(() => import("./components/StationReviewModal"));
+
+const MapLoadingFallback = () => (
+  <div
+    style={{
+      width: "100%",
+      height: "100%",
+      minHeight: "350px",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#0e1117",
+      color: "#94a3b8",
+      gap: "12px",
+    }}
+  >
+    <div
+      style={{
+        width: "36px",
+        height: "36px",
+        border: "3px solid rgba(56, 189, 248, 0.2)",
+        borderTopColor: "#38bdf8",
+        borderRadius: "50%",
+        animation: "spin 1s linear infinite",
+      }}
+    />
+    <span style={{ fontSize: "14px", fontWeight: 500 }}>Xarita yuklanmoqda...</span>
+  </div>
+);
+
+const SectionLoadingFallback = () => (
+  <div
+    style={{
+      padding: "40px 20px",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: "300px",
+      gap: "12px",
+      color: "#94a3b8",
+    }}
+  >
+    <div
+      style={{
+        width: "32px",
+        height: "32px",
+        border: "3px solid rgba(56, 189, 248, 0.2)",
+        borderTopColor: "#38bdf8",
+        borderRadius: "50%",
+        animation: "spin 1s linear infinite",
+      }}
+    />
+    <span style={{ fontSize: "13px" }}>Yuklanmoqda...</span>
+  </div>
+);
 import { calculateDistance } from "./utils/distance";
 import { playReopenAlertSound } from "./utils/audio";
 import api from "./api/client";
@@ -69,6 +129,8 @@ import {
   UserPlus,
   ArrowRight,
   Lock,
+  Megaphone,
+  ExternalLink,
 } from "lucide-react";
 import "./App.css";
 
@@ -111,9 +173,9 @@ export default function App() {
       const saved = localStorage.getItem("myup_theme_palette");
       const parsed = saved ? JSON.parse(saved) : null;
       if (parsed && typeof parsed === "object" && parsed.bg) return parsed;
-      return THEME_PRESETS?.[0] || { bg: '#0e0e10', panel: '#1a1a1c', card: '#222225', border: 'rgba(255,255,255,0.08)', accent: '#38bdf8' };
+      return DEFAULT_THEME;
     } catch {
-      return THEME_PRESETS?.[0] || { bg: '#0e0e10', panel: '#1a1a1c', card: '#222225', border: 'rgba(255,255,255,0.08)', accent: '#38bdf8' };
+      return DEFAULT_THEME;
     }
   });
 
@@ -144,9 +206,14 @@ export default function App() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
+  const [prevTab, setPrevTab] = useState("home");
+
   const handleTabChange = (newTab, customAuthMode = "register") => {
     setAuthInitialMode(customAuthMode);
     if (newTab === activeTab) return;
+    if (newTab === "advertising") {
+      setPrevTab(activeTab || "home");
+    }
     window.history.pushState({ tab: newTab }, "");
     setActiveTab(newTab);
     if (newTab !== "my") {
@@ -155,7 +222,23 @@ export default function App() {
     }
   };
 
-  const [stations, setStations] = useState(INITIAL_STATIONS);
+  const [stations, setStations] = useState(() => {
+    try {
+      const storedRatings = JSON.parse(localStorage.getItem("myup_custom_ratings") || "{}");
+      return INITIAL_STATIONS.map((s) => {
+        if (storedRatings[s.id]) {
+          return {
+            ...s,
+            rating: storedRatings[s.id].rating,
+            reviewsCount: (s.reviewsCount || 1) + storedRatings[s.id].count,
+          };
+        }
+        return s;
+      });
+    } catch (e) {
+      return INITIAL_STATIONS;
+    }
+  });
   const [favorites, setFavorites] = useState(() => {
     try {
       const saved = localStorage.getItem("myup_favorites");
@@ -175,6 +258,66 @@ export default function App() {
       return [];
     }
   });
+
+  // Foydalanuvchi hisobi va shahobchalarini PostgreSQL bazasidan sinxronlash (Multi-device sync)
+  useEffect(() => {
+    const token = localStorage.getItem("myup_token");
+    if (!token) return;
+
+    // 1. Foydalanuvchi profilini yangilash (mavjud barcha joylashuv maydonlarini asragan holda)
+    api.auth
+      .getMe()
+      .then((res) => {
+        if (res.success && res.user) {
+          setUser((prev) => {
+            const updated = {
+              ...(prev || {}),
+              id: res.user.id,
+              firstName: res.user.first_name || prev?.firstName || "Foydalanuvchi",
+              lastName: res.user.last_name || prev?.lastName || "",
+              phoneNumber: res.user.phone || prev?.phoneNumber,
+              role: res.user.role || prev?.role || "user",
+              hasLocation: Boolean(res.user.has_location || prev?.hasLocation),
+              bio: res.user.bio || prev?.bio || "",
+              avatar: res.user.avatar_url || prev?.avatar,
+              registeredAt: res.user.created_at || prev?.registeredAt,
+              locationName: prev?.locationName || "",
+              responsiblePerson: prev?.responsiblePerson || "",
+              locationAddress: prev?.locationAddress || "",
+              locationPhone: prev?.locationPhone || "",
+              locationImage: prev?.locationImage || null,
+              registeredViaLocation: prev?.registeredViaLocation ?? true,
+            };
+            try {
+              localStorage.setItem("myup_user", JSON.stringify(updated));
+            } catch (e) {}
+            return updated;
+          });
+        }
+      })
+      .catch((err) => {
+        console.warn("Profil tekshiruvi:", err.message);
+      });
+
+    // 2. Foydalanuvchining barcha shahobchalarini yangilash (mavjudlarini o'chirib yubormasdan birlashtirish)
+    api.stations
+      .getMyStations()
+      .then((res) => {
+        if (res.success && Array.isArray(res.stations) && res.stations.length > 0) {
+          setMyStations((prev) => {
+            const map = new Map();
+            (prev || []).forEach((s) => map.set(s.id, s));
+            res.stations.forEach((s) => map.set(s.id, { ...(map.get(s.id) || {}), ...s }));
+            const merged = Array.from(map.values());
+            try {
+              localStorage.setItem("myup_my_stations", JSON.stringify(merged));
+            } catch (e) {}
+            return merged;
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
   const [showAddStation, setShowAddStation] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showServicesModal, setShowServicesModal] = useState(false);
@@ -313,7 +456,7 @@ export default function App() {
             playReopenAlertSound();
 
             // 2. Tizim Web Notification yuborish (telefon/kompyuter foni yoki dasturdan tashqarida bo'lsa ham)
-            const notifTitle = "A-Maps Tizimi";
+            const notifTitle = "AX-Map Tizimi";
             const notifBody = "Kiritilgan vaqtga yetib kelindi! Manzilingiz ochildimi? Foydalanuvchilar kutmoqda";
 
             if ("Notification" in window && Notification.permission === "granted") {
@@ -428,7 +571,7 @@ export default function App() {
     return formatted;
   };
 
-  const handleAuthSuccess = (loggedUser, newStation) => {
+  const handleAuthSuccess = (loggedUser, newStation, userStations = null) => {
     setUser(loggedUser);
     if (newStation) {
       setMyStations((prev) => {
@@ -439,6 +582,21 @@ export default function App() {
         } catch (e) {}
         return updated;
       });
+    } else if (Array.isArray(userStations)) {
+      setMyStations(userStations);
+      try {
+        localStorage.setItem("myup_my_stations", JSON.stringify(userStations));
+      } catch (e) {}
+    } else if (loggedUser?.id || loggedUser?.phoneNumber) {
+      api.stations
+        .getMyStations({ userId: loggedUser.id, phone: loggedUser.phoneNumber })
+        .then((res) => {
+          if (res.success && Array.isArray(res.stations)) {
+            setMyStations(res.stations);
+            localStorage.setItem("myup_my_stations", JSON.stringify(res.stations));
+          }
+        })
+        .catch(() => {});
     }
   };
 
@@ -823,6 +981,9 @@ export default function App() {
   const [showPhoneEditModal, setShowPhoneEditModal] = useState(false);
   const [pendingPhoneStationId, setPendingPhoneStationId] = useState(null);
   const [tempPhone, setTempPhone] = useState("");
+  const [showAddFuelRow, setShowAddFuelRow] = useState(false);
+  const [newFuelType, setNewFuelType] = useState("benzin");
+  const [newFuelPrice, setNewFuelPrice] = useState("9500");
 
   const currentManageStation = useMemo(() => {
     return myStations.find((s) => s.id === selectedManageStationId) || null;
@@ -839,6 +1000,42 @@ export default function App() {
 
   // In-App Navigation State
   const [navigationTarget, setNavigationTarget] = useState(null);
+  const [pendingReviewStation, setPendingReviewStation] = useState(null);
+
+  // Tashrif buyurilgan shahobchani dasturga qayta kirganda baholash oynasi
+  useEffect(() => {
+    if (navigationTarget) return;
+
+    const checkPendingReview = () => {
+      try {
+        const saved = localStorage.getItem("myup_pending_review_station");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.id) {
+            setPendingReviewStation(parsed);
+          }
+        }
+      } catch (e) {}
+    };
+
+    const timer = setTimeout(checkPendingReview, 800);
+    return () => clearTimeout(timer);
+  }, [navigationTarget]);
+
+  const handleReviewSubmit = (stationId, rating, feedbackData) => {
+    handleRateStation(stationId, rating);
+    try {
+      localStorage.removeItem("myup_pending_review_station");
+    } catch (e) {}
+    setPendingReviewStation(null);
+  };
+
+  const handleReviewDismiss = () => {
+    try {
+      localStorage.removeItem("myup_pending_review_station");
+    } catch (e) {}
+    setPendingReviewStation(null);
+  };
 
   const [selectedCity] = useState(CITIES[0]);
   const [userCoords, setUserCoords] = useState({
@@ -847,8 +1044,8 @@ export default function App() {
   });
 
   // Category & sub-filter (global — hamma tabda ishlaydi)
-  const [activeCategory, setActiveCategory] = useState("fuel"); // 'all' | 'fuel'
-  const [fuelSubFilter, setFuelSubFilter] = useState("metan");
+  const [activeCategory, setActiveCategory] = useState("all"); // 'all' | 'fuel'
+  const [fuelSubFilter, setFuelSubFilter] = useState("all");
   const [fuelSortBy, setFuelSortBy] = useState("nearest"); // nearest, nearest_cheap, cheapest, nearest_best
 
   // Jonli video reklamalar (A-Maps Super Admin orqali boshqariladi)
@@ -946,7 +1143,21 @@ export default function App() {
         userLng: userCoords?.lng,
       });
       if (res.success && Array.isArray(res.stations)) {
-        setStations(res.stations);
+        let mergedStations = res.stations;
+        try {
+          const storedRatings = JSON.parse(localStorage.getItem("myup_custom_ratings") || "{}");
+          mergedStations = res.stations.map((s) => {
+            if (storedRatings[s.id]) {
+              return {
+                ...s,
+                rating: storedRatings[s.id].rating,
+                reviewsCount: (s.reviewsCount || 1) + storedRatings[s.id].count,
+              };
+            }
+            return s;
+          });
+        } catch (e) {}
+        setStations(mergedStations);
 
         // myStations ro'yxatini bazadagi jonli tasdiqlangan shahobchalar bilan sinxronlashtirish
         setMyStations((prev) => {
@@ -1018,16 +1229,16 @@ export default function App() {
   // Chap tomon reklamalari (faqat chap yoki ikkala tomon uchun ko'rsatiladi)
   const leftAds = useMemo(() => {
     return sortedAds.filter((a) => {
-      const s = String(a.side || '').toLowerCase();
-      return s === "left" || s === "both" || s === "all";
+      const s = String(a.side || '').toLowerCase().trim();
+      return !s || s === "left" || s === "both" || s === "all";
     });
   }, [sortedAds]);
 
   // O'ng tomon reklamalari (faqat o'ng yoki ikkala tomon uchun ko'rsatiladi)
   const rightAds = useMemo(() => {
     return sortedAds.filter((a) => {
-      const s = String(a.side || '').toLowerCase();
-      return s === "right" || s === "both" || s === "all";
+      const s = String(a.side || '').toLowerCase().trim();
+      return !s || s === "right" || s === "both" || s === "all";
     });
   }, [sortedAds]);
 
@@ -1036,6 +1247,31 @@ export default function App() {
   const rightAd = rightAds[0] || null;
   const mobileAds = sortedAds;
   const mobileAd = mobileAds[0] || null;
+
+  // Asosiy bo'limda kompyuter holatida xarita ostidagi reklama
+  const homeMapBottomAd = useMemo(() => {
+    if (!Array.isArray(activeAds)) return null;
+    return activeAds.find((a) => a && a.is_active !== false && (a.side === 'map_bottom' || a.side === 'both')) || null;
+  }, [activeAds]);
+
+  useEffect(() => {
+    if (homeMapBottomAd?.id && !String(homeMapBottomAd.id).startsWith('sample')) {
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const timer = setTimeout(() => {
+        fetch(`${apiBase}/ads/${homeMapBottomAd.id}/view`, { method: 'POST' }).catch(() => {});
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [homeMapBottomAd?.id]);
+
+  const handleOpenAdLink = useCallback((adItem) => {
+    if (adItem && adItem.id) {
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      fetch(`${apiBase}/ads/${adItem.id}/click`, { method: 'POST' }).catch(() => {});
+    }
+    const link = adItem?.target_link || adItem?.targetLink || 'https://t.me/amaps_support';
+    window.open(link.startsWith('http') ? link : `https://${link}`, '_blank');
+  }, []);
 
   const [searchQuery, setSearchQuery] = useState("");
   // Qidiruv tarixi
@@ -1154,22 +1390,47 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem("myup_user");
     localStorage.removeItem("myup_token");
+    localStorage.removeItem("myup_my_stations");
+    localStorage.removeItem("myup_incoming_notifications");
+    localStorage.removeItem("myup_notif_unread");
+    localStorage.removeItem("myup_notif_unread_count");
     setUser(null);
+    setMyStations([]);
+    setUnreadNotifCount(0);
+    setHasUnreadNotification(false);
+    setSelectedManageStationId(null);
+    setShowNotificationsPage(false);
   };
 
   const handleRateStation = (stationId, newRating) => {
+    // 1. Yangi bahoni doimiy xotiraga (localStorage) saqlash
+    try {
+      const storedRatings = JSON.parse(localStorage.getItem("myup_custom_ratings") || "{}");
+      const current = storedRatings[stationId] || { count: 0, sum: 0 };
+      const newCount = current.count + 1;
+      const newSum = current.sum + newRating;
+      storedRatings[stationId] = {
+        count: newCount,
+        sum: newSum,
+        rating: Number((newSum / newCount).toFixed(1)),
+        lastUpdated: Date.now(),
+      };
+      localStorage.setItem("myup_custom_ratings", JSON.stringify(storedRatings));
+    } catch (e) {}
+
+    // 2. Shahobchalarni yangilash
     const updateFn = (st) => {
       if (st.id === stationId) {
         const currentCount = st.reviewsCount || 1;
         const currentRating = st.rating || 5.0;
         const newCount = currentCount + 1;
-        const newAvg = (currentRating * currentCount + newRating) / newCount;
+        const newAvg = Number(((currentRating * currentCount + newRating) / newCount).toFixed(1));
         return { ...st, rating: newAvg, reviewsCount: newCount };
       }
       return st;
     };
-    setStations(stations.map(updateFn));
-    setMyStations(myStations.map(updateFn));
+    setStations((prev) => prev.map(updateFn));
+    setMyStations((prev) => prev.map(updateFn));
   };
 
   const handleNavigate = (station) => {
@@ -1478,33 +1739,45 @@ export default function App() {
     setReopenModal({ isOpen: false, stationId: null });
   };
 
-  const allAvailableFuels = [
-    { id: "metan", label: "Gaz (Metan)", icon: Flame, color: "#0ea5e9" },
-    { id: "propan", label: "Propan", icon: Droplets, color: "#a855f7" },
-    { id: "benzin", label: "Benzin", icon: Fuel, color: "#f59e0b" },
-    { id: "elektr", label: "Elektr", icon: Zap, color: "#10b981" },
-  ];
+  const allAvailableFuels = useMemo(
+    () => [
+      { id: "metan", label: "Gaz (Metan)", icon: Flame, color: "#0ea5e9" },
+      { id: "propan", label: "Propan", icon: Droplets, color: "#a855f7" },
+      { id: "benzin", label: "Benzin", icon: Fuel, color: "#f59e0b" },
+      { id: "elektr", label: "Elektr", icon: Zap, color: "#10b981" },
+    ],
+    []
+  );
 
   const activeFuelsList = useMemo(() => {
     if (!currentManageStation) return [];
-    const types = currentManageStation.type || [];
-    if (types.length === 0) {
-      return allAvailableFuels.slice(0, 2);
-    }
-    const matched = allAvailableFuels.filter((f) => types.includes(f.id));
-    return matched.length > 0 ? matched : allAvailableFuels.slice(0, 2);
-  }, [currentManageStation]);
+    const types = Array.isArray(currentManageStation.types) && currentManageStation.types.length > 0
+      ? currentManageStation.types
+      : (Array.isArray(currentManageStation.type) && currentManageStation.type.length > 0
+        ? currentManageStation.type
+        : Object.keys(currentManageStation.prices || {}));
+
+    return allAvailableFuels.filter((f) => types.includes(f.id));
+  }, [currentManageStation, allAvailableFuels]);
+
+  const availableFuelsToAdd = useMemo(() => {
+    return allAvailableFuels.filter(
+      (f) => !activeFuelsList.some((af) => af.id === f.id)
+    );
+  }, [allAvailableFuels, activeFuelsList]);
 
   const pressureFuelsList = useMemo(() => {
     if (!currentManageStation) return [];
-    const types = currentManageStation.type || [];
-    const gasOnly = allAvailableFuels.filter(
-      (f) =>
-        (f.id === "metan" || f.id === "propan") &&
-        (types.length === 0 || types.includes(f.id))
+    const types = Array.isArray(currentManageStation.types) && currentManageStation.types.length > 0
+      ? currentManageStation.types
+      : (Array.isArray(currentManageStation.type) && currentManageStation.type.length > 0
+        ? currentManageStation.type
+        : Object.keys(currentManageStation.prices || {}));
+
+    return allAvailableFuels.filter(
+      (f) => (f.id === "metan" || f.id === "propan") && types.includes(f.id)
     );
-    return gasOnly.length > 0 ? gasOnly : allAvailableFuels.slice(0, 2);
-  }, [currentManageStation]);
+  }, [currentManageStation, allAvailableFuels]);
 
   const getPressureStatus = (pressure) => {
     const p = Number(pressure);
@@ -1559,7 +1832,15 @@ export default function App() {
   const updateStationField = (stationId, fieldsToUpdate) => {
     const updateFn = (s) =>
       s.id === stationId ? { ...s, ...fieldsToUpdate } : s;
-    setMyStations((prev) => prev.map(updateFn));
+    setMyStations((prev) => {
+      const updated = prev.map(updateFn);
+      try {
+        localStorage.setItem("myup_my_stations", JSON.stringify(updated));
+      } catch (e) {
+        console.error("Local storage error:", e);
+      }
+      return updated;
+    });
     setStations((prev) => prev.map(updateFn));
   };
 
@@ -1574,7 +1855,7 @@ export default function App() {
     setTempPhone("");
   };
 
-  const handleUpdatePressure = (stationId, fuelKey, val) => {
+  const handleUpdatePressure = async (stationId, fuelKey, val) => {
     let num = val === "" ? "" : parseInt(val, 10);
     if (num !== "") {
       num = Math.min(205, Math.max(0, num));
@@ -1593,21 +1874,172 @@ export default function App() {
       return updated;
     };
 
-    setMyStations((prev) => prev.map(updateFn));
+    setMyStations((prev) => {
+      const updated = prev.map(updateFn);
+      try {
+        localStorage.setItem("myup_my_stations", JSON.stringify(updated));
+      } catch (e) {
+        console.error("Local storage error:", e);
+      }
+      return updated;
+    });
     setStations((prev) => prev.map(updateFn));
+
+    try {
+      await api.stations.updateFuelPrice(stationId, fuelKey, {
+        pressure: num !== "" ? num : 0,
+      });
+    } catch (e) {
+      console.warn("Backend updateFuelPrice (pressure) ogohlantirish:", e.message);
+    }
   };
 
-  const handleUpdatePrice = (stationId, fuelKey, priceVal) => {
+  const handleUpdatePrice = async (stationId, fuelKey, priceVal) => {
     let num = parseInt(priceVal, 10);
     const updateFn = (s) => {
       if (s.id !== stationId) return s;
       const newPrices = { ...(s.prices || {}) };
       if (isNaN(num) || num <= 0) delete newPrices[fuelKey];
       else newPrices[fuelKey] = num;
-      return { ...s, prices: newPrices };
+
+      const curTypes = Array.isArray(s.types)
+        ? s.types
+        : Array.isArray(s.type)
+        ? s.type
+        : Object.keys(s.prices || {});
+      const newTypes = Array.from(new Set([...curTypes, fuelKey]));
+
+      return { ...s, prices: newPrices, type: newTypes, types: newTypes };
     };
-    setMyStations((prev) => prev.map(updateFn));
+
+    setMyStations((prev) => {
+      const updated = prev.map(updateFn);
+      try {
+        localStorage.setItem("myup_my_stations", JSON.stringify(updated));
+      } catch (e) {
+        console.error("Local storage error:", e);
+      }
+      return updated;
+    });
     setStations((prev) => prev.map(updateFn));
+
+    try {
+      await api.stations.updateFuelPrice(stationId, fuelKey, {
+        price: !isNaN(num) && num > 0 ? num : 0,
+        isAvailable: !isNaN(num) && num > 0,
+      });
+    } catch (e) {
+      console.warn("Backend updateFuelPrice ogohlantirish:", e.message);
+    }
+  };
+
+  const handleDeleteFuel = async (stationId, fuelKey) => {
+    const fuelObj = allAvailableFuels.find((f) => f.id === fuelKey);
+    const fuelName = fuelObj ? fuelObj.label : fuelKey;
+    const confirmDelete = window.confirm(
+      `Haqiqatan ham "${fuelName}" yoqilg'i turini o'chirmoqchimisiz?\n\nBu yoqilg'i xaritada va shahobchangizda boshqa ko'rsatilmaydi.`
+    );
+    if (!confirmDelete) return;
+
+    const updateFn = (s) => {
+      if (s.id !== stationId) return s;
+      const curTypes = Array.isArray(s.types)
+        ? s.types
+        : Array.isArray(s.type)
+        ? s.type
+        : Object.keys(s.prices || {});
+      const newTypes = curTypes.filter((t) => t !== fuelKey);
+
+      const newPrices = { ...(s.prices || {}) };
+      delete newPrices[fuelKey];
+
+      const newPressures = { ...(s.pressures || {}) };
+      delete newPressures[fuelKey];
+
+      const updated = {
+        ...s,
+        type: newTypes,
+        types: newTypes,
+        prices: newPrices,
+        pressures: newPressures,
+      };
+
+      if (fuelKey === "metan" || !newTypes.includes("metan")) {
+        updated.gasPressure = null;
+      }
+      return updated;
+    };
+
+    setMyStations((prev) => {
+      const updated = prev.map(updateFn);
+      try {
+        localStorage.setItem("myup_my_stations", JSON.stringify(updated));
+      } catch (e) {
+        console.error("Local storage error:", e);
+      }
+      return updated;
+    });
+    setStations((prev) => prev.map(updateFn));
+
+    try {
+      await api.stations.deleteFuel(stationId, fuelKey);
+    } catch (e) {
+      console.warn("Backend deleteFuel ogohlantirish:", e.message);
+    }
+  };
+
+  const handleAddFuel = async (stationId, fuelKey, priceVal) => {
+    let num = parseInt(priceVal, 10);
+    if (isNaN(num) || num <= 0) {
+      alert("Iltimos, haqiqiy narx kiriting (masalan: 3800, 5500, 9500)");
+      return;
+    }
+
+    const updateFn = (s) => {
+      if (s.id !== stationId) return s;
+      const curTypes = Array.isArray(s.types)
+        ? s.types
+        : Array.isArray(s.type)
+        ? s.type
+        : Object.keys(s.prices || {});
+      const newTypes = Array.from(new Set([...curTypes, fuelKey]));
+
+      const newPrices = { ...(s.prices || {}), [fuelKey]: num };
+      const newPressures = { ...(s.pressures || {}) };
+      if ((fuelKey === "metan" || fuelKey === "propan") && !newPressures[fuelKey]) {
+        newPressures[fuelKey] = 200;
+      }
+
+      return {
+        ...s,
+        type: newTypes,
+        types: newTypes,
+        prices: newPrices,
+        pressures: newPressures,
+        gasPressure: fuelKey === "metan" ? (s.gasPressure || 200) : s.gasPressure,
+      };
+    };
+
+    setMyStations((prev) => {
+      const updated = prev.map(updateFn);
+      try {
+        localStorage.setItem("myup_my_stations", JSON.stringify(updated));
+      } catch (e) {
+        console.error("Local storage error:", e);
+      }
+      return updated;
+    });
+    setStations((prev) => prev.map(updateFn));
+
+    try {
+      await api.stations.updateFuelPrice(stationId, fuelKey, {
+        price: num,
+        pressure: fuelKey === "metan" ? 200 : 0,
+        isAvailable: true,
+      });
+    } catch (e) {
+      console.warn("Backend updateFuelPrice ogohlantirish:", e.message);
+    }
   };
 
   const handleToggleAmenity = (stationId, amenityKey) => {
@@ -1709,13 +2141,10 @@ export default function App() {
           if (!matches) return false;
         }
         if (
-          activeCategory === "fuel" &&
+          (activeCategory === "fuel" || fuelSubFilter !== "all") &&
           fuelSubFilter !== "all"
         ) {
-          const tList = Array.isArray(st.type)
-            ? st.type
-            : (st.type ? [st.type] : (st.types ? st.types : []));
-          if (!tList.some((t) => String(t).toLowerCase() === String(fuelSubFilter).toLowerCase())) {
+          if (!stationMatchesFuel(st, fuelSubFilter)) {
             return false;
           }
         }
@@ -1759,15 +2188,14 @@ export default function App() {
           if (pA > pB) return 1;
           return (a.calculatedDistance || 0) - (b.calculatedDistance || 0);
         });
-      } else if (fuelSortBy === "nearest_best") {
+      } else if (fuelSortBy === "rating" || fuelSortBy === "nearest_best") {
         result.sort((a, b) => {
-          const aNear = (a.calculatedDistance || 0) <= 28;
-          const bNear = (b.calculatedDistance || 0) <= 28;
-          if (aNear && !bNear) return -1;
-          if (!aNear && bNear) return 1;
           const rA = Number(a.rating) || 0;
           const rB = Number(b.rating) || 0;
-          if (rA !== rB) return rB - rA;
+          if (rB !== rA) return rB - rA;
+          const cA = Number(a.reviewsCount) || 0;
+          const cB = Number(b.reviewsCount) || 0;
+          if (cB !== cA) return cB - cA;
           return (a.calculatedDistance || 0) - (b.calculatedDistance || 0);
         });
       }
@@ -1801,11 +2229,13 @@ export default function App() {
 
   if (navigationTarget) {
     return (
-      <NavigationMode
-        targetStation={navigationTarget}
-        userCoords={userCoords}
-        onClose={() => setNavigationTarget(null)}
-      />
+      <Suspense fallback={<SectionLoadingFallback />}>
+        <NavigationMode
+          targetStation={navigationTarget}
+          userCoords={userCoords}
+          onClose={() => setNavigationTarget(null)}
+        />
+      </Suspense>
     );
   }
 
@@ -1840,7 +2270,7 @@ export default function App() {
           style={{ cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}
         >
           <h1>
-            A-maps.<span style={{ color: "#38bdf8" }}>uz</span>
+            AX-Map<span style={{ color: "#38bdf8" }}>.uz</span>
           </h1>
         </div>
 
@@ -1995,9 +2425,11 @@ export default function App() {
                   title="Xaritadan topish"
                 >
                   <picture>
+                    <source media="(min-width: 769px)" srcSet="/map-preview-desktop.webp" type="image/webp" />
                     <source media="(min-width: 769px)" srcSet="/map-preview-desktop.png" />
+                    <source srcSet="/map-preview.webp" type="image/webp" />
                     <img
-                      src="/map-preview.jpg"
+                      src="/map-preview.webp"
                       alt="Xaritadan topish"
                       className="mobile-map-banner-img"
                     />
@@ -2045,26 +2477,120 @@ export default function App() {
               </div>
             </div>
 
-            {/* RIGHT PANEL MAP */}
+            {/* RIGHT PANEL MAP & BOTTOM 70PX AD */}
             <div className="right-panel-map">
-              <MapView
-                stations={combinedUniqueStations}
-                activeFuelFilter={fuelSubFilter}
-                onFuelFilterChange={(newFilter) => {
-                  setFuelSubFilter(newFilter);
-                  setActiveCategory(newFilter === "all" ? "all" : "fuel");
-                }}
-                onSelectStation={setDetailStation}
-                searchQuery={searchQuery}
-                showSidebar={false}
-                userCoords={userCoords}
-              />
+              <div className="home-map-container">
+                <Suspense fallback={<MapLoadingFallback />}>
+                  <MapView
+                    stations={combinedUniqueStations}
+                    activeFuelFilter={fuelSubFilter}
+                    onFuelFilterChange={(newFilter) => {
+                      setFuelSubFilter(newFilter);
+                      setActiveCategory(newFilter === "all" ? "all" : "fuel");
+                    }}
+                    onSelectStation={setDetailStation}
+                    onNavigate={handleNavigate}
+                    searchQuery={searchQuery}
+                    showSidebar={false}
+                    userCoords={userCoords}
+                    ads={activeAds}
+                    onOpenAdvertising={() => handleTabChange("advertising")}
+                  />
+                </Suspense>
+              </div>
+
+              {/* ASOSIY BO'LIMDA XARITA TAGIDAGI KATTA (~300PX) REKLAMA JOYI */}
+              <div className="home-desktop-ad-bar" role="region" aria-label="Reklama">
+                {homeMapBottomAd ? (
+                  <div
+                    className="home-desktop-ad-content active-ad"
+                    onClick={() => handleOpenAdLink(homeMapBottomAd)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    {(homeMapBottomAd.video_url || homeMapBottomAd.media_url) ? (
+                      <div className="home-desktop-ad-media-full">
+                        <img
+                          src={homeMapBottomAd.video_url || homeMapBottomAd.media_url}
+                          alt={homeMapBottomAd.title || 'Reklama'}
+                          className="home-desktop-ad-cover-img"
+                        />
+                        <div className="home-desktop-ad-media-overlay" />
+                        <div className="home-desktop-ad-media-content">
+                          <h4 className="home-desktop-ad-media-title">{homeMapBottomAd.title}</h4>
+                          {homeMapBottomAd.description && (
+                            <p className="home-desktop-ad-media-desc">{homeMapBottomAd.description}</p>
+                          )}
+                          <button
+                            type="button"
+                            className="home-desktop-ad-btn-large"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenAdLink(homeMapBottomAd);
+                            }}
+                          >
+                            <span>Batafsil ma'lumot</span>
+                            <ExternalLink size={15} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="home-desktop-ad-center-box">
+                        <h4 className="home-desktop-ad-title-large">{homeMapBottomAd.title}</h4>
+                        {homeMapBottomAd.description && (
+                          <p className="home-desktop-ad-desc-large">{homeMapBottomAd.description}</p>
+                        )}
+                        <button
+                          type="button"
+                          className="home-desktop-ad-btn-large"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenAdLink(homeMapBottomAd);
+                          }}
+                        >
+                          <span>Batafsil ko'rish</span>
+                          <ExternalLink size={15} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div
+                    className="home-desktop-ad-content placeholder-300"
+                    onClick={() => handleTabChange("advertising")}
+                    role="button"
+                    tabIndex={0}
+                    title="Reklama haqida batafsil ma'lumot"
+                  >
+                    <div className="home-desktop-ad-center-box">
+                      <div className="home-desktop-ad-icon-ring-large">
+                        <Megaphone size={34} color="#38bdf8" />
+                      </div>
+                      <h3 className="home-desktop-ad-title-large">Reklama joylash</h3>
+                      <p className="home-desktop-ad-desc-large">
+                        Ushbu katta maydonda biznesingiz yoki xizmatingiz reklamasini joylashtiring. Millionlab mijozlar e'tiborini jalb qiling!
+                      </p>
+                      <button
+                        type="button"
+                        className="home-desktop-ad-btn-large"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTabChange("advertising");
+                        }}
+                      >
+                        <span>Batafsil</span>
+                        <ChevronRight size={18} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {activeTab !== "home" && activeTab !== "map" && activeTab !== "settings" && (
+      {activeTab !== "home" && activeTab !== "map" && activeTab !== "settings" && activeTab !== "advertising" && (
         <main className={`content-area pb-20 ${activeTab === "my" ? "profile-content-area" : ""}`}>
           {/* MY (PROFILE) */}
           {activeTab === "my" && !user && (
@@ -2084,20 +2610,22 @@ export default function App() {
               }}
             >
               {/* CHAP TOMON REKLAMA (Faqat kompyuter holatida) */}
-              <DesktopSideBanner ads={leftAds} ad={leftAd} side="left" customClass="auth-desktop-side-banner" />
+              <DesktopSideBanner ads={leftAds} ad={leftAd} side="left" customClass="auth-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
 
               {/* O'RTA ASOSIY RO'YXATDAN O'TISH / KIRISH QISMI */}
               <div className="auth-center-col profile-center-main-col">
-                <AuthScreen 
-                  key={authInitialMode}
-                  onLoginSuccess={handleAuthSuccess} 
-                  isLight={isThemeLight} 
-                  initialMode={authInitialMode} 
-                />
+                <Suspense fallback={<SectionLoadingFallback />}>
+                  <AuthScreen 
+                    key={authInitialMode}
+                    onLoginSuccess={handleAuthSuccess} 
+                    isLight={isThemeLight} 
+                    initialMode={authInitialMode} 
+                  />
+                </Suspense>
               </div>
 
               {/* O'NG TOMON REKLAMA (Faqat kompyuter holatida) */}
-              <DesktopSideBanner ads={rightAds} ad={rightAd} side="right" customClass="auth-desktop-side-banner" />
+              <DesktopSideBanner ads={rightAds} ad={rightAd} side="right" customClass="auth-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
             </div>
           )}
           {activeTab === "my" && user && (
@@ -2114,7 +2642,7 @@ export default function App() {
               }}
             >
               {/* CHAP TOMON REKLAMA VIDEOSI (Left Side Video Ad Banner) */}
-              <DesktopSideBanner ads={leftAds} ad={leftAd} side="left" />
+              <DesktopSideBanner ads={leftAds} ad={leftAd} side="left" onOpenAdvertising={() => handleTabChange("advertising")} />
 
               {/* O'RTA ASOSIY PROFIL BO'LIMI (Center Main Profile Section) */}
               <div className="profile-center-main-col">
@@ -2384,10 +2912,111 @@ export default function App() {
                                     />
                                   </div>
                                 )}
+
+                                {/* O'chirish tugmasi */}
+                                <button
+                                  type="button"
+                                  className="fuel-row-delete-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteFuel(currentManageStation.id, fuel.id);
+                                  }}
+                                  title={`${fuel.label} yoqilg'i turini o'chirish`}
+                                  aria-label={`${fuel.label} yoqilg'i turini o'chirish`}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
                               </div>
                             </div>
                           );
                         })}
+
+                        {activeFuelsList.length === 0 && (
+                          <div style={{
+                            padding: '16px',
+                            textAlign: 'center',
+                            color: '#94a3b8',
+                            fontSize: '0.9rem',
+                            border: '1px dashed rgba(255, 255, 255, 0.15)',
+                            borderRadius: '14px',
+                            margin: '8px 0'
+                          }}>
+                            Hozircha sotiladigan yoqilg'i turlari yo'q. Quyidagi tugma orqali qo'shishingiz mumkin.
+                          </div>
+                        )}
+
+                        {/* Yangi yoqilg'i turi qo'shish paneli */}
+                        {availableFuelsToAdd.length > 0 && (
+                          showAddFuelRow ? (
+                            <div className="add-fuel-inline-card">
+                              <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--theme-text, #fff)', marginBottom: '4px' }}>
+                                Yangi yoqilg'i turini tanlang:
+                              </div>
+                              <div className="add-fuel-inline-fields">
+                                <select
+                                  value={newFuelType}
+                                  onChange={(e) => {
+                                    const fKey = e.target.value;
+                                    setNewFuelType(fKey);
+                                    const defP = fKey === 'metan' ? '3800' : fKey === 'propan' ? '5500' : fKey === 'elektr' ? '2500' : '9500';
+                                    setNewFuelPrice(defP);
+                                  }}
+                                  className="add-fuel-select"
+                                >
+                                  {availableFuelsToAdd.map((f) => (
+                                    <option key={f.id} value={f.id}>
+                                      {f.label}
+                                    </option>
+                                  ))}
+                                </select>
+                                <div className="add-fuel-price-wrap">
+                                  <input
+                                    type="number"
+                                    value={newFuelPrice}
+                                    onChange={(e) => setNewFuelPrice(e.target.value)}
+                                    placeholder="Narx"
+                                    className="add-fuel-price-input"
+                                  />
+                                  <span className="add-fuel-price-suffix">so'm</span>
+                                </div>
+                              </div>
+                              <div className="add-fuel-actions">
+                                <button
+                                  type="button"
+                                  className="add-fuel-btn-cancel"
+                                  onClick={() => setShowAddFuelRow(false)}
+                                >
+                                  Bekor qilish
+                                </button>
+                                <button
+                                  type="button"
+                                  className="add-fuel-btn-confirm"
+                                  onClick={() => {
+                                    handleAddFuel(currentManageStation.id, newFuelType, newFuelPrice);
+                                    setShowAddFuelRow(false);
+                                  }}
+                                >
+                                  <Plus size={15} /> Qo'shish
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className="add-fuel-trigger-btn"
+                              onClick={() => {
+                                const fKey = availableFuelsToAdd[0]?.id || 'benzin';
+                                setNewFuelType(fKey);
+                                const defP = fKey === 'metan' ? '3800' : fKey === 'propan' ? '5500' : fKey === 'elektr' ? '2500' : '9500';
+                                setNewFuelPrice(defP);
+                                setShowAddFuelRow(true);
+                              }}
+                            >
+                              <Plus size={16} />
+                              <span>Yoqilg'i turi qo'shish</span>
+                            </button>
+                          )
+                        )}
                       </div>
                     </div>
 
@@ -2549,28 +3178,30 @@ export default function App() {
                   /* ========================================================
                      ALOHIDA BO'LIM: BILDIRISHNOMALAR (Notifications View)
                      ======================================================== */
-                  <NotificationsView
-                    user={user}
-                    onBack={() => setShowNotificationsPage(false)}
-                    hasUnread={unreadNotifCount > 0 || hasUnreadNotification}
-                    onClearUnread={() => {
-                      setUnreadNotifCount(0);
-                      setHasUnreadNotification(false);
-                      try {
-                        localStorage.setItem("myup_notif_unread_count", "0");
-                        localStorage.setItem("myup_notif_unread", "false");
-                        localStorage.setItem("myup_notif_intro_seen", "true");
-                      } catch (e) {}
-                    }}
-                    onUpdateUser={setUser}
-                    onGoToAuth={() => {
-                      setShowNotificationsPage(false);
-                      handleTabChange("my");
-                    }}
-                    onGoToLocationRegister={handleGoToLocationRegister}
-                    isThemeLight={isThemeLight}
-                    appTheme={appTheme}
-                  />
+                  <Suspense fallback={<SectionLoadingFallback />}>
+                    <NotificationsView
+                      user={user}
+                      onBack={() => setShowNotificationsPage(false)}
+                      hasUnread={unreadNotifCount > 0 || hasUnreadNotification}
+                      onClearUnread={() => {
+                        setUnreadNotifCount(0);
+                        setHasUnreadNotification(false);
+                        try {
+                          localStorage.setItem("myup_notif_unread_count", "0");
+                          localStorage.setItem("myup_notif_unread", "false");
+                          localStorage.setItem("myup_notif_intro_seen", "true");
+                        } catch (e) {}
+                      }}
+                      onUpdateUser={setUser}
+                      onGoToAuth={() => {
+                        setShowNotificationsPage(false);
+                        handleTabChange("my");
+                      }}
+                      onGoToLocationRegister={handleGoToLocationRegister}
+                      isThemeLight={isThemeLight}
+                      appTheme={appTheme}
+                    />
+                  </Suspense>
                 ) : (
                   /* ========================================================
                      ASOSIY PROFIL BO'LIMI: JOYLASHUV VA FOYDALANUVCHI KARTALARI
@@ -2805,7 +3436,7 @@ export default function App() {
                                     Joylashuv qo'shish
                                   </span>
                                   <span className="add-station-banner-subtitle">
-                                    O'z xizmat ko'rsatish markazingizni A-Maps ga joylashtiring
+                                    O'z xizmat ko'rsatish markazingizni AX-Map ga joylashtiring
                                   </span>
                                 </div>
                                 <div className="add-station-banner-arrow">
@@ -2927,7 +3558,7 @@ export default function App() {
               </div>
 
               {/* O'NG TOMON REKLAMA VIDEOSI (Right Side Video Ad Banner) */}
-              <DesktopSideBanner ads={rightAds} ad={rightAd} side="right" />
+              <DesktopSideBanner ads={rightAds} ad={rightAd} side="right" onOpenAdvertising={() => handleTabChange("advertising")} />
             </div>
           )}
         </main>
@@ -2946,12 +3577,23 @@ export default function App() {
             zIndex: 5,
           }}
         >
-          <MapView
-            stations={filteredStations}
-            onSelectStation={setDetailStation}
-            showSidebar={true}
-            userCoords={userCoords}
-          />
+          <Suspense fallback={<MapLoadingFallback />}>
+            <MapView
+              stations={combinedUniqueStations}
+              activeFuelFilter={fuelSubFilter}
+              onFuelFilterChange={(newFilter) => {
+                setFuelSubFilter(newFilter);
+                setActiveCategory(newFilter === "all" ? "all" : "fuel");
+              }}
+              onSelectStation={setDetailStation}
+              onNavigate={handleNavigate}
+              searchQuery={searchQuery}
+              showSidebar={true}
+              userCoords={userCoords}
+              ads={activeAds}
+              onOpenAdvertising={() => handleTabChange("advertising")}
+            />
+          </Suspense>
         </div>
       )}
 
@@ -2973,98 +3615,188 @@ export default function App() {
           }}
         >
           {/* CHAP TOMON REKLAMA (Faqat kompyuter holatida) */}
-          <DesktopSideBanner ads={leftAds} ad={leftAd} side="left" customClass="settings-desktop-side-banner" />
+          <DesktopSideBanner ads={leftAds} ad={leftAd} side="left" customClass="settings-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
 
           {/* O'RTA ASOSIY SOZLAMALAR BO'LIMI */}
           <div className="settings-center-col profile-center-main-col">
-            {showNotificationsPage ? (
-              <NotificationsView
-                    user={user}
-                    onBack={() => setShowNotificationsPage(false)}
-                    hasUnread={unreadNotifCount > 0 || hasUnreadNotification}
-                    onClearUnread={() => {
-                      setUnreadNotifCount(0);
-                      setHasUnreadNotification(false);
-                      try {
-                        localStorage.setItem("myup_notif_unread_count", "0");
-                        localStorage.setItem("myup_notif_unread", "false");
-                        localStorage.setItem("myup_notif_intro_seen", "true");
-                      } catch (e) {}
-                    }}
-                    onUpdateUser={setUser}
-                    onGoToAuth={() => {
-                      setShowNotificationsPage(false);
-                      handleTabChange("my");
-                    }}
-                    onGoToLocationRegister={handleGoToLocationRegister}
-                    isThemeLight={isThemeLight}
-                    appTheme={appTheme}
-                  />
-            ) : (
-              <SettingsSection
-                currentTheme={appTheme}
-                onSaveTheme={handleSaveTheme}
-                user={user}
-                onLogout={() => setShowLogoutConfirm(true)}
-                onNavigateProfile={() => {
-                  if (user) {
-                    setShowProfileDetail(true);
-                  } else {
+            <Suspense fallback={<SectionLoadingFallback />}>
+              {showNotificationsPage ? (
+                <NotificationsView
+                  user={user}
+                  onBack={() => setShowNotificationsPage(false)}
+                  hasUnread={unreadNotifCount > 0 || hasUnreadNotification}
+                  onClearUnread={() => {
+                    setUnreadNotifCount(0);
+                    setHasUnreadNotification(false);
+                    try {
+                      localStorage.setItem("myup_notif_unread_count", "0");
+                      localStorage.setItem("myup_notif_unread", "false");
+                      localStorage.setItem("myup_notif_intro_seen", "true");
+                    } catch (e) {}
+                  }}
+                  onUpdateUser={setUser}
+                  onGoToAuth={() => {
+                    setShowNotificationsPage(false);
                     handleTabChange("my");
-                  }
-                }}
-                onOpenNotifications={handleOpenNotifications}
-                hasUnreadNotification={unreadNotifCount > 0 || hasUnreadNotification}
-                unreadCount={unreadNotifCount}
-              />
-            )}
+                  }}
+                  onGoToLocationRegister={handleGoToLocationRegister}
+                  isThemeLight={isThemeLight}
+                  appTheme={appTheme}
+                />
+              ) : (
+                <SettingsSection
+                  currentTheme={appTheme}
+                  onSaveTheme={handleSaveTheme}
+                  user={user}
+                  onLogout={() => setShowLogoutConfirm(true)}
+                  onNavigateProfile={() => {
+                    if (user) {
+                      setShowProfileDetail(true);
+                    } else {
+                      handleTabChange("my");
+                    }
+                  }}
+                  onOpenNotifications={handleOpenNotifications}
+                  hasUnreadNotification={unreadNotifCount > 0 || hasUnreadNotification}
+                  unreadCount={unreadNotifCount}
+                  onOpenAdvertising={() => handleTabChange("advertising")}
+                />
+              )}
+            </Suspense>
           </div>
 
           {/* O'NG TOMON REKLAMA (Faqat kompyuter holatida) */}
-          <DesktopSideBanner ads={rightAds} ad={rightAd} side="right" customClass="settings-desktop-side-banner" />
+          <DesktopSideBanner ads={rightAds} ad={rightAd} side="right" customClass="settings-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
+        </div>
+      )}
+
+      {/* REKLAMA BO'LIMI (Faqat reklama joylash tugmalari bosilganda ochiladi) */}
+      {activeTab === "advertising" && (
+        <div
+          className={`advertising-three-col-layout profile-three-col-layout ${isThemeLight ? "is-light" : ""}`}
+          style={{
+            '--theme-accent': appTheme?.accent || '#38bdf8',
+            '--theme-bg': appTheme?.bg || '#0e0e10',
+            '--theme-card': appTheme?.card || '#1c1c1e',
+            '--theme-border': appTheme?.border || 'rgba(255, 255, 255, 0.08)',
+            '--theme-panel': appTheme?.panel || '#161618',
+            '--theme-text': appTheme?.text || (isThemeLight ? '#0f172a' : '#ffffff'),
+            '--theme-muted': appTheme?.textMuted || (isThemeLight ? '#64748b' : '#94a3b8'),
+            minHeight: "100vh",
+            backgroundColor: appTheme?.bg || "var(--bg-primary, #0e0e10)",
+            color: appTheme?.text || (isThemeLight ? "#0f172a" : "#ffffff"),
+          }}
+        >
+          {/* CHAP TOMON REKLAMA (Faqat kompyuter holatida) */}
+          <DesktopSideBanner ads={leftAds} ad={leftAd} side="left" customClass="settings-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
+
+          {/* O'RTA ASOSIY REKLAMA BO'LIMI */}
+          <div className="advertising-center-col">
+            <div className="advertising-page-container">
+              <h1 className="advertising-hero-title">
+                Shoshilib kelyabmiz! Reklama joylash tez orada ishga tushadi
+              </h1>
+
+              <p className="advertising-hero-subtitle">
+                Dasturda foydalanuvchilarni ko'paytirmoqdamiz
+              </p>
+
+              <div className="advertising-status-pill">
+                <span className="advertising-status-pulse-dot" />
+                <span className="advertising-status-text">Tez orada ishga tushadi</span>
+              </div>
+
+              <div className="advertising-mascot-wrapper">
+                <img
+                  src="/amaps-lemon-transparent.png"
+                  alt="AX-Map Reklama Limon Mascoti"
+                  className="advertising-mascot-img"
+                />
+              </div>
+
+              <button
+                type="button"
+                className="advertising-primary-return-btn"
+                onClick={() => handleTabChange(prevTab || "home")}
+              >
+                <ArrowLeft size={20} />
+                <span>Orqaga qaytish</span>
+              </button>
+            </div>
+          </div>
+
+          {/* O'NG TOMON REKLAMA (Faqat kompyuter holatida) */}
+          <DesktopSideBanner ads={rightAds} ad={rightAd} side="right" customClass="settings-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
         </div>
       )}
 
       {/* Profile Detail Modal */}
-      <ProfileDetailModal
-        user={user}
-        isOpen={showProfileDetail}
-        onClose={() => setShowProfileDetail(false)}
-        onUpdateUser={setUser}
-        onLogout={handleLogout}
-      />
+      {showProfileDetail && (
+        <Suspense fallback={null}>
+          <ProfileDetailModal
+            user={user}
+            isOpen={showProfileDetail}
+            onClose={() => setShowProfileDetail(false)}
+            onUpdateUser={setUser}
+            onLogout={handleLogout}
+          />
+        </Suspense>
+      )}
 
       {/* Add / Edit Station Modal */}
-      <AddStationModal
-        isOpen={showAddStation}
-        onClose={() => {
-          setShowAddStation(false);
-          setEditingStation(null);
-        }}
-        onSave={handleSaveStation}
-        editStation={editingStation}
-        isLight={isThemeLight}
-        userCoords={userCoords}
-      />
+      {showAddStation && (
+        <Suspense fallback={null}>
+          <AddStationModal
+            isOpen={showAddStation}
+            onClose={() => {
+              setShowAddStation(false);
+              setEditingStation(null);
+            }}
+            onSave={handleSaveStation}
+            editStation={editingStation}
+            isLight={isThemeLight}
+            userCoords={userCoords}
+          />
+        </Suspense>
+      )}
 
-      <StationDetailModal
-        station={detailStation}
-        userDistance={
-          detailStation
-            ? calculateDistance(
-                userCoords.lat,
-                userCoords.lng,
-                detailStation.lat,
-                detailStation.lng,
-              )
-            : 0
-        }
-        onClose={() => setDetailStation(null)}
-        onStartNavigation={(target) => setNavigationTarget(target)}
-        onRateStation={handleRateStation}
-        isMyStation={myStations.some((s) => s.id === detailStation?.id)}
-        onDeleteStation={(st) => setStationToDelete(st)}
-      />
+      {Boolean(detailStation) && (
+        <Suspense fallback={null}>
+          <StationDetailModal
+            station={detailStation}
+            userDistance={
+              detailStation
+                ? calculateDistance(
+                    userCoords.lat,
+                    userCoords.lng,
+                    detailStation.lat,
+                    detailStation.lng,
+                  )
+                : 0
+            }
+            onClose={() => setDetailStation(null)}
+            onStartNavigation={(target) => setNavigationTarget(target)}
+            onRateStation={handleRateStation}
+            isMyStation={myStations.some((s) => s.id === detailStation?.id)}
+            onDeleteStation={(st) => setStationToDelete(st)}
+            onManageStation={(st) => {
+              setSelectedManageStationId(st.id);
+              setActiveTab('my');
+            }}
+          />
+        </Suspense>
+      )}
+
+      {/* Shahobchani baholash modali (tashrifdan so'ng) */}
+      {pendingReviewStation && (
+        <Suspense fallback={null}>
+          <StationReviewModal
+            station={pendingReviewStation}
+            onSubmit={handleReviewSubmit}
+            onClose={handleReviewDismiss}
+          />
+        </Suspense>
+      )}
 
       {/* Joylashuvni o'chirish modali */}
       <DeleteStationModal

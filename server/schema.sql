@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS ads (
     description TEXT,
     video_url TEXT NOT NULL,
     target_link TEXT,
-    side VARCHAR(20) DEFAULT 'both' CHECK (side IN ('left', 'right', 'both')),
+    side VARCHAR(20) DEFAULT 'both' CHECK (side IN ('left', 'right', 'both', 'map_bottom', 'map_sidebar')),
     is_active BOOLEAN DEFAULT true,
     views_count INTEGER DEFAULT 0,
     clicks_count INTEGER DEFAULT 0,
@@ -168,3 +168,30 @@ CREATE INDEX IF NOT EXISTS idx_user_notif_user ON user_notifications (user_id);
 CREATE INDEX IF NOT EXISTS idx_user_notif_phone ON user_notifications (user_phone);
 CREATE INDEX IF NOT EXISTS idx_user_notif_read ON user_notifications (is_read, read_at);
 CREATE INDEX IF NOT EXISTS idx_user_notif_created ON user_notifications (created_at DESC);
+
+-- 11. ILOVA TASHRIFLARI VA JONLI TRAFIK (App Visits & Analytics)
+CREATE TABLE IF NOT EXISTS app_visits (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    visitor_id VARCHAR(100) NOT NULL,
+    visited_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_seen TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_visits_date ON app_visits (visited_at);
+CREATE INDEX IF NOT EXISTS idx_visits_last_seen ON app_visits (last_seen);
+CREATE INDEX IF NOT EXISTS idx_visits_visitor ON app_visits (visitor_id);
+
+-- 12. ADMIN TO'LOV KARTALARI (Admin Cards & Billing)
+CREATE TABLE IF NOT EXISTS admin_cards (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    card_number VARCHAR(30) NOT NULL,
+    holder_name VARCHAR(100),
+    bank_name VARCHAR(100),
+    card_type VARCHAR(20) DEFAULT 'uzcard',
+    is_primary BOOLEAN DEFAULT false,
+    balance NUMERIC(15, 2) DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_cards_primary ON admin_cards (is_primary);
+

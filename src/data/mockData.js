@@ -51,3 +51,17 @@ export const MOCK_NEWS = [
 
 // Startap dastlabki holatida hech qanday manzil ko'rsatilmasligi uchun ro'yxat bo'shatildi
 export const INITIAL_STATIONS = [];
+export const DEFAULT_DEMO_STATIONS = [];
+
+export const DEFAULT_THEME = {
+  id: 'classic-dark',
+  name: 'Klassik Qora',
+  bg: '#0e0e10',
+  panel: '#1a1a1c',
+  card: '#222225',
+  border: 'rgba(255, 255, 255, 0.08)',
+  text: '#ffffff',
+  textMuted: '#a0a0a5',
+  accent: '#38bdf8',
+  isLight: false,
+};

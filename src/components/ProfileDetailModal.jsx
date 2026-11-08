@@ -168,7 +168,7 @@ export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser
           </div>
         </div>
 
-        {/* A-Maps xizmat markazi / Joylashuv holati */}
+        {/* AX-Map xizmat markazi / Joylashuv holati */}
         <div className="profile-detail-info-list" style={{ marginTop: '0.75rem' }}>
           <div 
             className="profile-detail-info-item" 
@@ -181,7 +181,7 @@ export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser
             </div>
             <div className="info-item-content" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
               <div>
-                <span className="info-item-label">A-Maps da xizmat ko'rsatish markazi</span>
+                <span className="info-item-label">AX-Map da xizmat ko'rsatish markazi</span>
                 <span className="info-item-value" style={{ color: isLocationActive ? '#38bdf8' : '#94a3b8', fontSize: '0.86rem' }}>
                   {isLocationActive ? "Bor (Joylashuvlar ko'rinadi)" : "Yo'q (Joylashuvlar yashiringan)"}
                 </span>

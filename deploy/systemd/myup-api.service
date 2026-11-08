@@ -1,0 +1,62 @@
+# ==============================================================================
+# SYSTEMD SERVICE CONFIGURATION FOR MYUP API
+# File: /etc/systemd/system/myup-api.service
+#
+# PURPOSE:
+# Native Linux systemd service unit to manage the Node.js Express backend process
+# as an alternative or complement to PM2.
+#
+# ACTIVATION INSTRUCTIONS:
+# 1. sudo cp deploy/systemd/myup-api.service /etc/systemd/system/myup-api.service
+# 2. sudo systemctl daemon-reload
+# 3. sudo systemctl enable myup-api.service
+# 4. sudo systemctl start myup-api.service
+# 5. sudo systemctl status myup-api.service
+# ==============================================================================
+
+[Unit]
+Description=MyUp Express Backend API Cluster Service
+Documentation=https://myup.uz
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+
+# Working Directory containing server package.json & src/server.js
+WorkingDirectory=/var/www/myup-server
+
+# Load production environment variables
+EnvironmentFile=-/var/www/myup-server/.env.production
+EnvironmentFile=-/var/www/myup-server/.env
+
+# Fallback default environment variables
+Environment=NODE_ENV=production
+Environment=PORT=5000
+
+# Executable launch command (points to system node binary)
+ExecStart=/usr/bin/node src/server.js
+
+# Auto-restart policies
+Restart=always
+RestartSec=5s
+
+# Process security and resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+TasksMax=infinity
+
+# Graceful termination (allows SIGTERM drain before SIGKILL)
+KillMode=control-group
+KillSignal=SIGTERM
+TimeoutStopSec=15s
+
+# Dedicated log output files (create /var/log/myup or ensure www-data permissions)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=myup-api
+
+[Install]
+WantedBy=multi-user.target

@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&display=swap');
-
 :root {
   --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-heading: 'Outfit', sans-serif;
@@ -95,15 +93,269 @@ button {
   cursor: pointer;
   border: none;
   background: none;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  -webkit-tap-highlight-color: transparent;
 }
 
 input, select, textarea {
   font-family: var(--font-main);
   outline: none;
+  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 a {
   color: inherit;
   text-decoration: none;
 }
+
+/* ==========================================================================
+   MICRO-INTERACTION & ANIMATION ENGINE (9.5+ RATING SYSTEM)
+   ========================================================================== */
+
+/* 1. Global Tactile Active Feedback (Haptic-like Elastic Bounce) */
+button:active:not(:disabled),
+.clickable:active,
+.fuel-btn:active,
+.custom-sort-btn:active,
+.custom-btn-details:active,
+.custom-btn-navigate:active,
+.modern-bottom-nav .bottom-nav-item:active,
+.mobile-map-find-banner:active,
+.sd-borish-action-btn:active,
+.load-more-stations-btn:active {
+  transform: scale(0.955) !important;
+  transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* 2. Fuel Selection Pills (Elastic Spring Animation) */
+.fuel-btn {
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.22s ease,
+              border-color 0.22s ease,
+              box-shadow 0.24s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.fuel-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px -2px rgba(0, 0, 0, 0.2) !important;
+}
+
+.fuel-btn.active {
+  animation: fuelPillSpring 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+@keyframes fuelPillSpring {
+  0% { transform: scale(0.92); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+/* 3. Sorting Pills (Smooth Physics) */
+.custom-sort-btn {
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.2s ease,
+              border-color 0.2s ease,
+              color 0.2s ease,
+              box-shadow 0.2s ease !important;
+}
+
+.custom-sort-btn:hover {
+  transform: translateY(-1.5px);
+}
+
+.custom-sort-btn.active {
+  animation: sortBtnPop 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+@keyframes sortBtnPop {
+  0% { transform: scale(0.94); }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* 4. Station Card Elevation & Smooth Physics */
+.custom-station-card {
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s ease,
+              background-color 0.2s ease !important;
+  will-change: transform, box-shadow;
+}
+
+.custom-station-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px -4px rgba(0, 0, 0, 0.16), 0 4px 10px -2px rgba(0, 0, 0, 0.08) !important;
+}
+
+.custom-station-card:active {
+  transform: scale(0.99) translateY(-1px) !important;
+}
+
+/* 5. Live Radar Pulsing Indicator for Open Stations */
+.custom-sc-status.custom-open {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  position: relative;
+}
+
+.custom-sc-status.custom-open::before {
+  content: '';
+  display: inline-block;
+  width: 6.5px;
+  height: 6.5px;
+  border-radius: 50%;
+  background-color: #10b981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: liveRadarPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+  flex-shrink: 0;
+}
+
+@keyframes liveRadarPulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.75);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 7px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+/* 6. Card Action Buttons (Batafsil / Borish) */
+.custom-btn-details,
+.custom-btn-navigate {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.2s ease,
+              box-shadow 0.2s ease,
+              background-color 0.2s ease !important;
+}
+
+.custom-btn-details:hover {
+  transform: translateY(-1.5px);
+  filter: brightness(1.08);
+}
+
+.custom-btn-navigate:hover {
+  transform: translateY(-1.5px);
+  filter: brightness(1.1);
+  box-shadow: 0 6px 20px -2px rgba(56, 189, 248, 0.45) !important;
+}
+
+/* 7. Bottom Navigation Micro-Bounce */
+.modern-bottom-nav .bottom-nav-item {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease !important;
+}
+
+.modern-bottom-nav .bottom-nav-item:hover {
+  transform: translateY(-1px);
+}
+
+.modern-bottom-nav .bottom-nav-item.active .nav-icon {
+  animation: navTabPop 0.38s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+@keyframes navTabPop {
+  0% { transform: scale(0.8); }
+  50% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+
+/* 8. Ultra-Fluid Modals & Bottom Sheets (Spring Physics) */
+.modal-backdrop,
+.sd-modal-backdrop,
+.station-bell-modal-backdrop,
+.super-admin-modal-backdrop,
+.auth-screen-backdrop {
+  animation: modernBackdropFade 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+
+@keyframes modernBackdropFade {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+}
+
+.modal-content,
+.sd-modal-sheet,
+.station-bell-modal-card,
+.modern-auth-card,
+.settings-modal-dialog {
+  animation: modernSpringZoom 0.34s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  will-change: transform, opacity;
+}
+
+@keyframes modernSpringZoom {
+  0% {
+    opacity: 0;
+    transform: scale(0.93) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* 9. Smooth Tab Content Transitions */
+.station-list,
+.left-panel,
+.settings-section-wrapper,
+.modern-services-sheet {
+  animation: fluidContentFade 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fluidContentFade {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 10. High-Quality Skeleton Shimmer Wave */
+@keyframes modernSkeletonShimmer {
+  0% {
+    background-position: -250% 0;
+  }
+  100% {
+    background-position: 250% 0;
+  }
+}
+
+.station-card-skeleton .skeleton-line {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 20%,
+    rgba(255, 255, 255, 0.13) 50%,
+    rgba(255, 255, 255, 0.03) 80%
+  ) !important;
+  background-size: 250% 100% !important;
+  animation: modernSkeletonShimmer 1.4s ease-in-out infinite !important;
+}
+
+.is-light .station-card-skeleton .skeleton-line,
+.dark-theme-home.is-light .station-card-skeleton .skeleton-line {
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.04) 20%,
+    rgba(0, 0, 0, 0.13) 50%,
+    rgba(0, 0, 0, 0.04) 80%
+  ) !important;
+  background-size: 250% 100% !important;
+  animation: modernSkeletonShimmer 1.4s ease-in-out infinite !important;
+}
+

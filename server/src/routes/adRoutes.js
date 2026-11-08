@@ -4,6 +4,7 @@ import {
   getAllAdminAds,
   createAd,
   toggleAdStatus,
+  updateAdSide,
   deleteAd,
   recordAdView,
   recordAdClick,
@@ -25,6 +26,8 @@ router.get('/admin', requireAdmin, getAllAdminAds);
 router.post('/admin', requireAdmin, createAd);
 router.patch('/admin/:id/status', requireAdmin, toggleAdStatus);
 router.patch('/:id/status', toggleAdStatus);
+router.patch('/admin/:id/side', requireAdmin, updateAdSide);
+router.patch('/:id/side', updateAdSide);
 router.delete('/admin/:id', requireAdmin, deleteAd);
 router.delete('/:id', deleteAd);
 
