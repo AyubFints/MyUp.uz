@@ -10,11 +10,11 @@ import ServicesModal from "./components/ServicesModal";
 import LogoutConfirmModal from "./components/LogoutConfirmModal";
 import StationBellModal from "./components/StationBellModal";
 import PhoneEditModal from "./components/PhoneEditModal";
+import AuthScreen from "./components/AuthScreen";
 import { CITIES, INITIAL_STATIONS, MOCK_NEWS, DEFAULT_DEMO_STATIONS, DEFAULT_THEME } from "./data/mockData";
 import { stationMatchesFuel } from "./utils/fuel";
 
 // Lazy loaded heavy views and modals for optimal code-splitting
-const AuthScreen = lazy(() => import("./components/AuthScreen"));
 const MapView = lazy(() => import("./components/MapView"));
 const NavigationMode = lazy(() => import("./components/NavigationMode"));
 const AddStationModal = lazy(() => import("./components/AddStationModal"));
@@ -2782,14 +2782,12 @@ export default function App() {
 
               {/* O'RTA ASOSIY RO'YXATDAN O'TISH / KIRISH QISMI */}
               <div className="auth-center-col profile-center-main-col">
-                <Suspense fallback={<SectionLoadingFallback />}>
-                  <AuthScreen 
-                    key={authInitialMode}
-                    onLoginSuccess={handleAuthSuccess} 
-                    isLight={isThemeLight} 
-                    initialMode={authInitialMode} 
-                  />
-                </Suspense>
+                <AuthScreen 
+                  key={authInitialMode}
+                  onLoginSuccess={handleAuthSuccess} 
+                  isLight={isThemeLight} 
+                  initialMode={authInitialMode} 
+                />
               </div>
 
               {/* O'NG TOMON REKLAMA (Faqat kompyuter holatida) */}

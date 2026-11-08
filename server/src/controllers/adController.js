@@ -14,7 +14,7 @@ export const getActiveAds = async (req, res) => {
 
     if (side) {
       params.push(side);
-      conditions.push(`(side = ${params.length} OR side = 'both')`);
+      conditions.push(`(side = $${params.length} OR side = 'both')`);
     }
 
     if (conditions.length > 0) {

@@ -46,7 +46,8 @@ export function sendAdClick(slide) {
   if (slideId.startsWith('sample')) return;
 
   const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-  fetch(`${apiBase}/ads/${slideId}/click`, { method: 'POST' }).catch(() => {});
+  const signal = typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined;
+  fetch(`${apiBase}/ads/${slideId}/click`, { method: 'POST', signal }).catch(() => {});
 }
 
 /**
@@ -58,7 +59,8 @@ export function sendAdView(slide) {
   if (slideId.startsWith('sample')) return;
 
   const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-  fetch(`${apiBase}/ads/${slideId}/view`, { method: 'POST' }).catch(() => {});
+  const signal = typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(3000) : undefined;
+  fetch(`${apiBase}/ads/${slideId}/view`, { method: 'POST', signal }).catch(() => {});
 }
 
 // Standart gradient ranglar (Rasmsiz haqiqiy reklamalar foni uchun)

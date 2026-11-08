@@ -58,7 +58,7 @@ const corsOptions = {
     }
 
     // Sozlangan domenlar ro'yxatida mavjudligini tekshirish
-    if (configuredOrigins.length === 0 || configuredOrigins.includes(origin)) {
+    if (configuredOrigins.length === 0 || configuredOrigins.includes('*') || configuredOrigins.includes(origin)) {
       return callback(null, true);
     }
 
@@ -127,24 +127,36 @@ app.get('/api/health', async (req, res) => {
 });
 
 // 7. Rate Limiting sozlamalari
-// Umumiy API cheklovi: har bir IP uchun 15 daqiqada 300 so'rov
+// Lokal ishlab chiqish yoki Super Admin so'rovlari bloklanmasligi uchun tekshirish
+const shouldSkipRateLimit = (req) => {
+  if (process.env.NODE_ENV !== 'production') return true;
+  const ip = req.ip || req.connection?.remoteAddress || '';
+  if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') return true;
+  const url = req.originalUrl || req.url || '';
+  if (url.includes('/api/admin') || url.includes('/api/ads/admin') || url.includes('/api/health')) return true;
+  return false;
+};
+
+// Umumiy API cheklovi: har bir IP uchun 15 daqiqada 5000 so'rov (ishlab chiqishda cheksiz)
 const generalApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX || '300', 10),
+  max: parseInt(process.env.RATE_LIMIT_MAX || '5000', 10),
   standardHeaders: 'draft-7',
   legacyHeaders: false,
+  skip: shouldSkipRateLimit,
   message: {
     success: false,
     message: "Juda ko'p so'rov yuborildi. Iltimos, 15 daqiqadan so'ng qayta urinib ko'ring.",
   },
 });
 
-// Qat'iy autentifikatsiya cheklovi: login va register uchun 15 daqiqada 20 so'rov
+// Qat'iy autentifikatsiya cheklovi: login va register uchun 15 daqiqada 100 so'rov (ishlab chiqishda cheksiz)
 const strictAuthLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '20', 10),
+  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '100', 10),
   standardHeaders: 'draft-7',
   legacyHeaders: false,
+  skip: shouldSkipRateLimit,
   message: {
     success: false,
     message: "Kirish yoki ro'yxatdan o'tish bo'yicha limit oshirildi. Iltimos, 15 daqiqadan so'ng urinib ko'ring.",
@@ -183,6 +195,16 @@ const server = app.listen(PORT, () => {
   console.log(`🌐 Manzil: http://localhost:${PORT}`);
   console.log(`🩺 Health check: http://localhost:${PORT}/api/health`);
   console.log(`=========================================`);
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.log(`\x1b[33m[Port ${PORT}]\x1b[0m Server allaqachon ishlab turibdi. Yangi nusxa ochish shart emas.`);
+    process.exit(0);
+  } else {
+    console.error('Server ishga tushish xatosi:', err);
+    process.exit(1);
+  }
 });
 
 let isShuttingDown = false;

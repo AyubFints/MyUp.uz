@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'myup-api',
       script: './src/server.js',
-      instances: process.env.PM2_INSTANCES || 'max',
+      instances: process.env.PM2_INSTANCES || 2,
       exec_mode: 'cluster',
       autorestart: true,
       watch: false,

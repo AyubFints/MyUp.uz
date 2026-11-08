@@ -11,16 +11,31 @@ async function request(endpoint, options = {}) {
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  // 4 soniyalik tezkor timeout (telefonda tarmoq qotib qolishini oldini oladi)
+  const controller = new AbortController();
+  const timeoutMs = options.timeout || 4000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data.message || `So'rovda xatolik yuz berdi (${response.status})`);
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+      signal: options.signal || controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data.message || `So'rovda xatolik yuz berdi (${response.status})`);
+    }
+    return data;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error("Server javob berish vaqti tugadi (Timeout)");
+    }
+    throw err;
   }
-  return data;
 }
 
 export const api = {
