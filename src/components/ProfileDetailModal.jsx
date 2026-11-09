@@ -2,7 +2,15 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Camera, Phone, Calendar, User, FileText, LogOut, Edit3, ImagePlus, MapPin } from 'lucide-react';
 import { api } from '../api/client';
 
-export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser, onLogout }) {
+export default function ProfileDetailModal({
+  user,
+  isOpen,
+  onClose,
+  onUpdateUser,
+  onLogout,
+  isLight = false,
+  appTheme,
+}) {
   const [bio, setBio] = useState(user?.bio || '');
   const [editingBio, setEditingBio] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState(false);
@@ -15,19 +23,35 @@ export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser
   if (!isOpen || !user) return null;
 
   const hasRealPhoto = user.avatar && !user.avatar.includes('dicebear');
-
   const isLocationActive = Boolean(user?.hasLocation || user?.has_location);
+
+  const panelBg = isLight ? '#ffffff' : (appTheme?.panel || '#18181b');
+  const cardBg = isLight ? '#f1f5f9' : (appTheme?.card || '#222226');
+  const borderColor = isLight ? '#e2e8f0' : (appTheme?.border || 'rgba(255, 255, 255, 0.1)');
+  const textPrimary = isLight ? '#0f172a' : (appTheme?.text || '#ffffff');
+  const textMuted = isLight ? '#64748b' : (appTheme?.textMuted || '#94a3b8');
 
   const handleToggleLocation = async () => {
     const nextState = !isLocationActive;
-    const updated = { ...user, hasLocation: nextState, has_location: nextState };
+    const updated = {
+      ...user,
+      hasLocation: nextState,
+      has_location: nextState,
+      canAddStation: nextState,
+      can_add_station: nextState,
+    };
     localStorage.setItem('myup_user', JSON.stringify(updated));
     if (typeof onUpdateUser === 'function') {
       onUpdateUser(updated);
     }
 
     try {
-      await api.auth.updateProfile({ hasLocation: nextState });
+      await api.auth.updateProfile({
+        hasLocation: nextState,
+        canAddStation: nextState,
+        userId: user?.id,
+        phone: user?.phoneNumber || user?.phone,
+      });
     } catch (err) {
       console.warn("Location toggle sync error:", err.message);
     }
@@ -59,7 +83,11 @@ export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser
         onUpdateUser(newUser);
 
         // Multi-device sync: PostgreSQL bazasiga saqlaymiz (boshqa barcha telefonlarda ham ko'rinadi)
-        api.auth.updateProfile({ avatarUrl: croppedDataUrl })
+        api.auth.updateProfile({
+          avatarUrl: croppedDataUrl,
+          userId: user?.id,
+          phone: user?.phoneNumber || user?.phone,
+        })
           .then((res) => {
             if (res.success && res.user) {
               const syncedUser = {
@@ -86,18 +114,37 @@ export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser
     setEditingBio(false);
 
     try {
-      await api.auth.updateProfile({ bio });
+      await api.auth.updateProfile({
+        bio,
+        userId: user?.id,
+        phone: user?.phoneNumber || user?.phone,
+      });
     } catch (err) {
       console.warn("Bio sync error:", err.message);
     }
   };
 
   return (
-    <div className="profile-detail-overlay" onClick={onClose}>
-      <div className="profile-detail-sheet" onClick={e => e.stopPropagation()}>
-        
+    <div className={`profile-detail-overlay ${isLight ? 'is-light' : ''}`} onClick={onClose}>
+      <div 
+        className={`profile-detail-sheet ${isLight ? 'is-light' : ''}`} 
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: panelBg,
+          borderColor: borderColor,
+          color: textPrimary,
+        }}
+      >
         {/* Close button */}
-        <button className="profile-detail-close" onClick={onClose}>
+        <button 
+          className="profile-detail-close" 
+          onClick={onClose}
+          style={{
+            background: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)',
+            borderColor: borderColor,
+            color: textMuted,
+          }}
+        >
           <X size={20} />
         </button>
 
@@ -108,6 +155,9 @@ export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser
             <div
               className="profile-detail-avatar-large"
               onClick={() => hasRealPhoto && setViewingPhoto(true)}
+              style={{
+                borderColor: borderColor,
+              }}
             >
               {hasRealPhoto ? (
                 <img src={user.avatar} alt={user.firstName} />
@@ -135,7 +185,9 @@ export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser
             style={{ display: 'none' }}
             onChange={handlePhotoUpload}
           />
-          <h2 className="profile-detail-name">{user.firstName} {user.lastName}</h2>
+          <h2 className="profile-detail-name" style={{ color: textPrimary }}>
+            {user.firstName} {user.lastName}
+          </h2>
         </div>
 
         {/* Rasmni katta ko'rish */}
@@ -148,10 +200,16 @@ export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser
         )}
 
         {/* Bio */}
-        <div className="profile-detail-bio-box">
+        <div 
+          className="profile-detail-bio-box"
+          style={{
+            background: cardBg,
+            borderColor: borderColor,
+          }}
+        >
           <div className="profile-detail-bio-header">
             <FileText size={16} />
-            <span>O'zim haqimda</span>
+            <span style={{ color: textMuted }}>O'zim haqimda</span>
             <button className="bio-edit-btn" onClick={() => setEditingBio(!editingBio)}>
               <Edit3 size={14} />
             </button>
@@ -164,11 +222,16 @@ export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser
                 placeholder="O'zingiz haqingizda yozing..."
                 maxLength={200}
                 rows={3}
+                style={{
+                  background: isLight ? '#ffffff' : (appTheme?.bg || '#14161f'),
+                  borderColor: borderColor,
+                  color: textPrimary,
+                }}
               />
               <button className="bio-save-btn" onClick={handleSaveBio}>Saqlash</button>
             </div>
           ) : (
-            <p className="profile-detail-bio-text">
+            <p className="profile-detail-bio-text" style={{ color: textPrimary }}>
               {user.bio || "Hali hech narsa yozilmagan..."}
             </p>
           )}
@@ -176,23 +239,35 @@ export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser
 
         {/* Info list */}
         <div className="profile-detail-info-list">
-          <div className="profile-detail-info-item">
+          <div 
+            className="profile-detail-info-item"
+            style={{
+              background: cardBg,
+              borderColor: borderColor,
+            }}
+          >
             <div className="info-item-icon phone-icon">
               <Phone size={18} />
             </div>
             <div className="info-item-content">
-              <span className="info-item-label">Telefon raqam</span>
-              <span className="info-item-value">{user.phoneNumber}</span>
+              <span className="info-item-label" style={{ color: textMuted }}>Telefon raqam</span>
+              <span className="info-item-value" style={{ color: textPrimary }}>{user.phoneNumber}</span>
             </div>
           </div>
 
-          <div className="profile-detail-info-item">
+          <div 
+            className="profile-detail-info-item"
+            style={{
+              background: cardBg,
+              borderColor: borderColor,
+            }}
+          >
             <div className="info-item-icon calendar-icon">
               <Calendar size={18} />
             </div>
             <div className="info-item-content">
-              <span className="info-item-label">Tug'ilgan sana</span>
-              <span className="info-item-value">{user.birthDate || '—'}</span>
+              <span className="info-item-label" style={{ color: textMuted }}>Tug'ilgan sana</span>
+              <span className="info-item-value" style={{ color: textPrimary }}>{user.birthDate || '—'}</span>
             </div>
           </div>
         </div>
@@ -201,17 +276,21 @@ export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser
         <div className="profile-detail-info-list" style={{ marginTop: '0.75rem' }}>
           <div 
             className="profile-detail-info-item" 
-            style={{ cursor: 'pointer' }} 
+            style={{ 
+              cursor: 'pointer',
+              background: cardBg,
+              borderColor: borderColor,
+            }} 
             onClick={handleToggleLocation}
             title="Joylashuv qo'shish bo'limini yoqish yoki o'chirish"
           >
-            <div className="info-item-icon" style={{ background: isLocationActive ? 'rgba(56, 189, 248, 0.15)' : 'rgba(148, 163, 184, 0.1)', color: isLocationActive ? '#38bdf8' : '#94a3b8' }}>
+            <div className="info-item-icon" style={{ background: isLocationActive ? 'rgba(56, 189, 248, 0.15)' : 'rgba(148, 163, 184, 0.1)', color: isLocationActive ? '#38bdf8' : textMuted }}>
               <MapPin size={18} />
             </div>
             <div className="info-item-content" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
               <div>
-                <span className="info-item-label">AX-Map da xizmat ko'rsatish markazi</span>
-                <span className="info-item-value" style={{ color: isLocationActive ? '#38bdf8' : '#94a3b8', fontSize: '0.86rem' }}>
+                <span className="info-item-label" style={{ color: textMuted }}>AX-Map da xizmat ko'rsatish markazi</span>
+                <span className="info-item-value" style={{ color: isLocationActive ? '#38bdf8' : textMuted, fontSize: '0.86rem' }}>
                   {isLocationActive ? "Bor (Joylashuvlar ko'rinadi)" : "Yo'q (Joylashuvlar yashiringan)"}
                 </span>
               </div>

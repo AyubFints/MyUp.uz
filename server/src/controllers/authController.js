@@ -186,7 +186,7 @@ export const login = async (req, res) => {
     await query(
       `UPDATE stations 
        SET owner_id = $1 
-       WHERE owner_id IS NULL AND (REPLACE(phone, ' ', '') = $2 OR phone = $3)`,
+       WHERE (owner_id IS NULL OR owner_id != $1) AND (REPLACE(phone, ' ', '') = $2 OR phone = $3)`,
       [rawUser.id, cleanInputPhone, rawUser.phone]
     ).catch(() => {});
 
@@ -230,6 +230,15 @@ export const login = async (req, res) => {
         images: Array.isArray(st.images) && st.images.length > 0 ? st.images : ['https://images.unsplash.com/photo-1545459720-aac8509eb02c?auto=format&fit=crop&w=600&q=80'],
       };
     });
+
+    // Multi-device sync: agar foydalanuvchining shahobchalari bo'lsa yoki avval has_location yoqilgan bo'lsa
+    if (stations.length > 0 || rawUser.has_location) {
+      if (!rawUser.has_location || !rawUser.can_add_station) {
+        rawUser.has_location = true;
+        rawUser.can_add_station = true;
+        await query(`UPDATE users SET has_location = true, can_add_station = true WHERE id = $1`, [rawUser.id]).catch(() => {});
+      }
+    }
 
     // 3. Foydalanuvchiga kelgan barcha bildirishnomalarni olish (location_guide 2 kun, boshqalari 1 kun)
     const notifsResult = await query(
@@ -289,8 +298,22 @@ export const updateProfile = async (req, res) => {
     const { 
       firstName, lastName, bio, avatarUrl, avatar, hasLocation, 
       locationName, responsiblePerson, locationPhone, locationImage,
-      canAddStation, registeredViaLocation, role, password 
+      canAddStation, registeredViaLocation, role, password,
+      userId, phone: bodyPhone
     } = req.body;
+
+    let targetUserId = req.user ? req.user.id : (userId || req.body.id || null);
+    if (!targetUserId && bodyPhone) {
+      const cleanP = String(bodyPhone).replace(/\s+/g, '');
+      const uRes = await query(`SELECT id FROM users WHERE REPLACE(phone, ' ', '') = $1 OR phone = $2 LIMIT 1`, [cleanP, bodyPhone]);
+      if (uRes.rows.length > 0) {
+        targetUserId = uRes.rows[0].id;
+      }
+    }
+
+    if (!targetUserId) {
+      return res.status(401).json({ success: false, message: 'Foydalanuvchi aniqlanmadi. Qayta kiring.' });
+    }
 
     const finalAvatar = avatarUrl || avatar || null;
 
@@ -332,7 +355,7 @@ export const updateProfile = async (req, res) => {
         registeredViaLocation !== undefined ? Boolean(registeredViaLocation) : null,
         role !== undefined ? role : null,
         passwordHash,
-        req.user.id
+        targetUserId
       ]
     );
 

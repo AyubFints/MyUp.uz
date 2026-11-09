@@ -326,10 +326,25 @@ export default function App() {
       });
 
     // 2. Foydalanuvchining barcha shahobchalarini yangilash (mavjudlarini o'chirib yubormasdan birlashtirish)
+    const storedUser = (() => {
+      try {
+        const s = localStorage.getItem("myup_user");
+        return s ? JSON.parse(s) : null;
+      } catch {
+        return null;
+      }
+    })();
+
+    const myStParams = {};
+    if (storedUser?.id) myStParams.userId = storedUser.id;
+    if (storedUser?.phoneNumber || storedUser?.phone) {
+      myStParams.phone = storedUser.phoneNumber || storedUser.phone;
+    }
+
     api.stations
-      .getMyStations()
+      .getMyStations(myStParams)
       .then((res) => {
-        if (res.success && Array.isArray(res.stations) && res.stations.length > 0) {
+        if (res.success && Array.isArray(res.stations)) {
           setMyStations((prev) => {
             const stMap = new Map();
             (prev || []).forEach((s) => stMap.set(s.id, s));
@@ -1681,7 +1696,7 @@ export default function App() {
         lng: station.lng,
         address: station.address,
         city: station.city || "Toshkent",
-        phone: station.phone,
+        phone: station.phone || user?.phoneNumber || user?.phone || "",
         isOpen: station.isOpen,
         prices: station.prices,
         pressures: station.pressures,
@@ -1692,16 +1707,49 @@ export default function App() {
         verificationImages: station.verificationImages,
         amenities: station.amenities,
         payments: station.payments,
+        userId: user?.id,
+        ownerId: user?.id,
+        createdBy: user?.id,
+        ownerPhone: user?.phoneNumber || user?.phone || "",
+        userPhone: user?.phoneNumber || user?.phone || "",
       });
 
       if (res.success && res.station) {
         const savedSt = res.station;
         console.log("✅ Shahobcha muvaffaqiyatli PostgreSQL ga saqlandi:", savedSt.id, savedSt.name);
+
+        // Multi-device sync: foydalanuvchida joylashuv faolligini darhol tasdiqlab qo'yamiz
+        if (user && (!user.hasLocation || !user.has_location || !user.canAddStation)) {
+          const updatedUser = {
+            ...user,
+            hasLocation: true,
+            has_location: true,
+            canAddStation: true,
+            can_add_station: true,
+          };
+          setUser(updatedUser);
+          try {
+            localStorage.setItem("myup_user", JSON.stringify(updatedUser));
+          } catch (e) {}
+          api.auth
+            .updateProfile({
+              hasLocation: true,
+              canAddStation: true,
+              userId: user.id,
+              phone: user.phoneNumber || user.phone,
+            })
+            .catch(() => {});
+        }
+
         setMyStations((prev) => {
           const exists = prev.find((s) => s.id === savedSt.id || s.id === station.id);
-          return exists
+          const nextList = exists
             ? prev.map((s) => (s.id === savedSt.id || s.id === station.id ? savedSt : s))
             : [savedSt, ...prev];
+          try {
+            localStorage.setItem("myup_my_stations", JSON.stringify(nextList));
+          } catch (e) {}
+          return nextList;
         });
         // Faqat admin tasdiqlagan bo'lsa (masalan Super Admin yaratgan bo'lsa), asosiy ro'yxatga qo'shiladi!
         const isApprovedBool = savedSt.isApproved === true || savedSt.is_approved === true;
@@ -4049,6 +4097,8 @@ export default function App() {
             onClose={() => setShowProfileDetail(false)}
             onUpdateUser={setUser}
             onLogout={handleLogout}
+            isLight={isThemeLight}
+            appTheme={appTheme}
           />
         </Suspense>
       )}

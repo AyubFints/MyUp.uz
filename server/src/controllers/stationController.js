@@ -1,5 +1,7 @@
 import { query } from '../config/db.js';
 
+const isUuid = (id) => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
 // Barcha shahobchalarni olish (masofa hisoblash va filtrlar bilan)
 export const getAllStations = async (req, res) => {
   try {
@@ -108,13 +110,13 @@ export const getMyStations = async (req, res) => {
     }
 
     const cleanPhone = phone ? phone.replace(/\s+/g, '') : '';
-    const isUuid = userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+    const validUuid = isUuid(userId) ? userId : null;
 
     let whereConditions = [];
     let params = [];
 
-    if (isUuid) {
-      params.push(userId);
+    if (validUuid) {
+      params.push(validUuid);
       whereConditions.push(`s.owner_id = $${params.length}`);
     }
     if (cleanPhone) {
@@ -126,11 +128,11 @@ export const getMyStations = async (req, res) => {
       return res.json({ success: true, count: 0, stations: [] });
     }
 
-    // Egasi bo'lmagan, lekin telefoni mos keladigan shahobchalarni biriktirish
-    if (isUuid && cleanPhone) {
+    // Egasi bo'lmagan yoki yangilanishi kerak bo'lgan, telefoni mos keladigan shahobchalarni biriktirish
+    if (validUuid && cleanPhone) {
       await query(
-        `UPDATE stations SET owner_id = $1 WHERE owner_id IS NULL AND (REPLACE(phone, ' ', '') = $2 OR phone = $3)`,
-        [userId, cleanPhone, phone]
+        `UPDATE stations SET owner_id = $1 WHERE (owner_id IS NULL OR owner_id != $1) AND (REPLACE(phone, ' ', '') = $2 OR phone = $3)`,
+        [validUuid, cleanPhone, phone]
       ).catch(() => {});
     }
 
@@ -178,6 +180,14 @@ export const getMyStations = async (req, res) => {
       };
     });
 
+    // Agar foydalanuvchining shahobchalari bo'lsa, profilida has_location va can_add_station ni yoqib qo'yamiz
+    if (validUuid && stations.length > 0) {
+      await query(
+        `UPDATE users SET has_location = true, can_add_station = true WHERE id = $1 AND (has_location = false OR can_add_station = false)`,
+        [validUuid]
+      ).catch(() => {});
+    }
+
     res.json({ success: true, count: stations.length, stations });
   } catch (err) {
     console.error('GetMyStations xatosi:', err);
@@ -213,15 +223,37 @@ export const createStation = async (req, res) => {
     }
 
     let ownerId = req.user ? req.user.id : null;
-    if (!ownerId && (phone || req.body.ownerPhone || req.body.createdBy)) {
-      const searchPhone = phone || req.body.ownerPhone || '';
-      const cleanPhone = searchPhone.replace(/\s+/g, '');
-      if (cleanPhone) {
-        const uRes = await query(`SELECT id FROM users WHERE REPLACE(phone, ' ', '') = $1 OR phone = $2 LIMIT 1`, [cleanPhone, searchPhone]);
-        if (uRes.rows.length > 0) {
-          ownerId = uRes.rows[0].id;
-        }
+    const requestedOwnerId = req.body.userId || req.body.ownerId || req.body.createdBy;
+    const requestedOwnerPhone = req.body.ownerPhone || req.body.userPhone || '';
+    const cleanOwnerPhone = requestedOwnerPhone ? requestedOwnerPhone.replace(/\s+/g, '') : '';
+    const cleanStationPhone = phone ? phone.replace(/\s+/g, '') : '';
+
+    if (!ownerId && requestedOwnerId && isUuid(requestedOwnerId)) {
+      const uRes = await query(`SELECT id FROM users WHERE id = $1 LIMIT 1`, [requestedOwnerId]);
+      if (uRes.rows.length > 0) {
+        ownerId = uRes.rows[0].id;
       }
+    }
+
+    if (!ownerId && cleanOwnerPhone) {
+      const uRes = await query(`SELECT id FROM users WHERE REPLACE(phone, ' ', '') = $1 OR phone = $2 LIMIT 1`, [cleanOwnerPhone, requestedOwnerPhone]);
+      if (uRes.rows.length > 0) {
+        ownerId = uRes.rows[0].id;
+      }
+    }
+
+    if (!ownerId && cleanStationPhone) {
+      const uRes = await query(`SELECT id FROM users WHERE REPLACE(phone, ' ', '') = $1 OR phone = $2 LIMIT 1`, [cleanStationPhone, phone]);
+      if (uRes.rows.length > 0) {
+        ownerId = uRes.rows[0].id;
+      }
+    }
+
+    if (ownerId) {
+      await query(
+        `UPDATE users SET has_location = true, can_add_station = true WHERE id = $1`,
+        [ownerId]
+      ).catch(() => {});
     }
     // Super admin yaratgan shahobcha avtomatik tasdiqlanadi
     const isApproved = req.user ? (req.user.role === 'super_admin') : false;
@@ -373,8 +405,6 @@ export const createStation = async (req, res) => {
     res.status(500).json({ success: false, message: 'Shahobcha saqlashda server xatoligi: ' + err.message });
   }
 };
-
-const isUuid = (id) => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
 // Holatni yangilash (ochiq/yopiq, ochilish vaqti, telefon)
 export const updateStationStatus = async (req, res) => {
