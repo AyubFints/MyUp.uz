@@ -919,7 +919,11 @@ export default function MapView({
       (err) => {
         setLocating(false);
         if (err.code === 1) {
-          setErrorMsg('Joylashuvga ruxsat berilmadi');
+          setErrorMsg("Joylashuvga ruxsat berilmadi");
+        } else if (err.code === 2) {
+          setErrorMsg("Qurilmangizda geolokatsiya (GPS) o'chiq. Iltimos, yoqing.");
+        } else {
+          setErrorMsg("Geolokatsiyani aniqlab bo'lmadi");
         }
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
