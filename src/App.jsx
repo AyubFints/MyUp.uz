@@ -3,6 +3,7 @@ import BottomNav from "./components/BottomNav";
 import StationCard from "./components/StationCard";
 import StationCardSkeleton from "./components/StationCardSkeleton";
 import SplashScreen from "./components/SplashScreen";
+import axLogoImg from "./assets/ax-logo.png";
 import { DesktopSideBanner, MobileAdBanner } from "./components/AdBannerCard";
 import DeleteStationModal from "./components/DeleteStationModal";
 import PendingInspectionModal from "./components/PendingInspectionModal";
@@ -14,6 +15,64 @@ import AuthScreen from "./components/AuthScreen";
 import StationDetailModal from "./components/StationDetailModal";
 import { CITIES, INITIAL_STATIONS, MOCK_NEWS, DEFAULT_DEMO_STATIONS, DEFAULT_THEME } from "./data/mockData";
 import { stationMatchesFuel } from "./utils/fuel";
+
+import { calculateDistance } from "./utils/distance";
+import { playReopenAlertSound } from "./utils/audio";
+import api from "./api/client";
+import {
+  Menu,
+  Fuel,
+  Flame,
+  Container,
+  Cylinder,
+  Plug,
+  Droplets,
+  Zap,
+  User,
+  ShieldCheck,
+  ChevronRight,
+  ChevronDown,
+  Plus,
+  Edit3,
+  MapPin,
+  Star,
+  Clock,
+  Phone,
+  Settings,
+  Home,
+  Search,
+  Map as MapIcon,
+  X,
+  Bookmark,
+  Newspaper,
+  Trash2,
+  Play,
+  Sparkles,
+  Info,
+  ArrowLeft,
+  Bell,
+  Check,
+  Coffee,
+  ShoppingBag,
+  CreditCard,
+  Banknote,
+  Building2,
+  Upload,
+  SkipForward,
+  CheckCircle2,
+  AlertCircle,
+  Eye,
+  EyeOff,
+  UserPlus,
+  ArrowRight,
+  Lock,
+  Megaphone,
+  ExternalLink,
+  Navigation,
+  MapPinOff,
+  LocateFixed,
+} from "lucide-react";
+import "./App.css";
 
 // Lazy loaded heavy views and modals for optimal code-splitting
 const MapView = lazy(() => import("./components/MapView"));
@@ -83,63 +142,6 @@ const SectionLoadingFallback = () => (
     <span style={{ fontSize: "13px" }}>Yuklanmoqda...</span>
   </div>
 );
-import { calculateDistance } from "./utils/distance";
-import { playReopenAlertSound } from "./utils/audio";
-import api from "./api/client";
-import {
-  Menu,
-  Fuel,
-  Flame,
-  Container,
-  Cylinder,
-  Plug,
-  Droplets,
-  Zap,
-  User,
-  ShieldCheck,
-  ChevronRight,
-  ChevronDown,
-  Plus,
-  Edit3,
-  MapPin,
-  Star,
-  Clock,
-  Phone,
-  Settings,
-  Home,
-  Search,
-  Map,
-  X,
-  Bookmark,
-  Newspaper,
-  Trash2,
-  Play,
-  Sparkles,
-  Info,
-  ArrowLeft,
-  Bell,
-  Check,
-  Coffee,
-  ShoppingBag,
-  CreditCard,
-  Banknote,
-  Building2,
-  Upload,
-  SkipForward,
-  CheckCircle2,
-  AlertCircle,
-  Eye,
-  EyeOff,
-  UserPlus,
-  ArrowRight,
-  Lock,
-  Megaphone,
-  ExternalLink,
-  Navigation,
-  MapPinOff,
-  LocateFixed,
-} from "lucide-react";
-import "./App.css";
 
 // Har bir sahifa ochilganda yoki refresh bo'lganda faqat 1 marta kirish signali yuboriladi
 let hasSentVisitOnThisLoad = false;
@@ -329,10 +331,10 @@ export default function App() {
       .then((res) => {
         if (res.success && Array.isArray(res.stations) && res.stations.length > 0) {
           setMyStations((prev) => {
-            const map = new Map();
-            (prev || []).forEach((s) => map.set(s.id, s));
-            res.stations.forEach((s) => map.set(s.id, { ...(map.get(s.id) || {}), ...s }));
-            const merged = Array.from(map.values());
+            const stMap = new Map();
+            (prev || []).forEach((s) => stMap.set(s.id, s));
+            res.stations.forEach((s) => stMap.set(s.id, { ...(stMap.get(s.id) || {}), ...s }));
+            const merged = Array.from(stMap.values());
             try {
               localStorage.setItem("myup_my_stations", JSON.stringify(merged));
             } catch (e) {}
@@ -2496,12 +2498,18 @@ export default function App() {
       {/* NEW GLOBAL DARK HEADER */}
       <header className="top-header">
         <div
-          className="logo"
+          className="logo header-logo-container"
           onClick={() => handleTabChange("home")}
-          style={{ cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}
+          style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "2px", flexShrink: 0 }}
+          title="AX-Map.uz"
         >
-          <h1>
-            AX-Map<span style={{ color: "#38bdf8" }}>.uz</span>
+          <img
+            src={axLogoImg}
+            alt="AX"
+            className="header-ax-img"
+          />
+          <h1 className="header-map-title">
+            -Map<span style={{ color: "#38bdf8" }}>.uz</span>
           </h1>
         </div>
 
@@ -2553,7 +2561,7 @@ export default function App() {
             className={`desktop-nav-item ${activeTab === "map" ? "active" : ""}`}
             onClick={() => handleTabChange("map")}
           >
-            <Map size={18} className="desktop-nav-icon" />
+            <MapIcon size={18} className="desktop-nav-icon" />
             <span>Xarita</span>
           </button>
           <button
@@ -2667,7 +2675,7 @@ export default function App() {
                   </picture>
                   <div className="mobile-map-banner-overlay">
                     <div className="mobile-map-banner-badge">
-                      <Map size={18} className="mobile-map-badge-icon" />
+                      <MapIcon size={18} className="mobile-map-badge-icon" />
                       <span>Xaritadan topish</span>
                     </div>
                   </div>

@@ -10,6 +10,8 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Fuel,
   Zap,
   Sparkles,
@@ -356,8 +358,11 @@ export default function MapView({
   const [mobileSortMode, setMobileSortMode] = useState('nearest'); // 'nearest' | 'quality' | 'cheapest'
   const [mobileActiveStationId, setMobileActiveStationId] = useState(null);
   const [sheetMode, setSheetMode] = useState('peek'); // 'peek' | 'mid' | 'full'
+  const sheetModeRef = useRef(sheetMode);
+  sheetModeRef.current = sheetMode;
   const isSheetExpanded = sheetMode !== 'peek';
   const sheetRef = useRef(null);
+  const grabAreaRef = useRef(null);
   const listRef = useRef(null);
   const isSheetDragging = useRef(false);
   const touchStartY = useRef(0);
@@ -392,7 +397,7 @@ export default function MapView({
     touchStartTime.current = Date.now();
 
     const snaps = getSnapTranslates();
-    startTranslateY.current = snaps[sheetMode] ?? snaps.peek;
+    startTranslateY.current = snaps[sheetModeRef.current] ?? snaps.peek;
     sheetEl.classList.add('is-dragging');
   };
 
@@ -405,7 +410,7 @@ export default function MapView({
     const deltaY = currentY - touchStartY.current;
     touchDeltaY.current = deltaY;
 
-    if (Math.abs(deltaY) > 5) {
+    if (Math.abs(deltaY) > 4) {
       didDragRef.current = true;
     }
 
@@ -430,16 +435,14 @@ export default function MapView({
     const deltaTime = Date.now() - touchStartTime.current;
     const velocity = deltaY / (deltaTime || 1); // < 0: yuqoriga, > 0: pastga
 
-    // Instagram kabi 3 ta qulay holat (Peek <-> Mid <-> Full)
+    // Aniq va yumshoq Snap Points (Peek <-> Mid <-> Full)
     setSheetMode((prevMode) => {
       // 1. Agar avval "peek" (pastda) bo'lsa:
       if (prevMode === 'peek') {
-        // Yuqoriga juda tez/kuchli siltab surilsa -> to'g'ri 'full' ga
-        if (velocity < -0.75 || deltaY < -230) {
+        if (velocity < -0.7 || deltaY < -200) {
           return 'full';
         }
-        // Ozgina yoki me'yorida yuqoriga surilsa -> 'mid' (Instagram kabi yarim ekranda to'xtaydi!)
-        if (velocity < -0.20 || deltaY < -25) {
+        if (velocity < -0.15 || deltaY < -20) {
           return 'mid';
         }
         return 'peek';
@@ -447,12 +450,10 @@ export default function MapView({
 
       // 2. Agar avval "mid" (o'rtada) bo'lsa:
       if (prevMode === 'mid') {
-        // Yuqoriga surilsa -> 'full' ga
-        if (velocity < -0.20 || deltaY < -25) {
+        if (velocity < -0.15 || deltaY < -20) {
           return 'full';
         }
-        // Pastga surilsa -> 'peek' ga
-        if (velocity > 0.20 || deltaY > 25) {
+        if (velocity > 0.15 || deltaY > 20) {
           return 'peek';
         }
         return 'mid';
@@ -460,12 +461,10 @@ export default function MapView({
 
       // 3. Agar avval "full" (eng tepada) bo'lsa:
       if (prevMode === 'full') {
-        // Pastga juda tez/kuchli siltab surilsa -> to'g'ri 'peek' ga
-        if (velocity > 0.75 || deltaY > 250) {
+        if (velocity > 0.7 || deltaY > 220) {
           return 'peek';
         }
-        // Ozgina yoki me'yorida pastga tushirilsa -> 'mid' (juda past bo'lib qolmaydi, o'rtada to'xtaydi!)
-        if (velocity > 0.20 || deltaY > 25) {
+        if (velocity > 0.15 || deltaY > 20) {
           return 'mid';
         }
         return 'full';
@@ -480,6 +479,98 @@ export default function MapView({
     }, 120);
   };
 
+  // Brauzerning noo'rin pull-to-refresh reload qilishini to'xtatuvchi native event listener
+  useEffect(() => {
+    if (!isMobile) return;
+    const grabEl = grabAreaRef.current;
+    const listEl = listRef.current;
+    if (!grabEl) return;
+
+    const onGrabTouchStart = (e) => {
+      handleSheetTouchStart(e);
+    };
+
+    const onGrabTouchMove = (e) => {
+      if (e.cancelable) {
+        e.preventDefault(); // Brauzer sahifani pull-to-refresh reload qilishini butunlay to'xtatadi
+      }
+      handleSheetTouchMove(e);
+    };
+
+    const onGrabTouchEnd = () => {
+      handleSheetTouchEnd();
+    };
+
+    grabEl.addEventListener('touchstart', onGrabTouchStart, { passive: true });
+    grabEl.addEventListener('touchmove', onGrabTouchMove, { passive: false });
+    grabEl.addEventListener('touchend', onGrabTouchEnd, { passive: true });
+    grabEl.addEventListener('touchcancel', onGrabTouchEnd, { passive: true });
+
+    let listTouchStartY = 0;
+    let isPullingDownSheet = false;
+
+    const onListTouchStart = (e) => {
+      if (!e.touches || !e.touches[0]) return;
+      listTouchStartY = e.touches[0].clientY;
+      isPullingDownSheet = false;
+      if (sheetModeRef.current === 'peek') {
+        handleSheetTouchStart(e);
+      }
+    };
+
+    const onListTouchMove = (e) => {
+      if (!e.touches || !e.touches[0]) return;
+      const currentY = e.touches[0].clientY;
+      const delta = currentY - listTouchStartY;
+
+      if (sheetModeRef.current === 'peek') {
+        if (e.cancelable) e.preventDefault();
+        handleSheetTouchMove(e);
+        return;
+      }
+
+      // Agar ro'yxat eng tepada bo'lsa (scrollTop <= 2) va foydalanuvchi pastga tortsa:
+      if (listEl && listEl.scrollTop <= 2 && delta > 0) {
+        if (e.cancelable) {
+          e.preventDefault(); // Brauzer refresh qilmaydi, aksincha xarita ochilishi uchun sheet pastga suriladi!
+        }
+        if (!isPullingDownSheet) {
+          isPullingDownSheet = true;
+          handleSheetTouchStart(e);
+        } else {
+          handleSheetTouchMove(e);
+        }
+      }
+    };
+
+    const onListTouchEnd = () => {
+      if (sheetModeRef.current === 'peek' || isPullingDownSheet) {
+        handleSheetTouchEnd();
+      }
+      isPullingDownSheet = false;
+    };
+
+    if (listEl) {
+      listEl.addEventListener('touchstart', onListTouchStart, { passive: true });
+      listEl.addEventListener('touchmove', onListTouchMove, { passive: false });
+      listEl.addEventListener('touchend', onListTouchEnd, { passive: true });
+      listEl.addEventListener('touchcancel', onListTouchEnd, { passive: true });
+    }
+
+    return () => {
+      grabEl.removeEventListener('touchstart', onGrabTouchStart);
+      grabEl.removeEventListener('touchmove', onGrabTouchMove);
+      grabEl.removeEventListener('touchend', onGrabTouchEnd);
+      grabEl.removeEventListener('touchcancel', onGrabTouchEnd);
+      if (listEl) {
+        listEl.removeEventListener('touchstart', onListTouchStart);
+        listEl.removeEventListener('touchmove', onListTouchMove);
+        listEl.removeEventListener('touchend', onListTouchEnd);
+        listEl.removeEventListener('touchcancel', onListTouchEnd);
+      }
+    };
+  }, [isMobile]);
+
   const handleGrabClick = () => {
     if (didDragRef.current) return;
     setSheetMode((prev) => {
@@ -487,38 +578,6 @@ export default function MapView({
       if (prev === 'mid') return 'full';
       return 'peek';
     });
-  };
-
-  const handleListTouchStart = (e) => {
-    if (sheetMode === 'peek') {
-      handleSheetTouchStart(e);
-      return;
-    }
-    if (listRef.current && listRef.current.scrollTop <= 0 && e.touches && e.touches[0]) {
-      touchStartY.current = e.touches[0].clientY;
-      touchDeltaY.current = 0;
-    }
-  };
-
-  const handleListTouchMove = (e) => {
-    if (sheetMode === 'peek') {
-      handleSheetTouchMove(e);
-      return;
-    }
-    if (listRef.current && listRef.current.scrollTop <= 0 && e.touches && e.touches[0]) {
-      const delta = e.touches[0].clientY - touchStartY.current;
-      if (delta > 8 && !isSheetDragging.current) {
-        handleSheetTouchStart(e);
-      } else if (isSheetDragging.current) {
-        handleSheetTouchMove(e);
-      }
-    }
-  };
-
-  const handleListTouchEnd = () => {
-    if (sheetMode === 'peek' || isSheetDragging.current) {
-      handleSheetTouchEnd();
-    }
   };
 
   const [userPos, setUserPos] = useState(() => {
@@ -3476,19 +3535,47 @@ export default function MapView({
         >
           {/* Ushlagich va sarlavha zonasi - silliq surish va bosish uchun */}
           <div
+            ref={grabAreaRef}
             className="mobile-sheet-grab-area"
-            onTouchStart={handleSheetTouchStart}
-            onTouchMove={handleSheetTouchMove}
-            onTouchEnd={handleSheetTouchEnd}
             onClick={handleGrabClick}
           >
             {/* Tutqich (Drag handle) */}
             <div className="mobile-sheet-drag-handle" />
 
-            {/* Sarlavha qatori: Yaqin atrofda (chapda) | X ta natija (o'ngda) */}
+            {/* Sarlavha qatori: Yaqin atrofda (chapda) | [ ⌄ Xaritani ko'rish ] (o'ngda) */}
             <div className="mobile-sheet-header-row">
-              <span className="mobile-sheet-title">Yaqin atrofda</span>
-              <span className="mobile-sheet-count">{filteredStationList.length} ta natija</span>
+              <div className="mobile-sheet-title-group">
+                <span className="mobile-sheet-title">Yaqin atrofda</span>
+                <span className="mobile-sheet-count">{filteredStationList.length} ta natija</span>
+              </div>
+
+              {sheetMode !== 'peek' ? (
+                <button
+                  type="button"
+                  className="mobile-sheet-collapse-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSheetMode('peek');
+                  }}
+                  title="Xaritani ko'rish"
+                >
+                  <ChevronDown size={15} strokeWidth={2.6} />
+                  <span>Xaritani ko'rish</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="mobile-sheet-collapse-btn peek-mode"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSheetMode('mid');
+                  }}
+                  title="Ro'yxatni ochish"
+                >
+                  <ChevronUp size={15} strokeWidth={2.6} />
+                  <span>Ro'yxat</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -3568,9 +3655,6 @@ export default function MapView({
           <div
             ref={listRef}
             className="mobile-sheet-stations-list"
-            onTouchStart={handleListTouchStart}
-            onTouchMove={handleListTouchMove}
-            onTouchEnd={handleListTouchEnd}
           >
             {filteredStationList.map((station, index) => {
               const boxes = getStationFuelBoxes(station);
