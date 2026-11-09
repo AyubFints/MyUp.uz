@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Camera, Phone, Calendar, User, FileText, LogOut, Edit3, ImagePlus, MapPin } from 'lucide-react';
+import { X, Camera, Phone, Calendar, User, FileText, LogOut, Edit3 } from 'lucide-react';
 import { api } from '../api/client';
 
 export default function ProfileDetailModal({
@@ -23,39 +23,12 @@ export default function ProfileDetailModal({
   if (!isOpen || !user) return null;
 
   const hasRealPhoto = user.avatar && !user.avatar.includes('dicebear');
-  const isLocationActive = Boolean(user?.hasLocation || user?.has_location);
 
   const panelBg = isLight ? '#ffffff' : (appTheme?.panel || '#18181b');
   const cardBg = isLight ? '#f1f5f9' : (appTheme?.card || '#222226');
   const borderColor = isLight ? '#e2e8f0' : (appTheme?.border || 'rgba(255, 255, 255, 0.1)');
   const textPrimary = isLight ? '#0f172a' : (appTheme?.text || '#ffffff');
   const textMuted = isLight ? '#64748b' : (appTheme?.textMuted || '#94a3b8');
-
-  const handleToggleLocation = async () => {
-    const nextState = !isLocationActive;
-    const updated = {
-      ...user,
-      hasLocation: nextState,
-      has_location: nextState,
-      canAddStation: nextState,
-      can_add_station: nextState,
-    };
-    localStorage.setItem('myup_user', JSON.stringify(updated));
-    if (typeof onUpdateUser === 'function') {
-      onUpdateUser(updated);
-    }
-
-    try {
-      await api.auth.updateProfile({
-        hasLocation: nextState,
-        canAddStation: nextState,
-        userId: user?.id,
-        phone: user?.phoneNumber || user?.phone,
-      });
-    } catch (err) {
-      console.warn("Location toggle sync error:", err.message);
-    }
-  };
 
   const handlePhotoUpload = (e) => {
     const file = e.target.files?.[0];
@@ -135,18 +108,30 @@ export default function ProfileDetailModal({
           color: textPrimary,
         }}
       >
-        {/* Close button */}
-        <button 
-          className="profile-detail-close" 
-          onClick={onClose}
+        {/* Sticky Header: Har doim yuqorida qotib turuvchi panel va X yopish tugmasi */}
+        <div 
+          className="profile-detail-sticky-header"
           style={{
-            background: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.08)',
-            borderColor: borderColor,
-            color: textMuted,
+            background: panelBg,
+            borderBottomColor: borderColor,
           }}
         >
-          <X size={20} />
-        </button>
+          <div className="profile-detail-header-indicator" />
+          <div className="profile-detail-header-row">
+            <span className="profile-detail-header-title" style={{ color: textPrimary }}>
+              Profil ma'lumotlari
+            </span>
+            <button 
+              type="button"
+              className="profile-detail-close" 
+              onClick={onClose}
+              aria-label="Yopish"
+              title="Yopish"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
 
         {/* Profile photo area */}
         <div className="profile-detail-photo-section">
@@ -272,34 +257,15 @@ export default function ProfileDetailModal({
           </div>
         </div>
 
-        {/* AX-Map xizmat markazi / Joylashuv holati */}
-        <div className="profile-detail-info-list" style={{ marginTop: '0.75rem' }}>
-          <div 
-            className="profile-detail-info-item" 
-            style={{ 
-              cursor: 'pointer',
-              background: cardBg,
-              borderColor: borderColor,
-            }} 
-            onClick={handleToggleLocation}
-            title="Joylashuv qo'shish bo'limini yoqish yoki o'chirish"
-          >
-            <div className="info-item-icon" style={{ background: isLocationActive ? 'rgba(56, 189, 248, 0.15)' : 'rgba(148, 163, 184, 0.1)', color: isLocationActive ? '#38bdf8' : textMuted }}>
-              <MapPin size={18} />
-            </div>
-            <div className="info-item-content" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-              <div>
-                <span className="info-item-label" style={{ color: textMuted }}>AX-Map da xizmat ko'rsatish markazi</span>
-                <span className="info-item-value" style={{ color: isLocationActive ? '#38bdf8' : textMuted, fontSize: '0.86rem' }}>
-                  {isLocationActive ? "Bor (Joylashuvlar ko'rinadi)" : "Yo'q (Joylashuvlar yashiringan)"}
-                </span>
-              </div>
-              <div className={`profile-toggle-switch ${isLocationActive ? 'active' : ''}`}>
-                <div className="toggle-switch-circle" />
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Yopish tugmasi */}
+        <button 
+          type="button" 
+          className="profile-detail-exit-btn" 
+          onClick={onClose}
+        >
+          <X size={18} />
+          <span>Yopish</span>
+        </button>
 
         {/* Logout */}
         <button className="profile-detail-logout" onClick={onLogout}>

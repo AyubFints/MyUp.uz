@@ -746,7 +746,7 @@ body {
   max-width: 480px;
   max-height: 88vh;
   border-radius: 24px;
-  padding: 1.5rem;
+  padding: 0 1.25rem 1.5rem 1.25rem;
   position: relative;
   overflow-y: auto;
   animation: slideUpSheet 0.3s ease-out;
@@ -769,33 +769,121 @@ body {
   }
 }
 
+/* Sticky Header: Har doim yuqorida qotib turuvchi panel va X yopish tugmasi */
+.profile-detail-sticky-header {
+  position: sticky;
+  top: 0;
+  margin: 0 -1.25rem 1rem -1.25rem;
+  padding: 14px 18px 12px;
+  background: inherit;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 100;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profile-detail-sheet.is-light .profile-detail-sticky-header {
+  border-bottom-color: #e2e8f0;
+}
+
+.profile-detail-header-indicator {
+  width: 44px;
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.25);
+  margin: 0 auto 4px auto;
+}
+
+.profile-detail-sheet.is-light .profile-detail-header-indicator {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.profile-detail-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.profile-detail-header-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: inherit;
+  font-family: var(--font-heading);
+}
+
 .profile-detail-close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10;
   cursor: pointer;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
-.profile-detail-close:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
+.profile-detail-close:hover,
+.profile-detail-close:active {
+  background: rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.5);
+  transform: scale(1.05);
 }
 
 .profile-detail-sheet.is-light .profile-detail-close {
   background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.profile-detail-exit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0.85rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.profile-detail-exit-btn:hover,
+.profile-detail-exit-btn:active {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.profile-detail-sheet.is-light .profile-detail-exit-btn {
+  background: #f1f5f9;
   border-color: #e2e8f0;
-  color: #475569;
+  color: #0f172a;
+}
+
+@media (max-width: 640px) {
+  .profile-detail-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .profile-detail-sheet {
+    max-height: 90vh;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
 }
 
 /* Photo section */
