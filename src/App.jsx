@@ -268,7 +268,15 @@ export default function App() {
     try {
       const saved = localStorage.getItem("myup_my_stations");
       const parsed = saved ? JSON.parse(saved) : [];
-      return Array.isArray(parsed) ? parsed : [];
+      if (!Array.isArray(parsed)) return [];
+      // Avvalgi ro'yxatdan o'tishda xato avtomatik yaratilib qolgan soxta joylashuvlarni tozalash
+      const cleaned = parsed.filter(
+        (s) => !(s.lat === 41.311081 && s.lng === 69.240562 && (!s.address || s.address === "Toshkent" || s.address === "Asosiy filial"))
+      );
+      if (cleaned.length !== parsed.length) {
+        localStorage.setItem("myup_my_stations", JSON.stringify(cleaned));
+      }
+      return cleaned;
     } catch {
       return [];
     }
@@ -279,7 +287,7 @@ export default function App() {
     const token = localStorage.getItem("myup_token");
     if (!token) return;
 
-    // 1. Foydalanuvchi profilini yangilash (mavjud barcha joylashuv maydonlarini asragan holda)
+    // 1. Foydalanuvchi profilini yangilash (mavjud barcha joylashuv maydonlarini to'liq sinxronlash)
     api.auth
       .getMe()
       .then((res) => {
@@ -288,20 +296,21 @@ export default function App() {
             const updated = {
               ...(prev || {}),
               id: res.user.id,
-              firstName: res.user.first_name || prev?.firstName || "Foydalanuvchi",
-              lastName: res.user.last_name || prev?.lastName || "",
-              phoneNumber: res.user.phone || prev?.phoneNumber,
+              firstName: res.user.firstName || res.user.first_name || prev?.firstName || "Foydalanuvchi",
+              lastName: res.user.lastName || res.user.last_name || prev?.lastName || "",
+              phoneNumber: res.user.phone || res.user.phoneNumber || prev?.phoneNumber,
               role: res.user.role || prev?.role || "user",
-              hasLocation: Boolean(res.user.has_location || prev?.hasLocation),
+              hasLocation: Boolean(res.user.hasLocation ?? res.user.has_location ?? prev?.hasLocation),
               bio: res.user.bio || prev?.bio || "",
-              avatar: res.user.avatar_url || prev?.avatar,
-              registeredAt: res.user.created_at || prev?.registeredAt,
-              locationName: prev?.locationName || "",
-              responsiblePerson: prev?.responsiblePerson || "",
+              avatar: res.user.avatarUrl || res.user.avatar_url || res.user.avatar || prev?.avatar,
+              registeredAt: res.user.createdAt || res.user.created_at || prev?.registeredAt,
+              locationName: res.user.locationName || res.user.location_name || prev?.locationName || "",
+              responsiblePerson: res.user.responsiblePerson || res.user.responsible_person || prev?.responsiblePerson || "",
               locationAddress: prev?.locationAddress || "",
-              locationPhone: prev?.locationPhone || "",
-              locationImage: prev?.locationImage || null,
-              registeredViaLocation: prev?.registeredViaLocation ?? true,
+              locationPhone: res.user.locationPhone || res.user.location_phone || prev?.locationPhone || "",
+              locationImage: res.user.locationImage || res.user.location_image || prev?.locationImage || null,
+              canAddStation: Boolean(res.user.canAddStation ?? res.user.can_add_station ?? prev?.canAddStation ?? true),
+              registeredViaLocation: Boolean(res.user.registeredViaLocation ?? res.user.registered_via_location ?? prev?.registeredViaLocation ?? true),
             };
             try {
               localStorage.setItem("myup_user", JSON.stringify(updated));
@@ -683,10 +692,6 @@ export default function App() {
       setLocModalError("Mas'ul inson ismini kiriting!");
       return;
     }
-    if (!locModalData.locationAddress.trim()) {
-      setLocModalError("Joylashuv manzilini kiriting!");
-      return;
-    }
     if (!locModalData.password || locModalData.password.length < 4) {
       setLocModalError("Maxfiy parol kamida 4 ta belgidan iborat bo'lishi kerak!");
       return;
@@ -701,54 +706,117 @@ export default function App() {
 
   const handleFinishLocationModalRegister = async (chosenImg = null) => {
     const finalImg = chosenImg || locModalData.locationImage || null;
-    const locId = "st_" + Date.now();
-    const userId = user?.id || ("usr_" + Date.now());
+    const locName = locModalData.locationName.trim();
+    const respPerson = locModalData.responsiblePerson.trim();
+    const locPhone = locModalData.phone;
+    const cleanPhone = locPhone.replace(/\s+/g, '');
+    const token = localStorage.getItem("myup_token");
 
-    const newLocation = {
-      id: locId,
-      name: locModalData.locationName.trim(),
-      responsiblePerson: locModalData.responsiblePerson.trim(),
-      address: locModalData.locationAddress.trim(),
-      city: "Toshkent",
-      phone: locModalData.phone,
-      isOpen: true,
-      status: "approved",
-      isApproved: true,
-      image: finalImg,
-      images: finalImg ? [finalImg] : [],
-      lat: 41.311081,
-      lng: 69.240562,
-      prices: { metan: "3800" },
-      createdBy: userId,
-      createdAt: new Date().toISOString(),
+    const regPayload = {
+      phone: cleanPhone,
+      firstName: respPerson.split(" ")[0] || "Mas'ul",
+      lastName: respPerson.split(" ").slice(1).join(" ") || "",
+      password: locModalData.password,
+      hasLocation: true,
+      canAddStation: true,
+      registeredViaLocation: true,
+      role: "owner",
+      locationName: locName,
+      responsiblePerson: respPerson,
+      locationPhone: locPhone,
+      locationImage: finalImg,
+      avatarUrl: finalImg || null,
     };
 
-    setMyStations((prev) => {
-      const updated = [newLocation, ...prev.filter((s) => s.id !== locId)];
-      try {
-        localStorage.setItem("myup_my_stations", JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
+    let realUserId = user?.id;
 
+    if (!token || !user || !user.id || user.id.startsWith("usr_")) {
+      // Foydalanuvchi tizimga kirmagan bo'lsa: markaziy PostgreSQL bazasida ro'yxatdan o'tkazamiz (Real Account)
+      try {
+        let authRes;
+        try {
+          authRes = await api.auth.register(regPayload);
+        } catch (regErr) {
+          if (regErr.message?.includes('allaqachon') || regErr.message?.includes('mavjud') || regErr.message?.includes('400')) {
+            const logRes = await api.auth.login(cleanPhone, locModalData.password);
+            if (logRes.success && logRes.token) {
+              localStorage.setItem('myup_token', logRes.token);
+              const upd = await api.auth.updateProfile(regPayload);
+              authRes = {
+                success: true,
+                token: logRes.token,
+                user: upd.user || logRes.user,
+                stations: logRes.stations || []
+              };
+            } else {
+              throw regErr;
+            }
+          } else {
+            throw regErr;
+          }
+        }
+
+        if (authRes?.token && authRes?.user) {
+          localStorage.setItem("myup_token", authRes.token);
+          realUserId = authRes.user.id;
+          if (Array.isArray(authRes.stations) && authRes.stations.length > 0) {
+            setMyStations(authRes.stations);
+            try {
+              localStorage.setItem("myup_my_stations", JSON.stringify(authRes.stations));
+            } catch (e) {}
+          }
+        }
+      } catch (authErr) {
+        console.warn("Joylashuv registratsiyasida backend xatosi:", authErr.message);
+      }
+    } else {
+      // Foydalanuvchi allaqachon tizimga kirgan bo'lsa: uning profilini va parolini bazada yangilaymiz
+      try {
+        await api.auth.updateProfile({
+          ...regPayload,
+          password: locModalData.password,
+        });
+      } catch (apiErr) {
+        console.warn("Backendga joylashuv ma'lumotlarini saqlashda xato:", apiErr.message);
+      }
+    }
+
+    // DIQQAT: Bu yerda hech qanday soxta shahobcha (joylashuv) yaratilmaydi!
+    // Faqat foydalanuvchiga joylashuv/shahobcha qo'shish huquqi beriladi.
     const updatedUser = {
-      ...user,
-      id: userId,
-      role: "business",
+      ...(user || {}),
+      id: realUserId || user?.id || ("usr_" + Date.now()),
+      role: "owner",
       hasLocation: true,
       has_location: true,
+      canAddStation: true,
+      can_add_station: true,
       registeredViaLocation: true,
-      locationName: locModalData.locationName.trim(),
-      responsiblePerson: locModalData.responsiblePerson.trim(),
-      locationAddress: locModalData.locationAddress.trim(),
-      locationPhone: locModalData.phone,
+      registered_via_location: true,
+      organizationName: locName,
+      locationName: locName,
+      responsiblePerson: respPerson,
+      locationPhone: locPhone,
       locationImage: finalImg,
+      phoneNumber: locPhone,
     };
 
     setUser(updatedUser);
     try {
       localStorage.setItem("myup_user", JSON.stringify(updatedUser));
     } catch (e) {}
+
+    // Avvalgi ro'yxatdan o'tishda xato qo'shilib qolgan soxta shahobchalarni tozalash
+    setMyStations((prev) => {
+      const cleaned = prev.filter(
+        (s) => !(s.lat === 41.311081 && s.lng === 69.240562 && (!s.address || s.address === "Toshkent" || s.address === "Asosiy filial"))
+      );
+      try {
+        localStorage.setItem("myup_my_stations", JSON.stringify(cleaned));
+      } catch (e) {}
+      return cleaned;
+    });
+
     setShowLocationRegisterModal(false);
     setLocModalStep(1);
   };
@@ -793,6 +861,14 @@ export default function App() {
     try {
       localStorage.setItem("myup_user", JSON.stringify(updatedUser));
     } catch (err) {}
+
+    // PostgreSQL bazasiga sinxronlash
+    api.auth.updateProfile({
+      locationName: editLocationForm.locationName.trim(),
+      responsiblePerson: editLocationForm.responsiblePerson.trim(),
+      locationPhone: editLocationForm.locationPhone,
+      locationImage: editLocationForm.locationImage,
+    }).catch((err) => console.warn("Joylashuvni tahrirlashda backend xatosi:", err.message));
 
     // Agar myStations mavjud bo'lsa, asosiy shahobcha ma'lumotlarini ham sinxronlash
     if (myStations.length > 0) {
@@ -3429,8 +3505,13 @@ export default function App() {
                     {(() => {
                       const isLocationRegistered = Boolean(
                         user?.registeredViaLocation ||
+                        user?.registered_via_location ||
                         user?.locationName ||
-                        (user?.hasLocation && myStations.length > 0)
+                        user?.location_name ||
+                        user?.hasLocation ||
+                        user?.has_location ||
+                        user?.role === 'owner' ||
+                        myStations.length > 0
                       );
 
                       const isLocationOnlyUser = Boolean(
@@ -3438,11 +3519,11 @@ export default function App() {
                         (!user?.firstName && !user?.userProfileCompleted)
                       );
 
-                      const currentLocationName = user?.locationName || myStations[0]?.name || "Shahobcha";
-                      const currentResponsiblePerson = user?.responsiblePerson || myStations[0]?.responsiblePerson || (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : "Mas'ul inson");
-                      const currentLocationPhone = user?.locationPhone || myStations[0]?.phone || user?.phoneNumber || "+998 90 123 45 67";
-                      const currentLocationImage = user?.locationImage || myStations[0]?.image || null;
-                      const branchCount = Math.max(myStations.length, user?.registeredViaLocation ? 1 : 0);
+                      const currentLocationName = user?.locationName || user?.location_name || user?.organizationName || myStations[0]?.name || "Joylashuv boshqaruvi";
+                      const currentResponsiblePerson = user?.responsiblePerson || user?.responsible_person || myStations[0]?.responsiblePerson || (user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : "Mas'ul inson");
+                      const currentLocationPhone = user?.locationPhone || user?.location_phone || myStations[0]?.phone || user?.phoneNumber || "+998 90 123 45 67";
+                      const currentLocationImage = user?.locationImage || user?.location_image || myStations[0]?.image || null;
+                      const branchCount = myStations.length;
 
                       return (
                         <>
@@ -3495,7 +3576,7 @@ export default function App() {
                                   {/* Eng pastida: Jami filiallar soni (kichikroq) */}
                                   <div className="location-hero-bottom-branch-row">
                                     <span className="location-hero-branch-badge-mini">
-                                      Jami {branchCount} filial bor
+                                      Jami {branchCount} ta filial mavjud
                                     </span>
                                   </div>
                                 </div>
@@ -3811,6 +3892,8 @@ export default function App() {
               userCoords={userCoords}
               ads={activeAds}
               onOpenAdvertising={() => handleTabChange("advertising")}
+              onOpenProfile={() => handleTabChange("my")}
+              isDarkTheme={!isThemeLight}
             />
           </Suspense>
         </div>
@@ -4524,6 +4607,9 @@ export default function App() {
             className="notif-modal-card location-register-modal-card" 
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Tepa-pastga surish indikatori (Drag Handle) */}
+            <div className="notif-modal-drag-indicator-bar" />
+
             <button
               type="button"
               className="notif-modal-close-btn"
@@ -4536,13 +4622,41 @@ export default function App() {
               <div className="notif-modal-badge-icon" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
                 <MapPin size={24} color="#38bdf8" />
               </div>
-              <h3 className="notif-modal-title">Joylashuv joylash</h3>
+              <h3 className="notif-modal-title">Joylashuvlaringizning asosiy qismi</h3>
               <p className="notif-modal-sub-text" style={{ margin: '4px 0 0', fontSize: '0.86rem' }}>
                 {locModalStep === 1 
-                  ? "Joylashuvingiz ma'lumotlarini kiriting" 
+                  ? "Boshqaruv profilingiz ma'lumotlarini kiriting" 
                   : "Joylashuvingiz uchun asosiy rasm qo'yib keting"}
               </p>
             </div>
+
+            {/* Tushuntirish qismi (odamlar adashmasdan tushunishi uchun) */}
+            {locModalStep === 1 && (
+              <div 
+                style={{
+                  margin: '14px 0 6px',
+                  padding: '12px 14px',
+                  background: 'rgba(56, 189, 248, 0.08)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  color: '#e2e8f0',
+                  fontSize: '0.84rem',
+                  lineHeight: '1.45',
+                  textAlign: 'left',
+                }}
+              >
+                <Info size={18} style={{ color: '#38bdf8', flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  <strong style={{ color: '#38bdf8', display: 'block', marginBottom: '2px', fontSize: '0.86rem' }}>
+                    Muhim eslatma:
+                  </strong>
+                  Siz bu yerda avval registratsiyadan o'tib olasiz, shundan keyin o'zingizning haqiqiy yoqilg'i shahobchalaringizni xaritaga erkin qo'shish va narxlarini boshqarish huquqiga ega bo'lasiz.
+                </div>
+              </div>
+            )}
 
             {locModalError && (
               <div className="modern-auth-error-alert" style={{ margin: '14px 0 0' }}>
@@ -4578,21 +4692,6 @@ export default function App() {
                       placeholder="Masalan: Sardor Rahimov" 
                       value={locModalData.responsiblePerson}
                       onChange={e => setLocModalData({ ...locModalData, responsiblePerson: e.target.value })}
-                      className="modern-input-field"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="modern-field-group">
-                  <label className="modern-field-label">Joylashuv manzili *</label>
-                  <div className="modern-input-wrap">
-                    <MapPin size={18} className="modern-input-icon text-amber-400" />
-                    <input 
-                      type="text" 
-                      placeholder="Masalan: Toshkent sh., Chilonzor tumani" 
-                      value={locModalData.locationAddress}
-                      onChange={e => setLocModalData({ ...locModalData, locationAddress: e.target.value })}
                       className="modern-input-field"
                       required
                     />

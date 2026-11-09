@@ -161,21 +161,41 @@ export default function NotificationsView({
     }
   });
 
-  // 2. Foydalanuvchiga KELGAN bildirishnomalar (ko'rib bo'linganidan so'ng 1 kun saqlanadi)
+  // Bildirishnomalarning yaroqlilik muddatini tekshiruvchi yordamchi (location_guide 2 kun, boshqa o'qilganlar 1 kun)
+  const filterValidNotifications = (list) => {
+    if (!Array.isArray(list)) return [];
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+    const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    return list.filter((item) => {
+      if (item.id === "sys_amaps_welcome" || item.id?.startsWith("incoming_reply_")) return false;
+
+      // 2 kunlik yo'riqnoma bildirishnoma: faqat yangi foydalanuvchi bo'lib kirgandan so'ng 2 kun tursin va uchib ketsin!
+      if (item.type === "location_guide" || item.id?.startsWith("sys_location_guide")) {
+        const createdTime = new Date(item.createdAt || item.created_at || item.date).getTime();
+        if (!isNaN(createdTime) && now - createdTime >= TWO_DAYS_MS) {
+          return false; // 2 kundan oshgach avtomatik uchib ketadi
+        }
+        return true;
+      }
+
+      // Boshqa o'qilgan xabarlar 1 kundan so'ng o'chadi
+      if (item.readAt) {
+        const age = now - new Date(item.readAt).getTime();
+        if (age >= ONE_DAY_MS) return false;
+      }
+      return true;
+    });
+  };
+
+  // 2. Foydalanuvchiga KELGAN bildirishnomalar (location_guide 2 kun, boshqalari 1 kun saqlanadi)
   const [incomingNotifications, setIncomingNotifications] = useState(() => {
     try {
       const saved = localStorage.getItem("myup_incoming_notifications");
       if (saved) {
         const parsed = JSON.parse(saved);
-        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-        const filtered = parsed.filter((item) => {
-          if (item.readAt) {
-            const age = Date.now() - new Date(item.readAt).getTime();
-            if (age >= ONE_DAY_MS) return false;
-          }
-          return item.id !== "sys_amaps_welcome" && !item.id?.startsWith("incoming_reply_");
-        });
-        return filtered;
+        return filterValidNotifications(parsed);
       }
     } catch {
       // fallback
@@ -184,21 +204,25 @@ export default function NotificationsView({
   });
 
   const formSectionRef = useRef(null);
+  const locationActionCardRef = useRef(null);
+  const [highlightLocationCard, setHighlightLocationCard] = useState(false);
 
-  // Eski tizim eslatmasi saqlangan bo'lsa uni localStorage dan tozalash
+  // Joylashuv qo'shish yo'riqnomasi orqali pastdagi bo'limga silliq o'tish
+  const handleScrollToLocationActivation = () => {
+    if (locationActionCardRef.current) {
+      locationActionCardRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlightLocationCard(true);
+      setTimeout(() => setHighlightLocationCard(false), 2500);
+    }
+  };
+
+  // Eski yoki muddati o'tgan eslatmalarni localStorage dan tozalash
   useEffect(() => {
     try {
       const saved = localStorage.getItem("myup_incoming_notifications");
       if (saved) {
         const parsed = JSON.parse(saved);
-        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-        const filtered = parsed.filter((item) => {
-          if (item.readAt) {
-            const age = Date.now() - new Date(item.readAt).getTime();
-            if (age >= ONE_DAY_MS) return false;
-          }
-          return item.id !== "sys_amaps_welcome" && !item.id?.startsWith("incoming_reply_");
-        });
+        const filtered = filterValidNotifications(parsed);
         localStorage.setItem("myup_incoming_notifications", JSON.stringify(filtered));
       }
     } catch {
@@ -253,31 +277,25 @@ export default function NotificationsView({
       ?.getAll({ userId: userId || "", phone: userPhone })
       .then((res) => {
         if (isMounted && res.success && Array.isArray(res.notifications)) {
-          const ONE_DAY_MS = 24 * 60 * 60 * 1000;
           const apiNotifs = res.notifications
             .map((n) => ({
               id: n.id,
               title: n.title,
               message: n.message,
-              badge: n.badge || (n.type === 'station_approved' ? "Tasdiqlandi" : "Moderatsiya"),
+              badge: n.badge || (n.type === 'station_approved' ? "Tasdiqlandi" : (n.type === 'location_guide' ? "Qo'llanma" : "Moderatsiya")),
               date: formatNotifDate(n.createdAt),
+              createdAt: n.createdAt,
               type: n.type,
               stationId: n.stationId,
               isRead: true,
               readAt: n.readAt || new Date().toISOString(),
-              sender: "Super Administrator",
-            }))
-            .filter((n) => {
-              if (n.readAt) {
-                const age = Date.now() - new Date(n.readAt).getTime();
-                return age < ONE_DAY_MS;
-              }
-              return true;
-            });
+              sender: n.type === 'location_guide' ? "AX-Map Tizimi" : "Super Administrator",
+            }));
 
-          setIncomingNotifications(apiNotifs);
+          const validNotifs = filterValidNotifications(apiNotifs);
+          setIncomingNotifications(validNotifs);
           try {
-            localStorage.setItem("myup_incoming_notifications", JSON.stringify(apiNotifs));
+            localStorage.setItem("myup_incoming_notifications", JSON.stringify(validNotifs));
           } catch (e) {}
 
           // Ko'rib bo'lingan deb belgilash (1 kundan keyin admindan va ilovadan avtomatik o'chadi)
@@ -628,12 +646,18 @@ export default function NotificationsView({
             {incomingNotifications.map((item) => {
               const isApprovedNotif = item.type === 'station_approved' || item.badge === 'Tasdiqlandi' || (item.title && item.title.includes('tasdiqlandi'));
               const isRejectedNotif = item.type === 'station_rejected' || item.badge === 'Rad etildi' || (item.title && item.title.includes('rad etildi'));
+              const isLocationGuide = item.type === 'location_guide' || item.id?.startsWith('sys_location_guide');
 
               return (
                 <div 
                   key={item.id} 
-                  className={`notif-message-card incoming-card ${isApprovedNotif ? 'notif-approved-card' : ''}`}
-                  style={isApprovedNotif ? {
+                  className={`notif-message-card incoming-card ${isApprovedNotif ? 'notif-approved-card' : ''} ${isLocationGuide ? 'notif-location-guide-card' : ''}`}
+                  style={isLocationGuide ? {
+                    border: '1px solid rgba(56, 189, 248, 0.45)',
+                    background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(15, 23, 42, 0.95) 100%)',
+                    boxShadow: '0 4px 20px rgba(56, 189, 248, 0.12)',
+                    borderRadius: '16px'
+                  } : isApprovedNotif ? {
                     border: '1px solid rgba(16, 185, 129, 0.45)',
                     background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.95) 100%)',
                     boxShadow: '0 4px 20px rgba(16, 185, 129, 0.15)',
@@ -647,7 +671,15 @@ export default function NotificationsView({
                   <div className="notif-message-top">
                     <span 
                       className="notif-message-badge notif-badge-incoming"
-                      style={isApprovedNotif ? {
+                      style={isLocationGuide ? {
+                        background: 'rgba(56, 189, 248, 0.2)',
+                        border: '1px solid rgba(56, 189, 248, 0.5)',
+                        color: '#38bdf8',
+                        fontWeight: 700,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px'
+                      } : isApprovedNotif ? {
                         background: 'rgba(16, 185, 129, 0.2)',
                         border: '1px solid rgba(16, 185, 129, 0.5)',
                         color: '#10b981',
@@ -665,8 +697,8 @@ export default function NotificationsView({
                         gap: '5px'
                       } : {}}
                     >
-                      {isApprovedNotif ? <CheckCircle2 size={13} color="#10b981" /> : isRejectedNotif ? <X size={13} color="#ef4444" /> : null}
-                      {item.badge || (isApprovedNotif ? "Tasdiqlandi" : "AX-Map Tizimi")}
+                      {isLocationGuide ? <MapPin size={13} color="#38bdf8" /> : isApprovedNotif ? <CheckCircle2 size={13} color="#10b981" /> : isRejectedNotif ? <X size={13} color="#ef4444" /> : null}
+                      {item.badge || (isLocationGuide ? "Qo'llanma" : isApprovedNotif ? "Tasdiqlandi" : "AX-Map Tizimi")}
                     </span>
                     <div className="notif-message-date-box">
                       <Clock size={12} />
@@ -684,22 +716,50 @@ export default function NotificationsView({
 
                   <h5 
                     className="incoming-notif-title"
-                    style={isApprovedNotif ? { color: '#10b981', fontWeight: 700, fontSize: '0.96rem' } : isRejectedNotif ? { color: '#ef4444', fontWeight: 700 } : {}}
+                    style={isLocationGuide ? { color: '#38bdf8', fontWeight: 700, fontSize: '0.96rem' } : isApprovedNotif ? { color: '#10b981', fontWeight: 700, fontSize: '0.96rem' } : isRejectedNotif ? { color: '#ef4444', fontWeight: 700 } : {}}
                   >
                     {item.title}
                   </h5>
                   <p className="notif-message-content" style={{ lineHeight: 1.55 }}>{item.message}</p>
 
+                  {/* 2 kunlik yo'riqnoma uchun: Pastdagi faollashtirish bo'limiga tezkor o'tish tugmasi */}
+                  {isLocationGuide && (
+                    <div style={{ marginTop: '10px', marginBottom: '4px' }}>
+                      <button
+                        type="button"
+                        className="notif-location-guide-goto-btn"
+                        onClick={handleScrollToLocationActivation}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '7px 13px',
+                          borderRadius: '10px',
+                          background: 'rgba(56, 189, 248, 0.14)',
+                          border: '1px solid rgba(56, 189, 248, 0.35)',
+                          color: '#38bdf8',
+                          fontSize: '0.82rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <ArrowDown size={14} />
+                        <span>Joylashuv qo'shish bo'limiga o'tish</span>
+                      </button>
+                    </div>
+                  )}
+
                   <div className="notif-message-footer">
                     <span className="notif-author-label">
-                      Yuboruvchi: {item.sender || "Super Administrator"}
+                      Yuboruvchi: {item.sender || (isLocationGuide ? "AX-Map Tizimi" : "Super Administrator")}
                     </span>
                     <span 
                       className="notif-status-indicator incoming-status"
-                      style={isApprovedNotif ? { color: '#10b981' } : {}}
+                      style={isLocationGuide ? { color: '#38bdf8' } : isApprovedNotif ? { color: '#10b981' } : {}}
                     >
                       <CheckCircle2 size={13} />
-                      <span>{isApprovedNotif ? "Tasdiqlandi" : "Yetkazildi"}</span>
+                      <span>{isLocationGuide ? "Faol yo'riqnoma" : isApprovedNotif ? "Tasdiqlandi" : "Yetkazildi"}</span>
                     </span>
                   </div>
                 </div>
@@ -729,7 +789,11 @@ export default function NotificationsView({
           ENG TAGIDA: JOYLASHUV QO'SHISHNI TASDIQLASH KARTASI
           Menga kelgan bildirishnomalarning tagida turadi
           ======================================================== */}
-      <div className="notif-action-card location-action-card" style={{ marginTop: '16px' }}>
+      <div 
+        ref={locationActionCardRef}
+        className={`notif-action-card location-action-card ${highlightLocationCard ? 'location-card-pulse-highlight' : ''}`} 
+        style={{ marginTop: '16px' }}
+      >
         <div className="notif-action-header-row">
           <div className="notif-action-icon-wrap location-icon-wrap">
             <MapPin size={22} className="text-sky-400" />

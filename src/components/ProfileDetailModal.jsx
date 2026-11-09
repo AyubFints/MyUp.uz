@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Camera, Phone, Calendar, User, FileText, LogOut, Edit3, ImagePlus, MapPin } from 'lucide-react';
+import { api } from '../api/client';
 
 export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser, onLogout }) {
   const [bio, setBio] = useState(user?.bio || '');
@@ -17,12 +18,18 @@ export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser
 
   const isLocationActive = Boolean(user?.hasLocation || user?.has_location);
 
-  const handleToggleLocation = () => {
+  const handleToggleLocation = async () => {
     const nextState = !isLocationActive;
     const updated = { ...user, hasLocation: nextState, has_location: nextState };
     localStorage.setItem('myup_user', JSON.stringify(updated));
     if (typeof onUpdateUser === 'function') {
       onUpdateUser(updated);
+    }
+
+    try {
+      await api.auth.updateProfile({ hasLocation: nextState });
+    } catch (err) {
+      console.warn("Location toggle sync error:", err.message);
     }
   };
 
@@ -30,7 +37,7 @@ export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Rasmni yumaloq formatga avtomatik crop qilish
+    // Rasmni yumaloq formatga avtomatik crop qilish (400x400)
     const reader = new FileReader();
     reader.onload = (ev) => {
       const img = new Image();
@@ -47,20 +54,42 @@ export default function ProfileDetailModal({ user, isOpen, onClose, onUpdateUser
         ctx.drawImage(img, sx, sy, size, size, 0, 0, 400, 400);
 
         const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-        const newUser = { ...user, avatar: croppedDataUrl };
+        const newUser = { ...user, avatar: croppedDataUrl, avatarUrl: croppedDataUrl };
         localStorage.setItem('myup_user', JSON.stringify(newUser));
         onUpdateUser(newUser);
+
+        // Multi-device sync: PostgreSQL bazasiga saqlaymiz (boshqa barcha telefonlarda ham ko'rinadi)
+        api.auth.updateProfile({ avatarUrl: croppedDataUrl })
+          .then((res) => {
+            if (res.success && res.user) {
+              const syncedUser = {
+                ...newUser,
+                avatar: res.user.avatarUrl || res.user.avatar || croppedDataUrl,
+              };
+              localStorage.setItem('myup_user', JSON.stringify(syncedUser));
+              onUpdateUser(syncedUser);
+            }
+          })
+          .catch((err) => {
+            console.warn("Avatar sync error:", err.message);
+          });
       };
       img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
   };
 
-  const handleSaveBio = () => {
+  const handleSaveBio = async () => {
     const newUser = { ...user, bio };
     localStorage.setItem('myup_user', JSON.stringify(newUser));
     onUpdateUser(newUser);
     setEditingBio(false);
+
+    try {
+      await api.auth.updateProfile({ bio });
+    } catch (err) {
+      console.warn("Bio sync error:", err.message);
+    }
   };
 
   return (

@@ -24,6 +24,7 @@ import {
   Radio,
   Megaphone,
   ExternalLink,
+  User,
 } from 'lucide-react';
 import { calculateDistance, formatDistance } from '../utils/distance';
 import { stationMatchesFuel } from '../utils/fuel';
@@ -332,6 +333,8 @@ export default function MapView({
   userCoords = null,
   ads = [],
   onOpenAdvertising,
+  onOpenProfile,
+  isDarkTheme = true,
 }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
@@ -339,6 +342,184 @@ export default function MapView({
   const markersRef = useRef([]);
   const userMarkerRef = useRef(null);
   const hasAutoCentered = useRef(false);
+
+  const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth <= 768 : false));
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const [mobileSortMode, setMobileSortMode] = useState('nearest'); // 'nearest' | 'quality' | 'cheapest'
+  const [mobileActiveStationId, setMobileActiveStationId] = useState(null);
+  const [sheetMode, setSheetMode] = useState('peek'); // 'peek' | 'mid' | 'full'
+  const isSheetExpanded = sheetMode !== 'peek';
+  const sheetRef = useRef(null);
+  const listRef = useRef(null);
+  const isSheetDragging = useRef(false);
+  const touchStartY = useRef(0);
+  const touchDeltaY = useRef(0);
+  const touchStartTime = useRef(0);
+  const startTranslateY = useRef(0);
+  const didDragRef = useRef(false);
+
+  const PEEK_HEIGHT = 170; // 170px peek: faqat eng yaqin manzilning yarmigacha ko'rinadi
+
+  const getSnapTranslates = () => {
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+    const sheetHeight = sheetRef.current?.offsetHeight || Math.round(vh * 0.80);
+    const midVisible = Math.round(vh * 0.46); // Instagram comments kabi ekranning 46% qismi
+    return {
+      sheetHeight,
+      full: 0,
+      mid: Math.max(0, sheetHeight - midVisible),
+      peek: Math.max(0, sheetHeight - PEEK_HEIGHT),
+    };
+  };
+
+  const handleSheetTouchStart = (e) => {
+    if (!e.touches || !e.touches[0]) return;
+    const sheetEl = sheetRef.current;
+    if (!sheetEl) return;
+
+    isSheetDragging.current = true;
+    didDragRef.current = false;
+    touchStartY.current = e.touches[0].clientY;
+    touchDeltaY.current = 0;
+    touchStartTime.current = Date.now();
+
+    const snaps = getSnapTranslates();
+    startTranslateY.current = snaps[sheetMode] ?? snaps.peek;
+    sheetEl.classList.add('is-dragging');
+  };
+
+  const handleSheetTouchMove = (e) => {
+    if (!isSheetDragging.current || !e.touches || !e.touches[0]) return;
+    const sheetEl = sheetRef.current;
+    if (!sheetEl) return;
+
+    const currentY = e.touches[0].clientY;
+    const deltaY = currentY - touchStartY.current;
+    touchDeltaY.current = deltaY;
+
+    if (Math.abs(deltaY) > 5) {
+      didDragRef.current = true;
+    }
+
+    const snaps = getSnapTranslates();
+    const targetTranslate = startTranslateY.current + deltaY;
+    const clampedTranslate = Math.max(-15, Math.min(snaps.peek + 25, targetTranslate));
+
+    sheetEl.style.transform = `translateY(${clampedTranslate}px)`;
+  };
+
+  const handleSheetTouchEnd = () => {
+    if (!isSheetDragging.current) return;
+    isSheetDragging.current = false;
+
+    const sheetEl = sheetRef.current;
+    if (sheetEl) {
+      sheetEl.classList.remove('is-dragging');
+      sheetEl.style.transform = '';
+    }
+
+    const deltaY = touchDeltaY.current;
+    const deltaTime = Date.now() - touchStartTime.current;
+    const velocity = deltaY / (deltaTime || 1); // < 0: yuqoriga, > 0: pastga
+
+    // Instagram kabi 3 ta qulay holat (Peek <-> Mid <-> Full)
+    setSheetMode((prevMode) => {
+      // 1. Agar avval "peek" (pastda) bo'lsa:
+      if (prevMode === 'peek') {
+        // Yuqoriga juda tez/kuchli siltab surilsa -> to'g'ri 'full' ga
+        if (velocity < -0.75 || deltaY < -230) {
+          return 'full';
+        }
+        // Ozgina yoki me'yorida yuqoriga surilsa -> 'mid' (Instagram kabi yarim ekranda to'xtaydi!)
+        if (velocity < -0.20 || deltaY < -25) {
+          return 'mid';
+        }
+        return 'peek';
+      }
+
+      // 2. Agar avval "mid" (o'rtada) bo'lsa:
+      if (prevMode === 'mid') {
+        // Yuqoriga surilsa -> 'full' ga
+        if (velocity < -0.20 || deltaY < -25) {
+          return 'full';
+        }
+        // Pastga surilsa -> 'peek' ga
+        if (velocity > 0.20 || deltaY > 25) {
+          return 'peek';
+        }
+        return 'mid';
+      }
+
+      // 3. Agar avval "full" (eng tepada) bo'lsa:
+      if (prevMode === 'full') {
+        // Pastga juda tez/kuchli siltab surilsa -> to'g'ri 'peek' ga
+        if (velocity > 0.75 || deltaY > 250) {
+          return 'peek';
+        }
+        // Ozgina yoki me'yorida pastga tushirilsa -> 'mid' (juda past bo'lib qolmaydi, o'rtada to'xtaydi!)
+        if (velocity > 0.20 || deltaY > 25) {
+          return 'mid';
+        }
+        return 'full';
+      }
+
+      return prevMode;
+    });
+
+    setTimeout(() => {
+      didDragRef.current = false;
+      touchDeltaY.current = 0;
+    }, 120);
+  };
+
+  const handleGrabClick = () => {
+    if (didDragRef.current) return;
+    setSheetMode((prev) => {
+      if (prev === 'peek') return 'mid';
+      if (prev === 'mid') return 'full';
+      return 'peek';
+    });
+  };
+
+  const handleListTouchStart = (e) => {
+    if (sheetMode === 'peek') {
+      handleSheetTouchStart(e);
+      return;
+    }
+    if (listRef.current && listRef.current.scrollTop <= 0 && e.touches && e.touches[0]) {
+      touchStartY.current = e.touches[0].clientY;
+      touchDeltaY.current = 0;
+    }
+  };
+
+  const handleListTouchMove = (e) => {
+    if (sheetMode === 'peek') {
+      handleSheetTouchMove(e);
+      return;
+    }
+    if (listRef.current && listRef.current.scrollTop <= 0 && e.touches && e.touches[0]) {
+      const delta = e.touches[0].clientY - touchStartY.current;
+      if (delta > 8 && !isSheetDragging.current) {
+        handleSheetTouchStart(e);
+      } else if (isSheetDragging.current) {
+        handleSheetTouchMove(e);
+      }
+    }
+  };
+
+  const handleListTouchEnd = () => {
+    if (sheetMode === 'peek' || isSheetDragging.current) {
+      handleSheetTouchEnd();
+    }
+  };
 
   const [userPos, setUserPos] = useState(() => {
     return userCoords && userCoords.lat && userCoords.lng
@@ -361,7 +542,11 @@ export default function MapView({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [quickSortMode, setQuickSortMode] = useState(null); // 'nearest' | 'cheapest' | null
-  const [selectedFuelType, setSelectedFuelType] = useState(activeFuelFilter || 'all');
+  const [selectedFuelType, setSelectedFuelType] = useState(() => {
+    if (activeFuelFilter && activeFuelFilter !== 'all') return activeFuelFilter;
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) return 'metan';
+    return 'all';
+  });
   const [highlightedStationId, setHighlightedStationId] = useState(null);
   const [isBottomBannerClosed, setIsBottomBannerClosed] = useState(false);
 
@@ -443,30 +628,128 @@ export default function MapView({
       list = list.filter((st) => stationMatchesFuel(st, selectedFuelType));
     }
 
-    if (quickSortMode === 'nearest') {
+    const currentSort = isMobile ? mobileSortMode : quickSortMode;
+    if (currentSort === 'nearest') {
       list.sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
-    } else if (quickSortMode === 'cheapest') {
+    } else if (currentSort === 'cheapest') {
       const getPrice = (st) => {
         if (selectedFuelType !== 'all' && st.prices?.[selectedFuelType]) {
-          return st.prices[selectedFuelType];
+          return Number(st.prices[selectedFuelType]);
         }
         if (st.prices && Object.keys(st.prices).length > 0) {
-          const vals = Object.values(st.prices).filter((p) => p > 0);
-          if (vals.length > 0) return Math.min(...vals);
+          const vals = Object.values(st.prices).filter((p) => Number(p) > 0);
+          if (vals.length > 0) return Math.min(...vals.map(Number));
         }
-        return st.price || 999999;
+        return Number(st.price) || 999999;
       };
       list.sort((a, b) => getPrice(a) - getPrice(b));
+    } else if (currentSort === 'quality') {
+      const getQuality = (st) => {
+        const pressure = Number(st.gasPressure || st.pressure || 0);
+        const rating = Number(st.rating || 0);
+        return pressure + rating * 40;
+      };
+      list.sort((a, b) => getQuality(b) - getQuality(a));
     }
 
     return list;
-  }, [effectiveStations, sidebarSearch, searchQuery, selectedFuelType, quickSortMode]);
+  }, [effectiveStations, sidebarSearch, searchQuery, selectedFuelType, quickSortMode, mobileSortMode, isMobile]);
 
   // Faol tanlangan shahobcha
   const highlightedStation = useMemo(() => {
     if (!highlightedStationId) return null;
     return effectiveStations.find((s) => s.id === highlightedStationId) || null;
   }, [effectiveStations, highlightedStationId]);
+
+  // Mobil telefon holatida pastki kartada ko'rsatiladigan tanlangan shahobcha
+  const activeMobileStation = useMemo(() => {
+    if (mobileActiveStationId) {
+      const found = filteredStationList.find((s) => s.id === mobileActiveStationId);
+      if (found) return found;
+    }
+    return filteredStationList[0] || effectiveStations[0] || null;
+  }, [filteredStationList, effectiveStations, mobileActiveStationId]);
+
+  // Rasmdagi kabi 2 qatorli yoqilg'i narxi qutilari (Propan | AI-92 yoki Metan | Propan)
+  const getStationFuelBoxes = (st) => {
+    if (!st) {
+      return [
+        { label: 'Propan', price: '5 500', unit: "so'm/l" },
+        { label: 'AI-92', price: '10 500', unit: "so'm/l" },
+      ];
+    }
+    const p = st.prices || {};
+    const boxes = [];
+
+    if (p.metan || st.types?.includes('metan')) {
+      boxes.push({
+        label: 'Metan',
+        price: (Number(p.metan) || 3800).toLocaleString('ru-RU').replace(',', ' '),
+        unit: "so'm/m³",
+      });
+    }
+    if (p.propan || st.types?.includes('propan')) {
+      boxes.push({
+        label: 'Propan',
+        price: (Number(p.propan) || 5500).toLocaleString('ru-RU').replace(',', ' '),
+        unit: "so'm/l",
+      });
+    }
+    if (p.ai92 || p.benzin || st.types?.includes('benzin')) {
+      boxes.push({
+        label: 'AI-92',
+        price: (Number(p.ai92 || p.benzin) || 10500).toLocaleString('ru-RU').replace(',', ' '),
+        unit: "so'm/l",
+      });
+    }
+    if (p.ai95) {
+      boxes.push({
+        label: 'AI-95',
+        price: Number(p.ai95).toLocaleString('ru-RU').replace(',', ' '),
+        unit: "so'm/l",
+      });
+    }
+    if (p.elektr || st.types?.includes('elektr')) {
+      boxes.push({
+        label: 'Elektr',
+        price: (Number(p.elektr) || 1800).toLocaleString('ru-RU').replace(',', ' '),
+        unit: "so'm/kVt",
+      });
+    }
+    if (p.dizel || st.types?.includes('dizel')) {
+      boxes.push({
+        label: 'Dizel',
+        price: (Number(p.dizel) || 11500).toLocaleString('ru-RU').replace(',', ' '),
+        unit: "so'm/l",
+      });
+    }
+
+    if (boxes.length === 0) {
+      boxes.push({ label: 'Metan', price: '3 800', unit: "so'm/m³" });
+      boxes.push({ label: 'Propan', price: '5 500', unit: "so'm/l" });
+    } else if (boxes.length === 1) {
+      if (boxes[0].label === 'Propan') {
+        boxes.push({ label: 'AI-92', price: '10 500', unit: "so'm/l" });
+      } else {
+        boxes.push({ label: 'Propan', price: '5 500', unit: "so'm/l" });
+      }
+    }
+
+    return boxes.slice(0, 2);
+  };
+
+  const travelDurationMinutes = Math.max(
+    1,
+    Math.round(((activeMobileStation?.distanceKm || 0.6) / 35) * 60)
+  );
+
+  function formatCardDistance(km) {
+    if (km === undefined || km === null || isNaN(km)) return '354 m';
+    if (km < 1) {
+      return `${Math.round(km * 1000)} m`;
+    }
+    return `${km.toFixed(1).replace('.', ',')} km`;
+  }
 
   // Protomaps sozlamalari
   const protomapsKey = import.meta.env.VITE_PROTOMAPS_KEY;
@@ -635,24 +918,62 @@ export default function MapView({
     if (!filteredStationList || filteredStationList.length === 0) return;
 
     const currentZoom = map.getZoom();
-    const shouldShow = currentZoom >= MIN_STATION_ZOOM;
+    const shouldShow = currentZoom >= (isMobile ? 10.0 : MIN_STATION_ZOOM);
+
+    // Shahobchalar uchun tanlangan yoqilg'i narxlarini hisoblash va eng arzonini aniqlash
+    const stationPrices = {};
+    let minPrice = Infinity;
+
+    filteredStationList.forEach((station) => {
+      let p = null;
+      if (selectedFuelType && selectedFuelType !== 'all') {
+        if (station.prices && station.prices[selectedFuelType]) {
+          p = Number(station.prices[selectedFuelType]);
+        } else if (selectedFuelType === 'benzin' && station.prices?.ai92) {
+          p = Number(station.prices.ai92);
+        }
+      }
+      if (!p && station.prices && Object.keys(station.prices).length > 0) {
+        const vals = Object.values(station.prices).map(Number).filter((v) => v > 0);
+        if (vals.length > 0) p = Math.min(...vals);
+      }
+      if (!p && Number(station.price) > 0) {
+        p = Number(station.price);
+      }
+      if (!p) {
+        if (selectedFuelType === 'metan') p = 3800;
+        else if (selectedFuelType === 'propan') p = 5500;
+        else if (selectedFuelType === 'benzin') p = 10500;
+        else if (selectedFuelType === 'elektr') p = 1800;
+        else if (selectedFuelType === 'dizel') p = 11500;
+        else p = 3800;
+      }
+      stationPrices[station.id] = p;
+      if (p < minPrice) minPrice = p;
+    });
 
     filteredStationList.forEach((station) => {
       if (!station.lat || !station.lng) return;
 
-      const svgIcon = getStationSvgIcon(station);
-      const isHighlighted = highlightedStationId === station.id;
-      const isVisible = shouldShow || isHighlighted;
+      const isCurrentActive = (activeMobileStation?.id === station.id) || (highlightedStationId === station.id);
+      const isVisible = shouldShow || isCurrentActive;
+      const price = stationPrices[station.id] || 3800;
+      const isBestPrice = price === minPrice;
 
       const el = document.createElement('div');
-      el.className = `yandex-station-marker ${isVisible ? '' : 'station-hidden'} ${isHighlighted ? 'station-highlight-pulse' : ''}`;
-
+      const svgIcon = getStationSvgIcon(station);
+      el.className = `yandex-station-marker ${isVisible ? '' : 'station-hidden'} ${isCurrentActive ? 'station-highlight-pulse' : ''}`;
       el.innerHTML = `
-        <div class="ym-icon-pin ${isHighlighted ? 'pin-pulse' : ''}">
+        <div class="ym-icon-pin ${isCurrentActive ? 'pin-pulse' : ''}">
           ${svgIcon}
         </div>
-        <span class="ym-name-label ${isHighlighted ? 'label-pulse' : ''}">${station.name || 'Zapravka'}</span>
+        <span class="ym-name-label ${isCurrentActive ? 'label-pulse' : ''}">${station.name || 'Zapravka'}</span>
       `;
+
+      el.addEventListener('click', (e) => {
+        setMobileActiveStationId(station.id);
+        triggerStationHighlight(station, 'Tanlangan', 'selected');
+      });
 
       // Popup kontenti
       const popup = new maplibregl.Popup({
@@ -678,7 +999,7 @@ export default function MapView({
       marker.station = station;
       markersRef.current.push(marker);
     });
-  }, [filteredStationList, onSelectStation, onNavigate, mapInstance, highlightedStationId, highlightBadgeText]);
+  }, [filteredStationList, onSelectStation, onNavigate, mapInstance, highlightedStationId, highlightBadgeText, isMobile, selectedFuelType, activeMobileStation?.id]);
 
   // Shahobchani tanlash va unga sal yaqinlashtirib yonib-yonib ko'rsatish
   const triggerStationHighlight = (station, badgeText, badgeType = 'selected') => {
@@ -2693,8 +3014,8 @@ export default function MapView({
         }
       `}</style>
 
-      {/* YANDEX USLUBIDAGI CHAP PANEL (Faqat xarita bo'limida) */}
-      {showSidebar && (
+      {/* YANDEX USLUBIDAGI CHAP PANEL (Faqat xarita bo'limida va faqat kompyuterda) */}
+      {showSidebar && !isMobile && (
         <div className={`yandex-map-sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
         {/* Ochish / yopish ko'rsatkich tugmasi */}
         <button
@@ -3147,137 +3468,205 @@ export default function MapView({
         </div>
       )}
 
-      {/* KATTA BANNER REKLAMA (Faqat xarita bo'limida ko'rsatiladi, asosiy bo'limda xarita ustiga chiqmaydi) */}
-      {showSidebar && !isBottomBannerClosed && (
+      {/* 4. MOBIL BOTTOM SHEET (RASMDAGI KABI PASTKI KARTA VA SARALASH) */}
+      {isMobile && filteredStationList.length > 0 && (
         <div
-          className={`map-bottom-ad-banner-slot hide-on-mobile ${
-            isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'
-          }`}
+          ref={sheetRef}
+          className={`mobile-map-bottom-sheet sheet-${sheetMode}`}
         >
-          {mapBottomAd ? (
-            (() => {
-              const mediaUrl = mapBottomAd.video_url || mapBottomAd.media_url || mapBottomAd.image_url || '';
-              const isVideo = mediaUrl && (mediaUrl.endsWith('.mp4') || mediaUrl.endsWith('.webm') || mediaUrl.startsWith('data:video'));
+          {/* Ushlagich va sarlavha zonasi - silliq surish va bosish uchun */}
+          <div
+            className="mobile-sheet-grab-area"
+            onTouchStart={handleSheetTouchStart}
+            onTouchMove={handleSheetTouchMove}
+            onTouchEnd={handleSheetTouchEnd}
+            onClick={handleGrabClick}
+          >
+            {/* Tutqich (Drag handle) */}
+            <div className="mobile-sheet-drag-handle" />
+
+            {/* Sarlavha qatori: Yaqin atrofda (chapda) | X ta natija (o'ngda) */}
+            <div className="mobile-sheet-header-row">
+              <span className="mobile-sheet-title">Yaqin atrofda</span>
+              <span className="mobile-sheet-count">{filteredStationList.length} ta natija</span>
+            </div>
+          </div>
+
+          {/* Saralash tugmalari: [ Eng yaqin ] [ Eng sifatli ] [ Eng arzon ] */}
+          <div className="mobile-sheet-sort-row">
+            <button
+              type="button"
+              className={`mobile-sort-pill-btn ${mobileSortMode === 'nearest' ? 'active' : ''}`}
+              onClick={() => {
+                setMobileSortMode('nearest');
+                setQuickSortMode('nearest');
+                if (filteredStationList.length > 0) {
+                  const sorted = [...filteredStationList].sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
+                  if (sorted[0]) {
+                    setMobileActiveStationId(sorted[0].id);
+                    mapRef.current?.flyTo({
+                      center: [Number(sorted[0].lng), Number(sorted[0].lat)],
+                      zoom: 15.2,
+                      essential: true,
+                    });
+                  }
+                }
+              }}
+            >
+              Eng yaqin
+            </button>
+
+            <button
+              type="button"
+              className={`mobile-sort-pill-btn ${mobileSortMode === 'quality' ? 'active' : ''}`}
+              onClick={() => {
+                setMobileSortMode('quality');
+                const sorted = [...filteredStationList].sort((a, b) => {
+                  const qA = Number(a.gasPressure || a.pressure || 0) + Number(a.rating || 0) * 40;
+                  const qB = Number(b.gasPressure || b.pressure || 0) + Number(b.rating || 0) * 40;
+                  return qB - qA;
+                });
+                if (sorted[0]) {
+                  setMobileActiveStationId(sorted[0].id);
+                  mapRef.current?.flyTo({
+                    center: [Number(sorted[0].lng), Number(sorted[0].lat)],
+                    zoom: 15.2,
+                    essential: true,
+                  });
+                }
+              }}
+            >
+              Eng sifatli
+            </button>
+
+            <button
+              type="button"
+              className={`mobile-sort-pill-btn ${mobileSortMode === 'cheapest' ? 'active' : ''}`}
+              onClick={() => {
+                setMobileSortMode('cheapest');
+                setQuickSortMode('cheapest');
+                const sorted = [...filteredStationList].sort((a, b) => {
+                  const pA = a.prices?.[selectedFuelType] || a.price || 999999;
+                  const pB = b.prices?.[selectedFuelType] || b.price || 999999;
+                  return Number(pA) - Number(pB);
+                });
+                if (sorted[0]) {
+                  setMobileActiveStationId(sorted[0].id);
+                  mapRef.current?.flyTo({
+                    center: [Number(sorted[0].lng), Number(sorted[0].lat)],
+                    zoom: 15.2,
+                    essential: true,
+                  });
+                }
+              }}
+            >
+              Eng arzon
+            </button>
+          </div>
+
+          {/* Shahobchalar ro'yxati: pastga tushirganda qolgan yaqinroq manzillar chiqadi va xarita ustiga kengayadi */}
+          <div
+            ref={listRef}
+            className="mobile-sheet-stations-list"
+            onTouchStart={handleListTouchStart}
+            onTouchMove={handleListTouchMove}
+            onTouchEnd={handleListTouchEnd}
+          >
+            {filteredStationList.map((station, index) => {
+              const boxes = getStationFuelBoxes(station);
+              const duration = Math.max(1, Math.round(((station.distanceKm || 0.6) / 35) * 60));
+              const isSelected = (activeMobileStation?.id === station.id) || (index === 0 && !mobileActiveStationId);
+              const rankTag = index === 0
+                ? (mobileSortMode === 'cheapest' ? 'ENG ARZON' : mobileSortMode === 'quality' ? 'ENG SIFATLI' : 'ENG YAQIN')
+                : null;
+
               return (
                 <div
-                  className="map-bottom-ad-inner"
-                  onClick={() => handleOpenAdLink(mapBottomAd)}
+                  key={station.id || index}
+                  className={`mobile-sheet-station-card ${isSelected ? 'selected' : ''}`}
+                  onClick={() => {
+                    if (didDragRef.current) return;
+                    setMobileActiveStationId(station.id);
+                    triggerStationHighlight(station, 'Tanlangan', 'selected');
+                    mapRef.current?.flyTo({
+                      center: [Number(station.lng), Number(station.lat)],
+                      zoom: 15.2,
+                      essential: true,
+                    });
+                  }}
                 >
-                  <div className="map-bottom-ad-left-wrap">
-                    {mediaUrl && (
-                      <div className="map-bottom-ad-media-thumb">
-                        {isVideo ? (
-                          <video
-                            src={mediaUrl}
-                            className="map-bottom-thumb-media"
-                            autoPlay
-                            muted
-                            loop
-                            playsInline
-                          />
-                        ) : (
-                          <img
-                            src={mediaUrl}
-                            alt={mapBottomAd.title || 'Reklama'}
-                            className="map-bottom-thumb-media"
-                          />
-                        )}
-                        <span className="map-bottom-badge-label">Reklama</span>
-                      </div>
-                    )}
-                    <div className="map-bottom-ad-text">
-                      <div className="map-bottom-ad-title-row">
-                        <span className="map-bottom-ad-badge-promo">MAXSUS</span>
-                        <h5 className="map-bottom-ad-title">{mapBottomAd.title || "Hamkorimiz taklifi"}</h5>
-                      </div>
-                      <p className="map-bottom-ad-desc">
-                        {mapBottomAd.description || "Ushbu xizmat yoki mahsulot haqida ko'proq ma'lumot olish uchun bosing"}
-                      </p>
+                  {/* 1-qator: Shahobcha nomi + [ Ochiq ] | [ ENG YAQIN ] 354 m */}
+                  <div className="mobile-card-top-row">
+                    <div className="mobile-card-name-group">
+                      <h3 className="mobile-card-station-name">{station.name || 'Zapravka'}</h3>
+                      <span className={`mobile-card-status-badge ${station.isOpen !== false ? 'open' : 'closed'}`}>
+                        {station.isOpen !== false ? 'Ochiq' : 'Yopiq'}
+                      </span>
+                    </div>
+
+                    <div className="mobile-card-meta-right">
+                      {rankTag && <span className="mobile-card-rank-tag">{rankTag}</span>}
+                      <span className="mobile-card-distance-val">
+                        {formatCardDistance(station.distanceKm)}
+                      </span>
                     </div>
                   </div>
-                  <div className="map-bottom-ad-actions">
+
+                  {/* 2-qator: 2 ta yoqilg'i narxi qutisi (Propan 5 500 so'm/l | AI-92 10 500 so'm/l) */}
+                  <div className="mobile-card-prices-grid">
+                    {boxes.map((box, bIdx) => (
+                      <div key={bIdx} className="mobile-card-price-box">
+                        <div className="mobile-price-box-label">{box.label}</div>
+                        <div className="mobile-price-box-value-row">
+                          <span className="mobile-price-box-num">{box.price}</span>
+                          <span className="mobile-price-box-unit">{box.unit}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 3-qator: [ Batafsil ] va [ < Borish · X daq ] */}
+                  <div className="mobile-card-actions-row">
                     <button
                       type="button"
-                      className="map-bottom-ad-btn-cta primary-cta"
+                      className="mobile-card-btn-detail"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleOpenAdLink(mapBottomAd);
+                        if (typeof onSelectStation === 'function') {
+                          onSelectStation(station);
+                        }
                       }}
                     >
-                      <span>Batafsil</span>
-                      <ExternalLink size={12} />
+                      Batafsil
                     </button>
+
                     <button
                       type="button"
-                      className="map-bottom-ad-btn-close"
+                      className="mobile-card-btn-route"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setIsBottomBannerClosed(true);
+                        if (typeof onNavigate === 'function') {
+                          onNavigate(station);
+                        }
                       }}
-                      title="Yopish"
-                      aria-label="Yopish"
                     >
-                      <X size={14} />
+                      <Navigation size={16} strokeWidth={2.4} style={{ transform: 'rotate(-45deg)' }} />
+                      <span>Borish · {duration} daq</span>
                     </button>
                   </div>
                 </div>
               );
-            })()
-          ) : (
-            <div
-              className="map-bottom-ad-inner"
-              onClick={() => (onOpenAdvertising ? onOpenAdvertising() : handleOpenAdLink())}
-            >
-              <div className="map-bottom-ad-left-wrap">
-                <div className="map-bottom-ad-icon-box">
-                  <Megaphone size={20} color="#2563eb" />
-                </div>
-                <div className="map-bottom-ad-text">
-                  <div className="map-bottom-ad-title-row">
-                    <h5 className="map-bottom-ad-title">Reklama joylash</h5>
-                    <span className="map-bottom-ad-tag">Banner joyi (728 × 90)</span>
-                  </div>
-                  <p className="map-bottom-ad-desc">
-                    Milliardlab ko'rishlar: ushbu joyda brendingiz yoki xizmatingiz reklamasini joylashtiring
-                  </p>
-                </div>
-              </div>
-              <div className="map-bottom-ad-actions">
-                <button
-                  type="button"
-                  className="map-bottom-ad-btn-cta primary-cta"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (typeof onOpenAdvertising === 'function') {
-                      onOpenAdvertising();
-                    } else {
-                      handleOpenAdLink();
-                    }
-                  }}
-                >
-                  <span>Batafsil</span>
-                  <ChevronRight size={14} />
-                </button>
-                <button
-                  type="button"
-                  className="map-bottom-ad-btn-close"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsBottomBannerClosed(true);
-                  }}
-                  title="Yopish"
-                  aria-label="Yopish"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            </div>
-          )}
+            })}
+          </div>
         </div>
       )}
 
       {/* Joylashuvni aniqlash tugmasi */}
-      <button className="locate-me-btn" onClick={handleLocateMe} title="Mening joylashuvim">
+      <button
+        className={`locate-me-btn sheet-${sheetMode}`}
+        onClick={handleLocateMe}
+        title="Mening joylashuvim"
+      >
         <Navigation size={22} />
       </button>
     </div>

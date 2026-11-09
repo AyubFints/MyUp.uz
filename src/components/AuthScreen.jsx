@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, Lock, Phone, ArrowRight, CheckCircle2, AlertCircle, 
   Eye, EyeOff, LogIn, UserPlus, MapPin, Building2, Upload, 
-  Image as ImageIcon, X, ArrowLeft, SkipForward
+  Image as ImageIcon, X, ArrowLeft, SkipForward, Info
 } from 'lucide-react';
 import api from '../api/client';
 
@@ -123,6 +123,28 @@ export default function AuthScreen({
 
       if (res.success && res.token && res.user) {
         localStorage.setItem('myup_token', res.token);
+
+        // Yangi foydalanuvchi uchun 2 kunlik maxsus yo'riqnoma bildirishnoma yaratamiz
+        const welcomeNotif = {
+          id: "sys_location_guide_" + Date.now(),
+          title: "Manzil qo'shish imkoniyati",
+          message: "Agar sizning ham dasturga qo'shmoqchi bo'lgan manzilingiz bo'lsa, ushbu bildirishnomalarning eng tagida joylashuv qo'shishni faollashtiradigan joy bor.",
+          badge: "Qo'llanma",
+          type: "location_guide",
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          date: "Hozir",
+          sender: "AX-Map Tizimi",
+        };
+
+        try {
+          const existingNotifs = JSON.parse(localStorage.getItem("myup_incoming_notifications") || "[]");
+          const updatedNotifs = [welcomeNotif, ...existingNotifs.filter((n) => n.type !== 'location_guide')];
+          localStorage.setItem("myup_incoming_notifications", JSON.stringify(updatedNotifs));
+          localStorage.setItem("myup_notif_unread", "true");
+          localStorage.setItem("myup_notif_unread_count", "1");
+        } catch (e) {}
+
         const newUser = {
           id: res.user.id,
           firstName: res.user.first_name || formData.firstName.trim(),
@@ -160,10 +182,6 @@ export default function AuthScreen({
     }
     if (!locationData.responsiblePerson.trim()) {
       setErrorMsg("Mas'ul inson ismini kiriting!");
-      return;
-    }
-    if (!locationData.locationAddress.trim()) {
-      setErrorMsg("Joylashuv manzilini kiriting!");
       return;
     }
     if (!locationData.password || locationData.password.length < 4) {
@@ -205,16 +223,46 @@ export default function AuthScreen({
     }
 
     try {
-      // 1. Foydalanuvchini PostgreSQL users jadvaliga ro'yxatdan o'tkazamiz (Instagram kabi yangi profil)
-      const regRes = await api.auth.register({
+      const regPayload = {
         phone: cleanPhone,
         firstName: locationData.responsiblePerson.trim(),
         lastName: '',
         password: locationData.password,
         hasLocation: true,
+        canAddStation: true,
+        registeredViaLocation: true,
         role: 'owner',
+        locationName: locationData.locationName.trim(),
+        responsiblePerson: locationData.responsiblePerson.trim(),
+        locationPhone: locationData.phone,
+        locationImage: finalImage || null,
         avatarUrl: finalImage || null,
-      });
+      };
+
+      let regRes;
+      try {
+        regRes = await api.auth.register(regPayload);
+      } catch (err) {
+        // Agar ushbu telefon raqam bilan avval oddiy foydalanuvchi bo'lib ro'yxatdan o'tilgan bo'lsa:
+        // Avtomatik tizimga kirib, joylashuv profilini faollashtiramiz va egasi (owner) qilib yangilaymiz!
+        if (err.message?.includes('allaqachon') || err.message?.includes('mavjud') || err.message?.includes('400')) {
+          const logRes = await api.auth.login(cleanPhone, locationData.password);
+          if (logRes.success && logRes.token) {
+            localStorage.setItem('myup_token', logRes.token);
+            const upd = await api.auth.updateProfile(regPayload);
+            regRes = {
+              success: true,
+              token: logRes.token,
+              user: upd.user || logRes.user,
+              stations: logRes.stations || []
+            };
+          } else {
+            throw err;
+          }
+        } else {
+          throw err;
+        }
+      }
 
       if (!regRes.success || !regRes.user || !regRes.token) {
         setErrorMsg(regRes.message || "Ro'yxatdan o'tishda xatolik yuz berdi.");
@@ -224,84 +272,35 @@ export default function AuthScreen({
       const realUser = regRes.user;
       localStorage.setItem('myup_token', regRes.token);
 
-      // 2. Yangi shahobchani PostgreSQL stations jadvaliga saqlaymiz (owner_id bilan bog'langan)
-      let createdStation = null;
-      try {
-        const locRes = await api.stations.create({
-          name: locationData.locationName.trim(),
-          address: locationData.locationAddress.trim(),
-          phone: locationData.phone,
-          isOpen: true,
-          images: finalImage ? [finalImage] : [],
-          prices: { metan: '3800' },
-          lat: 41.311081,
-          lng: 69.240562,
-          city: 'Toshkent',
-          ownerId: realUser.id,
-        });
-        if (locRes.success && locRes.station) {
-          createdStation = locRes.station;
-        }
-      } catch (locErr) {
-        console.warn("Backend shahobcha yaratish ogohlantirish:", locErr.message);
-      }
-
-      if (!createdStation) {
-        createdStation = {
-          id: 'st_' + Date.now(),
-          name: locationData.locationName.trim(),
-          responsiblePerson: locationData.responsiblePerson.trim(),
-          address: locationData.locationAddress.trim(),
-          city: "Toshkent",
-          phone: locationData.phone,
-          isOpen: true,
-          status: 'approved',
-          isApproved: true,
-          image: finalImage,
-          images: finalImage ? [finalImage] : [],
-          lat: 41.311081,
-          lng: 69.240562,
-          prices: { metan: '3800' },
-          ownerId: realUser.id,
-          createdAt: new Date().toISOString(),
-        };
-      }
-
-      // Mening joylashuvlarim (myStations) ga qo'shish
-      try {
-        const savedStations = localStorage.getItem('myup_my_stations');
-        const list = savedStations ? JSON.parse(savedStations) : [];
-        const updatedList = [createdStation, ...list.filter(s => s.id !== createdStation.id)];
-        localStorage.setItem('myup_my_stations', JSON.stringify(updatedList));
-      } catch (err) {
-        console.error("Local joylashuv saqlash xatosi:", err);
-      }
-
-      // 3. Foydalanuvchi ma'lumotlarini tayyorlash
+      // 2. DIQQAT: Bu yerda hech qanday soxta shahobcha (joylashuv) yaratilmaydi!
+      // Faqat foydalanuvchiga joylashuv/shahobcha qo'shish huquqi (canAddStation) beriladi.
       const newUser = {
         id: realUser.id,
         role: 'owner',
         hasLocation: true,
+        canAddStation: true,
         registeredViaLocation: true,
         isLocationOnly: true,
         userProfileCompleted: false,
         firstName: locationData.responsiblePerson.trim(),
         lastName: '',
         locationName: locationData.locationName.trim(),
+        organizationName: locationData.locationName.trim(),
         responsiblePerson: locationData.responsiblePerson.trim(),
-        locationAddress: locationData.locationAddress.trim(),
         locationPhone: locationData.phone,
         locationImage: finalImage,
         phoneNumber: locationData.phone,
-        registeredAt: realUser.created_at || new Date().toISOString(),
-        avatar: finalImage || `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanPhone}`,
+        registeredAt: realUser.created_at || realUser.createdAt || new Date().toISOString(),
+        avatar: finalImage || realUser.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanPhone}`,
       };
 
       localStorage.setItem('myup_user', JSON.stringify(newUser));
-      onLoginSuccess(newUser, createdStation, [createdStation]);
+      const userStations = Array.isArray(regRes.stations) ? regRes.stations : [];
+      localStorage.setItem('myup_my_stations', JSON.stringify(userStations));
+      onLoginSuccess(newUser, userStations[0] || null, userStations);
     } catch (err) {
       console.error("Joylashuv ro'yxatdan o'tish xatosi:", err);
-      setErrorMsg(err.message || "Ro'yxatdan o'tishda xatolik yuz berdi. Ushbu telefon raqam allaqachon ro'yxatdan o'tgan bo'lishi mumkin.");
+      setErrorMsg(err.message || "Ro'yxatdan o'tishda xatolik yuz berdi. Parol noto'g'ri bo'lishi mumkin.");
     }
   };
 
@@ -331,19 +330,22 @@ export default function AuthScreen({
 
         const loggedUser = {
           id: res.user.id,
-          firstName: res.user.first_name || 'Foydalanuvchi',
-          lastName: res.user.last_name || '',
-          phoneNumber: res.user.phone || loginPhone,
+          firstName: res.user.firstName || res.user.first_name || 'Foydalanuvchi',
+          lastName: res.user.lastName || res.user.last_name || '',
+          phoneNumber: res.user.phone || res.user.phoneNumber || loginPhone,
           role: res.user.role || 'user',
-          hasLocation: Boolean(res.user.has_location || userStations.length > 0),
-          locationName: primaryStation?.name || '',
-          responsiblePerson: primaryStation?.responsiblePerson || (res.user.first_name ? `${res.user.first_name} ${res.user.last_name || ''}`.trim() : ''),
+          hasLocation: Boolean(res.user.hasLocation ?? res.user.has_location ?? (userStations.length > 0)),
+          canAddStation: Boolean(res.user.canAddStation ?? res.user.can_add_station ?? res.user.hasLocation ?? res.user.has_location),
+          registeredViaLocation: Boolean(res.user.registeredViaLocation ?? res.user.registered_via_location ?? res.user.locationName ?? res.user.location_name),
+          locationName: res.user.locationName || res.user.location_name || primaryStation?.name || '',
+          organizationName: res.user.locationName || res.user.location_name || primaryStation?.name || '',
+          responsiblePerson: res.user.responsiblePerson || res.user.responsible_person || primaryStation?.responsiblePerson || (res.user.first_name ? `${res.user.first_name} ${res.user.last_name || ''}`.trim() : ''),
           locationAddress: primaryStation?.address || '',
-          locationPhone: primaryStation?.phone || res.user.phone || loginPhone,
-          locationImage: primaryStation?.image || (Array.isArray(primaryStation?.images) ? primaryStation.images[0] : null) || null,
+          locationPhone: res.user.locationPhone || res.user.location_phone || primaryStation?.phone || res.user.phone || loginPhone,
+          locationImage: res.user.locationImage || res.user.location_image || primaryStation?.image || (Array.isArray(primaryStation?.images) ? primaryStation.images[0] : null) || null,
           bio: res.user.bio || '',
-          avatar: res.user.avatar_url || primaryStation?.image || `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanPhone}`,
-          registeredAt: res.user.created_at || new Date().toISOString(),
+          avatar: res.user.avatarUrl || res.user.avatar_url || res.user.avatar || primaryStation?.image || `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanPhone}`,
+          registeredAt: res.user.createdAt || res.user.created_at || new Date().toISOString(),
         };
 
         localStorage.setItem('myup_user', JSON.stringify(loggedUser));
@@ -395,12 +397,14 @@ export default function AuthScreen({
       <div className="modern-auth-ambient-glow" />
 
       <div className="modern-auth-card">
+        {/* Tepa-pastga surish indikatori (Drag Handle) */}
+        <div className="notif-modal-drag-indicator-bar" />
 
         {/* HEADER */}
         <div className="modern-auth-header">
           <h2 className="modern-auth-title">
             {authMode === 'location_register'
-              ? "Joylashuv joylash"
+              ? "Joylashuvlaringizning asosiy qismi"
               : authMode === 'register'
               ? "Ro'yxatdan o'tish"
               : "Tizimga kirish"}
@@ -408,7 +412,7 @@ export default function AuthScreen({
           <p className="modern-auth-subtitle">
             {authMode === 'location_register'
               ? (locationStep === 1 
-                  ? "Joylashuvingiz ma'lumotlarini to'ldiring" 
+                  ? "Joylashuvingiz ma'lumotlarini kiriting" 
                   : "Joylashuvingiz uchun asosiy rasm qo'yib keting")
               : authMode === 'register' 
               ? (step === 1 
@@ -516,11 +520,37 @@ export default function AuthScreen({
             A) JOYLASHUV JOYLASh (LOCATION REGISTRATION) FORMASI
             1. Joylashuv nomi
             2. Mas'ul inson
-            3. Joylashuv manzili
-            4. Maxfiy parol
-            5. Joylashuv asosiy telefon raqami
-            6. Asosiy rasm qo'yish (va Tashlab ketish)
+            3. Maxfiy parol
+            4. Joylashuv asosiy telefon raqami
+            5. Asosiy rasm qo'yish (va Tashlab ketish)
             ======================================================== */}
+        {authMode === 'location_register' && locationStep === 1 && (
+          <div 
+            style={{
+              margin: '12px 0 16px',
+              padding: '12px 14px',
+              background: 'rgba(56, 189, 248, 0.08)',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '10px',
+              color: '#e2e8f0',
+              fontSize: '0.84rem',
+              lineHeight: '1.45',
+              textAlign: 'left',
+            }}
+          >
+            <Info size={18} style={{ color: '#38bdf8', flexShrink: 0, marginTop: '2px' }} />
+            <div>
+              <strong style={{ color: '#38bdf8', display: 'block', marginBottom: '2px', fontSize: '0.86rem' }}>
+                Muhim eslatma:
+              </strong>
+              Siz bu yerda avval registratsiyadan o'tib olasiz, shundan keyin o'zingizning haqiqiy yoqilg'i shahobchalaringizni xaritaga erkin qo'shish va narxlarini boshqarish huquqiga ega bo'lasiz.
+            </div>
+          </div>
+        )}
+
         {authMode === 'location_register' && locationStep === 1 && (
           <form onSubmit={handleLocationStep1Submit} className="modern-auth-form">
             {/* 1. Joylashuv nomi */}
@@ -556,23 +586,7 @@ export default function AuthScreen({
               </div>
             </div>
 
-            {/* 3. Joylashuv manzili */}
-            <div className="modern-field-group">
-              <label className="modern-field-label">Joylashuv manzili *</label>
-              <div className="modern-input-wrap">
-                <MapPin size={18} className="modern-input-icon text-amber-400" />
-                <input 
-                  type="text" 
-                  placeholder="Masalan: Toshkent sh., Chilonzor tumani, Bunyodkor shoh ko'chasi" 
-                  value={locationData.locationAddress}
-                  onChange={e => setLocationData({ ...locationData, locationAddress: e.target.value })}
-                  className="modern-input-field"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* 4. Maxfiy parol */}
+            {/* 3. Maxfiy parol */}
             <div className="modern-field-group">
               <label className="modern-field-label">Maxfiy parol *</label>
               <div className="modern-input-wrap">

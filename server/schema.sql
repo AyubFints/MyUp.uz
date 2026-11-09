@@ -16,6 +16,13 @@ CREATE TABLE IF NOT EXISTS users (
     avatar_url TEXT,
     bio TEXT,
     role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('user', 'owner', 'super_admin')),
+    has_location BOOLEAN DEFAULT false,
+    can_add_station BOOLEAN DEFAULT false,
+    registered_via_location BOOLEAN DEFAULT false,
+    location_name VARCHAR(255),
+    responsible_person VARCHAR(255),
+    location_phone VARCHAR(50),
+    location_image TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

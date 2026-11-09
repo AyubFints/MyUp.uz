@@ -3352,6 +3352,10 @@
   z-index: 1;
   width: 100%;
   max-width: 440px;
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background: var(--theme-panel, #161822);
   border: 1.5px solid var(--theme-border, rgba(255, 255, 255, 0.1));
   border-radius: 24px;
@@ -8528,6 +8532,7 @@
 @media (max-width: 768px) {
   .map-fullscreen-wrapper {
     top: 64px !important;
+    bottom: 64px !important;
   }
 }
 
@@ -13653,6 +13658,13 @@
 .location-action-card {
   margin-top: 10px;
   border-color: rgba(56, 189, 248, 0.2) !important;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.location-card-pulse-highlight {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.6), 0 0 30px rgba(56, 189, 248, 0.4) !important;
+  transform: translateY(-2px) scale(1.015);
 }
 
 .location-icon-wrap {
@@ -14558,11 +14570,57 @@
   box-shadow: 0 6px 18px rgba(14, 165, 233, 0.45);
 }
 
-/* Modallar uchun qo'shimcha uslublar */
+/* Modallar uchun qo'shimcha uslublar (Tepa-pastga ravon surilish) */
 .complete-profile-modal-card,
 .location-register-modal-card {
-  max-width: 460px !important;
+  max-width: 480px !important;
   width: 95% !important;
+  max-height: 90vh !important;
+  max-height: 90dvh !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior-y: contain !important;
+  scroll-behavior: smooth !important;
+  margin: auto !important;
+}
+
+/* Tepa-pastga tortish / surish indikatori (Drag Handle) */
+.notif-modal-drag-indicator-bar {
+  width: 48px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  margin: -6px auto 14px;
+  flex-shrink: 0;
+  transition: background 0.2s, transform 0.2s;
+  cursor: grab;
+}
+
+.notif-modal-drag-indicator-bar:hover {
+  background: rgba(56, 189, 248, 0.7);
+  transform: scaleX(1.1);
+}
+
+/* Yupqa va chiroyli scrollbar */
+.location-register-modal-card::-webkit-scrollbar,
+.modern-auth-card::-webkit-scrollbar {
+  width: 5px;
+}
+
+.location-register-modal-card::-webkit-scrollbar-track,
+.modern-auth-card::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.location-register-modal-card::-webkit-scrollbar-thumb,
+.modern-auth-card::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.3);
+  border-radius: 10px;
+}
+
+.location-register-modal-card::-webkit-scrollbar-thumb:hover,
+.modern-auth-card::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.6);
 }
 
 /* Light Theme qo'llab-quvvatlashi */
@@ -14661,31 +14719,38 @@
    va ma'lumotlar ikki yonga yopishib tursin (edge-to-edge)
    ======================================================== */
 @media (max-width: 768px) {
-  /* Modal Overlay: chetlardagi bo'shliqlarni olib tashlash va dastur foni bilan bir xil qilish */
+  /* Modal Overlay: pastdan chiquvchi qulay bottom sheet yoki suzuvchi karta */
   .notif-modal-overlay.location-register-modal-overlay,
   .notif-modal-overlay.location-edit-hero-modal-overlay {
     padding: 0 !important;
-    align-items: flex-start !important;
-    justify-content: stretch !important;
-    background: var(--bg-color, #0e0e10) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
+    display: flex !important;
+    align-items: flex-end !important;
+    justify-content: center !important;
+    background: rgba(0, 0, 0, 0.75) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
     overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
+    -webkit-overflow-scrolling: touch !important;
   }
 
-  /* Modal Card: alohida oppoq yoki ajralib turuvchi ramkasiz, dastur foni bilan bir xil, ikki yonga to'liq yopishgan */
+  /* Modal Card: tepadan pastga suriladigan va to'liq ko'rinadigan qulay oyna */
   .notif-modal-card.location-register-modal-card,
   .notif-modal-card.location-edit-hero-modal-card,
   .notif-modal-card.complete-profile-modal-card {
     width: 100% !important;
     max-width: 100% !important;
-    min-height: 100vh !important;
-    border-radius: 0 !important;
-    border: none !important;
-    box-shadow: none !important;
+    max-height: 88vh !important;
+    max-height: 88dvh !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
+    scroll-behavior: smooth !important;
+    border-radius: 24px 24px 0 0 !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    border-bottom: none !important;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.75) !important;
     background: var(--bg-color, #0e0e10) !important;
-    padding: 20px 10px 36px !important;
+    padding: 16px 14px 40px !important;
     margin: 0 !important;
     box-sizing: border-box !important;
     display: flex;
@@ -16982,4 +17047,344 @@ body.light-theme .location-fallback-btn {
   border: 1px solid rgba(255, 255, 255, 0.14);
   position: relative;
   overflow: hidden;
+}
+
+/* ==========================================================================
+   MOBILE MAP REDESIGN (Screenshot-accurate: Cyberpunk / Modern Dark UI)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .yandex-map-sidebar {
+    display: none !important;
+  }
+  .locate-me-btn {
+    bottom: 185px !important;
+    right: 16px !important;
+    z-index: 25 !important;
+    width: 44px !important;
+    height: 44px !important;
+    background: #1d4ed8 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 16px rgba(29, 78, 216, 0.45) !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: none !important;
+    transition: bottom 0.32s cubic-bezier(0.2, 0.9, 0.3, 1) !important;
+  }
+  .locate-me-btn.sheet-mid {
+    bottom: calc(46vh + 15px) !important;
+  }
+  .locate-me-btn.sheet-full,
+  .locate-me-btn.sheet-expanded {
+    bottom: calc(80vh + 15px) !important;
+  }
+}
+
+/* 4. Mobile Bottom Sheet Card (Instagram Style 3 Snap Points: Peek / Mid / Full) */
+.mobile-map-bottom-sheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 28;
+  background: linear-gradient(180deg, #111823 0%, #0c121a 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 22px 22px 0 0;
+  padding: 10px 14px 14px 14px;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  height: 80vh;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.32s cubic-bezier(0.2, 0.9, 0.3, 1);
+  will-change: transform;
+  touch-action: pan-y;
+}
+
+/* 1. Ixcham holat (Peek - 170px) - Xarita 80% ochiq, 1-karta yarmigacha ko'rinadi */
+.mobile-map-bottom-sheet.sheet-peek,
+.mobile-map-bottom-sheet.peek {
+  transform: translateY(calc(100% - 170px));
+}
+
+/* 2. O'rta holat (Mid - 46vh) - Instagram kabi yarim ekran: xaritayam, 2 ta kartayam to'liq ko'rinadi */
+.mobile-map-bottom-sheet.sheet-mid {
+  transform: translateY(calc(100% - 46vh));
+}
+
+/* 3. To'liq holat (Full - 80vh) - Barcha shahobchalar ro'yxatini to'liq aylanib ko'rish */
+.mobile-map-bottom-sheet.sheet-full,
+.mobile-map-bottom-sheet.expanded {
+  transform: translateY(0);
+}
+
+.mobile-map-bottom-sheet.is-dragging {
+  transition: none !important;
+}
+
+.mobile-sheet-grab-area {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
+  flex-shrink: 0;
+  padding-bottom: 2px;
+}
+
+.mobile-sheet-drag-handle {
+  width: 44px;
+  height: 5px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.3);
+  margin: 0 auto 10px auto;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.mobile-sheet-drag-handle:active {
+  background: rgba(255, 255, 255, 0.6);
+  transform: scaleY(1.3);
+}
+
+.mobile-sheet-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 9px;
+  flex-shrink: 0;
+}
+
+.mobile-sheet-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.mobile-sheet-count {
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+/* Sort Pills: [ Eng yaqin ] [ Eng sifatli ] [ Eng arzon ] */
+.mobile-sheet-sort-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.mobile-sort-pill-btn {
+  padding: 6px 14px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mobile-sort-pill-btn.active {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(29, 78, 216, 0.45);
+}
+
+/* Scrollable List of Stations */
+.mobile-sheet-stations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  padding-bottom: 85px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  flex: 1;
+}
+
+/* Peek holatda ichki scroll bo'lmaydi, butun sheet tortiladi */
+.mobile-map-bottom-sheet.sheet-peek .mobile-sheet-stations-list,
+.mobile-map-bottom-sheet.peek .mobile-sheet-stations-list {
+  overflow: hidden;
+}
+
+/* Mid va Full holatda ichki ro'yxat erkin va ravon aylanadi */
+.mobile-map-bottom-sheet.sheet-mid .mobile-sheet-stations-list,
+.mobile-map-bottom-sheet.sheet-full .mobile-sheet-stations-list,
+.mobile-map-bottom-sheet.expanded .mobile-sheet-stations-list {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Station Card Inside Sheet */
+.mobile-sheet-station-card {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px 12px 10px 12px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.mobile-sheet-station-card.selected {
+  border-color: rgba(29, 78, 216, 0.6);
+  background: rgba(29, 78, 216, 0.07);
+}
+
+.mobile-card-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.mobile-card-name-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-card-station-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.mobile-card-status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 9999px;
+}
+
+.mobile-card-status-badge.open {
+  background: rgba(16, 185, 129, 0.18);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
+}
+
+.mobile-card-status-badge.closed {
+  background: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #f87171;
+}
+
+.mobile-card-meta-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-card-rank-tag {
+  background: #1d4ed8;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 5px;
+}
+
+.mobile-card-distance-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+/* Prices Grid (2 columns: Propan 5 500 | AI-92 10 500) */
+.mobile-card-prices-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 11px;
+}
+
+.mobile-card-price-box {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 7px 10px;
+}
+
+.mobile-price-box-label {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.mobile-price-box-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.mobile-price-box-num {
+  font-size: 16px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.3px;
+}
+
+.mobile-price-box-unit {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+/* Card Actions: [ Batafsil ] & [ < Borish · X daq ] */
+.mobile-card-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-card-btn-detail {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.mobile-card-btn-detail:active {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.mobile-card-btn-route {
+  flex: 2;
+  padding: 10px 16px;
+  border-radius: 11px;
+  background: #1d4ed8;
+  border: none;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  box-shadow: 0 4px 16px rgba(29, 78, 216, 0.45);
+  transition: all 0.2s ease;
+}
+
+.mobile-card-btn-route:active {
+  transform: scale(0.98);
+  background: #1e40af;
 }

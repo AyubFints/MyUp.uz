@@ -1,14 +1,15 @@
 import { query } from '../config/db.js';
 
-// Foydalanuvchi bildirishnomalarini olish (1 kundan oshgan o'qilgan xabarlar tozalanadi)
+// Foydalanuvchi bildirishnomalarini olish (location_guide 2 kun, boshqa o'qilgan xabarlar 1 kundan so'ng tozalanadi)
 export const getUserNotifications = async (req, res) => {
   try {
-    // Ko'rib bo'linganiga 1 kundan oshgan bildirishnomalarni avtomatik tozalash (o'chirish)
+    // 2 kundan oshgan location_guide va 1 kundan oshgan o'qilgan bildirishnomalarni avtomatik tozalash (o'chirish)
     await query(`
       DELETE FROM user_notifications 
-      WHERE is_read = true 
-        AND read_at IS NOT NULL 
-        AND read_at < NOW() - INTERVAL '1 day'
+      WHERE (
+        (type = 'location_guide' AND created_at < NOW() - INTERVAL '2 days')
+        OR (type != 'location_guide' AND is_read = true AND read_at IS NOT NULL AND read_at < NOW() - INTERVAL '1 day')
+      )
     `).catch(() => {});
 
     const userId = req.user?.id || req.query.userId || null;
@@ -20,7 +21,10 @@ export const getUserNotifications = async (req, res) => {
              title, message, badge, type, is_read AS "isRead",
              read_at AS "readAt", created_at AS "createdAt"
       FROM user_notifications
-      WHERE (read_at IS NULL OR read_at >= NOW() - INTERVAL '1 day')
+      WHERE (
+        (type = 'location_guide' AND created_at >= NOW() - INTERVAL '2 days')
+        OR (type != 'location_guide' AND (read_at IS NULL OR read_at >= NOW() - INTERVAL '1 day'))
+      )
     `;
     const params = [];
 

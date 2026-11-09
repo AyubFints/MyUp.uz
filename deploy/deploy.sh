@@ -133,6 +133,11 @@ if [[ -f "scripts/createVisitsTable.js" ]]; then
     node scripts/createVisitsTable.js
 fi
 
+if [[ -f "scripts/migrateLocationColumns.js" ]]; then
+    log_info "Ensuring user location sync columns (scripts/migrateLocationColumns.js)..."
+    node scripts/migrateLocationColumns.js
+fi
+
 log_success "Database schema verified and migrations applied."
 
 # ------------------------------------------------------------------------------
