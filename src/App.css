@@ -6154,12 +6154,29 @@ body {
   .desktop-nav {
     display: none;
   }
+  .dark-theme-home {
+    min-height: 100vh !important;
+    height: auto !important;
+  }
+  .dark-theme-home .app-content {
+    min-height: auto !important;
+    height: auto !important;
+    flex-direction: column !important;
+  }
   .dark-theme-home .left-panel {
-    width: 100%;
-    border-right: none;
+    width: 100% !important;
+    border-right: none !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .dark-theme-home .station-list {
+    overflow-y: visible !important;
+    height: auto !important;
+    flex: none !important;
+    -webkit-overflow-scrolling: touch !important;
   }
   .dark-theme-home .right-panel-map {
-    display: none;
+    display: none !important;
   }
 }
 
