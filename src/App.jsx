@@ -11,6 +11,7 @@ import ServicesModal from "./components/ServicesModal";
 import LogoutConfirmModal from "./components/LogoutConfirmModal";
 import StationBellModal from "./components/StationBellModal";
 import PhoneEditModal from "./components/PhoneEditModal";
+import GpsPromptModal from "./components/GpsPromptModal";
 import AuthScreen from "./components/AuthScreen";
 import StationDetailModal from "./components/StationDetailModal";
 import { CITIES, INITIAL_STATIONS, MOCK_NEWS, DEFAULT_DEMO_STATIONS, DEFAULT_THEME } from "./data/mockData";
@@ -250,6 +251,9 @@ export default function App() {
 
   const handleTabChange = (newTab, customAuthMode = "register") => {
     setAuthInitialMode(customAuthMode);
+    if ((newTab === "home" || newTab === "map") && !isGpsActive && !isLocating) {
+      setShowGpsModal(true);
+    }
     if (newTab === activeTab) return;
     if (newTab === "advertising" || newTab === "privacy") {
       setPrevTab(activeTab || "home");
@@ -1185,6 +1189,7 @@ export default function App() {
   });
 
   const [isGpsActive, setIsGpsActive] = useState(false);
+  const [showGpsModal, setShowGpsModal] = useState(false);
   const [locationStatus, setLocationStatus] = useState("locating"); // "locating" | "ready" | "denied" | "disabled" | "timeout" | "unsupported"
 
   const [locationAccuracyPercent, setLocationAccuracyPercent] = useState(() => {
@@ -1583,6 +1588,7 @@ export default function App() {
             const newCoords = { lat: latitude, lng: longitude };
             setUserCoords(newCoords);
             setIsGpsActive(true);
+            setShowGpsModal(false);
             try {
               sessionStorage.setItem("axmap_user_coords", JSON.stringify(newCoords));
             } catch (e) {}
@@ -1620,6 +1626,7 @@ export default function App() {
         setLocationStatus(errStatus);
         setIsLocating(false);
         setUserCoords((prev) => prev || { lat: 41.311081, lng: 69.240562 });
+        setShowGpsModal(true);
       }, remaining);
     };
 
@@ -1654,6 +1661,7 @@ export default function App() {
         setLocationStatus("timeout");
         setIsLocating(false);
         setUserCoords((prev) => prev || { lat: 41.311081, lng: 69.240562 });
+        setShowGpsModal(true);
       }
     }, 12000);
 
@@ -1714,6 +1722,20 @@ export default function App() {
         .catch(() => {});
     }
   }, [requestLocation]);
+
+  // 4. GPS o'chiq bo'lsa qayta-qayta eslatish (har 35 soniyada)
+  useEffect(() => {
+    if (isGpsActive) {
+      setShowGpsModal(false);
+      return;
+    }
+    const interval = setInterval(() => {
+      if (!isGpsActive && !isLocating) {
+        setShowGpsModal(true);
+      }
+    }, 35000);
+    return () => clearInterval(interval);
+  }, [isGpsActive, isLocating]);
 
   // Standart ko'rinishga o'tish (lekin qayta refreshda yana tekshiriladi)
   const handleUseDefaultLocation = () => {
@@ -2747,6 +2769,53 @@ export default function App() {
           </button>
         </nav>
       </header>
+
+      {/* Global persistent GPS alert banner when GPS is off/disabled/denied */}
+      {!isGpsActive && !isLocating && (
+        <div
+          className="global-gps-alert-strip"
+          onClick={() => {
+            setShowGpsModal(true);
+            requestLocation();
+          }}
+          style={{
+            background: "linear-gradient(90deg, #b45309 0%, #d97706 100%)",
+            color: "#ffffff",
+            padding: "9px 16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            fontSize: "0.86rem",
+            fontWeight: "600",
+            cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+            zIndex: 1000,
+            position: "relative",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <MapPinOff size={18} />
+            <span>Geolokatsiya o'chiq — eng yaqin zapravkalarni aniq ko'rish uchun yoqing</span>
+          </div>
+          <button
+            type="button"
+            style={{
+              background: "#ffffff",
+              color: "#b45309",
+              border: "none",
+              borderRadius: "999px",
+              padding: "4px 14px",
+              fontSize: "0.82rem",
+              fontWeight: "700",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              marginLeft: "12px",
+            }}
+          >
+            Yoqish
+          </button>
+        </div>
+      )}
 
       {activeTab === "home" && (
         <div
@@ -5271,6 +5340,18 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Geolokatsiyani yoqishni so'rovchi qat'iy modal */}
+      <GpsPromptModal
+        isOpen={showGpsModal}
+        onClose={() => setShowGpsModal(false)}
+        onRequestGps={() => {
+          requestLocation();
+        }}
+        isLocating={isLocating}
+        locationStatus={locationStatus}
+        isThemeLight={isThemeLight}
+      />
 
       <BottomNav
         activeTab={activeTab}
