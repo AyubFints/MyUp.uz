@@ -11,6 +11,10 @@ Set-Location "c:\Users\user\Desktop\MyUp\android-twa"
 
 Write-Host "Running Gradle clean assembleRelease bundleRelease..."
 cmd.exe /c "gradlew.bat assembleRelease bundleRelease"
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Gradle build failed with exit code $LASTEXITCODE"
+    exit $LASTEXITCODE
+}
 
 Write-Host "Copying artifacts to workspace root..."
 Copy-Item "app\build\outputs\apk\release\app-release.apk" "c:\Users\user\Desktop\MyUp\uz.axmap.app-v1.0.0-release.apk" -Force

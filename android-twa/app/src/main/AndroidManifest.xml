@@ -15,7 +15,7 @@
         android:label="@string/appName"
         android:manageSpaceActivity="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.Translucent.NoTitleBar">
+        android:theme="@style/Theme.AxMap">
 
         <meta-data
             android:name="asset_statements"
@@ -49,6 +49,7 @@
             android:name=".LauncherActivity"
             android:alwaysRetainTaskState="true"
             android:label="@string/launcherName"
+            android:theme="@style/Theme.AxMap"
             android:exported="true">
 
             <meta-data
@@ -124,6 +125,7 @@
 
         <activity
             android:name="com.google.androidbrowserhelper.trusted.WebViewFallbackActivity"
+            android:theme="@style/Theme.AxMap"
             android:configChanges="orientation|screenSize" />
 
         <!-- Location Delegation Permission Activity -->
