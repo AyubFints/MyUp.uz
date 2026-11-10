@@ -252,7 +252,7 @@ export default function App() {
   const handleTabChange = (newTab, customAuthMode = "register") => {
     setAuthInitialMode(customAuthMode);
     if ((newTab === "home" || newTab === "map") && !isGpsActive && !isLocating) {
-      setShowGpsModal(true);
+      requestLocation();
     }
     if (newTab === activeTab) return;
     if (newTab === "advertising" || newTab === "privacy") {
@@ -1626,7 +1626,6 @@ export default function App() {
         setLocationStatus(errStatus);
         setIsLocating(false);
         setUserCoords((prev) => prev || { lat: 41.311081, lng: 69.240562 });
-        setShowGpsModal(true);
       }, remaining);
     };
 
@@ -1661,7 +1660,6 @@ export default function App() {
         setLocationStatus("timeout");
         setIsLocating(false);
         setUserCoords((prev) => prev || { lat: 41.311081, lng: 69.240562 });
-        setShowGpsModal(true);
       }
     }, 12000);
 
@@ -1739,19 +1737,18 @@ export default function App() {
     }
   }, [requestLocation]);
 
-  // 4. GPS o'chiq bo'lsa qayta-qayta eslatish (har 35 soniyada)
+  // 4. GPS o'chiq bo'lsa qayta-qayta eslatish / telefon tizimidan so'rash (har 35 soniyada)
   useEffect(() => {
     if (isGpsActive) {
-      setShowGpsModal(false);
       return;
     }
     const interval = setInterval(() => {
       if (!isGpsActive && !isLocating) {
-        setShowGpsModal(true);
+        requestLocation();
       }
     }, 35000);
     return () => clearInterval(interval);
-  }, [isGpsActive, isLocating]);
+  }, [isGpsActive, isLocating, requestLocation]);
 
   // Standart ko'rinishga o'tish (lekin qayta refreshda yana tekshiriladi)
   const handleUseDefaultLocation = () => {
@@ -2791,7 +2788,6 @@ export default function App() {
         <div
           className="global-gps-alert-strip"
           onClick={() => {
-            setShowGpsModal(true);
             requestLocation();
           }}
           style={{
@@ -2990,10 +2986,10 @@ export default function App() {
                             <button
                               type="button"
                               className="location-retry-btn"
-                              onClick={locationStatus === "disabled" || locationStatus === "denied" ? handleOpenNativeSettings : requestLocation}
+                              onClick={requestLocation}
                             >
                               <LocateFixed size={16} />
-                              <span>{locationStatus === "disabled" ? "Sozlamalarda GPS ni yoqish" : "Geolokatsiyani yoqish"}</span>
+                              <span>Geolokatsiyani yoqish</span>
                             </button>
                             <button
                               type="button"
