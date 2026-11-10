@@ -2652,8 +2652,8 @@ export default function App() {
         <div
           className="logo header-logo-container"
           onClick={() => handleTabChange("home")}
-          style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "2px", flexShrink: 0 }}
-          title="AX-Map.uz"
+          style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}
+          title="AX Map.uz"
         >
           <img
             src={axLogoImg}
@@ -2661,7 +2661,7 @@ export default function App() {
             className="header-ax-img"
           />
           <h1 className="header-map-title">
-            -Map<span style={{ color: "#38bdf8" }}>.uz</span>
+            Map<span style={{ color: "#38bdf8" }}>.uz</span>
           </h1>
         </div>
 

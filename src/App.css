@@ -8033,14 +8033,14 @@ body {
 .header-logo-container {
   display: flex !important;
   align-items: center !important;
-  gap: 1px !important;
+  gap: 4px !important;
   cursor: pointer !important;
   user-select: none !important;
   -webkit-user-select: none !important;
 }
 
 .header-ax-img {
-  height: 29px !important;
+  height: 28px !important;
   width: auto !important;
   object-fit: contain !important;
   display: block !important;
@@ -8058,7 +8058,7 @@ body {
   font-size: 1.45rem !important;
   font-weight: 800 !important;
   margin: 0 !important;
-  margin-left: 1px !important;
+  margin-left: 0px !important;
   color: #ffffff !important;
   white-space: nowrap !important;
   display: inline-flex !important;
@@ -8188,7 +8188,7 @@ body {
   .header-map-title,
   .logo h1 {
     font-size: 1.2rem !important;
-    margin-left: 1px !important;
+    margin-left: 0px !important;
   }
 }
 
