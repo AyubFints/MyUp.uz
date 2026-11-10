@@ -8033,7 +8033,7 @@ body {
 .header-logo-container {
   display: flex !important;
   align-items: center !important;
-  gap: 4px !important;
+  gap: 1px !important;
   cursor: pointer !important;
   user-select: none !important;
   -webkit-user-select: none !important;
