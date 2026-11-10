@@ -18823,17 +18823,18 @@ body.light-theme .location-fallback-btn {
 
 @media (max-width: 768px) {
   .guide-three-col-layout.profile-three-col-layout {
-    padding: 8px 0 85px !important;
+    padding: 20px 0 85px !important;
   }
 }
 
 @media (max-width: 640px) {
   .guide-center-col {
-    padding: 0.5rem 0.75rem 5.5rem !important;
+    padding: 1.5rem 0.85rem 5.5rem !important;
   }
   .guide-view-header {
-    margin-bottom: 0.85rem !important;
-    gap: 0.75rem !important;
+    margin-top: 8px !important;
+    margin-bottom: 1.25rem !important;
+    gap: 0.85rem !important;
   }
   .guide-view-main-title {
     font-size: 1.25rem;
