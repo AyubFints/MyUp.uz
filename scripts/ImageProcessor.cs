@@ -1,0 +1,163 @@
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
+
+public class ImageProcessor
+{
+    public static void MakeTransparent(string inputPath, string outputPath)
+    {
+        using (Bitmap src = new Bitmap(inputPath))
+        {
+            int w = src.Width;
+            int h = src.Height;
+            using (Bitmap dst = new Bitmap(w, h, PixelFormat.Format32bppArgb))
+            {
+                Rectangle rect = new Rectangle(0, 0, w, h);
+                BitmapData srcData = src.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+                BitmapData dstData = dst.LockBits(rect, ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+
+                int bytes = Math.Abs(srcData.Stride) * h;
+                byte[] rgb = new byte[bytes];
+                Marshal.Copy(srcData.Scan0, rgb, 0, bytes);
+                src.UnlockBits(srcData);
+
+                // Queue for BFS
+                bool[] isBg = new bool[w * h];
+                Queue<int> q = new Queue<int>();
+
+                // Helper to check white
+                // Background is white (R,G,B >= 242)
+                Func<int, int, bool> isWhite = (x, y) =>
+                {
+                    int idx = y * srcData.Stride + x * 4;
+                    byte b = rgb[idx];
+                    byte g = rgb[idx + 1];
+                    byte r = rgb[idx + 2];
+                    return (r >= 240 && g >= 240 && b >= 240);
+                };
+
+                // Seed border pixels
+                for (int x = 0; x < w; x++)
+                {
+                    if (isWhite(x, 0)) { isBg[0 * w + x] = true; q.Enqueue(0 * w + x); }
+                    if (isWhite(x, h - 1)) { isBg[(h - 1) * w + x] = true; q.Enqueue((h - 1) * w + x); }
+                }
+                for (int y = 0; y < h; y++)
+                {
+                    if (isWhite(0, y)) { isBg[y * w + 0] = true; q.Enqueue(y * w + 0); }
+                    if (isWhite(w - 1, y)) { isBg[y * w + (w - 1)] = true; q.Enqueue(y * w + (w - 1)); }
+                }
+
+                int[] dx = { 1, -1, 0, 0 };
+                int[] dy = { 0, 0, 1, -1 };
+
+                while (q.Count > 0)
+                {
+                    int curr = q.Dequeue();
+                    int cx = curr % w;
+                    int cy = curr / w;
+
+                    for (int i = 0; i < 4; i++)
+                    {
+                        int nx = cx + dx[i];
+                        int ny = cy + dy[i];
+                        if (nx >= 0 && nx < w && ny >= 0 && ny < h)
+                        {
+                            int nidx = ny * w + nx;
+                            if (!isBg[nidx] && isWhite(nx, ny))
+                            {
+                                isBg[nidx] = true;
+                                q.Enqueue(nidx);
+                            }
+                        }
+                    }
+                }
+
+                // Apply transparency with edge anti-aliasing
+                byte[] outRgb = new byte[bytes];
+                Array.Copy(rgb, outRgb, bytes);
+
+                for (int y = 0; y < h; y++)
+                {
+                    for (int x = 0; x < w; x++)
+                    {
+                        int pos = y * w + x;
+                        int idx = y * srcData.Stride + x * 4;
+
+                        if (isBg[pos])
+                        {
+                            outRgb[idx + 0] = 0;
+                            outRgb[idx + 1] = 0;
+                            outRgb[idx + 2] = 0;
+                            outRgb[idx + 3] = 0; // Alpha 0
+                        }
+                        else
+                        {
+                            // Check if neighbor is background (edge feathering)
+                            bool hasBgNeighbor = false;
+                            for (int i = 0; i < 4; i++)
+                            {
+                                int nx = x + dx[i];
+                                int ny = y + dy[i];
+                                if (nx >= 0 && nx < w && ny >= 0 && ny < h && isBg[ny * w + nx])
+                                {
+                                    hasBgNeighbor = true;
+                                    break;
+                                }
+                            }
+
+                            if (hasBgNeighbor)
+                            {
+                                byte b = rgb[idx + 0];
+                                byte g = rgb[idx + 1];
+                                byte r = rgb[idx + 2];
+                                int minC = Math.Min(r, Math.Min(g, b));
+                                if (minC >= 210)
+                                {
+                                    // Smooth alpha falloff near the white edge
+                                    double factor = (255 - minC) / 45.0;
+                                    if (factor < 0) factor = 0;
+                                    if (factor > 1) factor = 1;
+                                    outRgb[idx + 3] = (byte)(factor * 255);
+                                }
+                                else
+                                {
+                                    outRgb[idx + 3] = 255;
+                                }
+                            }
+                            else
+                            {
+                                outRgb[idx + 3] = 255;
+                            }
+                        }
+                    }
+                }
+
+                Marshal.Copy(outRgb, 0, dstData.Scan0, bytes);
+                dst.UnlockBits(dstData);
+                dst.Save(outputPath, ImageFormat.Png);
+            }
+        }
+    }
+
+    public static void ResizePng(string inputPath, string outputPath, int targetW, int targetH)
+    {
+        using (Bitmap src = new Bitmap(inputPath))
+        using (Bitmap dst = new Bitmap(targetW, targetH, PixelFormat.Format32bppArgb))
+        {
+            using (Graphics g = Graphics.FromImage(dst))
+            {
+                g.Clear(Color.Transparent);
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.SmoothingMode = SmoothingMode.HighQuality;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                g.CompositingQuality = CompositingQuality.HighQuality;
+                g.DrawImage(src, 0, 0, targetW, targetH);
+            }
+            dst.Save(outputPath, ImageFormat.Png);
+        }
+    }
+}

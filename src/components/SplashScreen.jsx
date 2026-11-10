@@ -79,7 +79,7 @@ export default function SplashScreen({ onComplete }) {
           {/* Metall yuzasidagi yaltiroq yorug'lik to'lqini */}
           <div className="splash-emblem-sheen" />
           <img
-            src="/ax-splash-logo.jpg"
+            src="/ax-logo.png"
             alt="AX-Map Emblem"
             className="splash-emblem-img"
           />
