@@ -29,14 +29,14 @@ public class ImageProcessor
                 Queue<int> q = new Queue<int>();
 
                 // Helper to check white
-                // Background is white (R,G,B >= 242)
+                // Background is white (R,G,B >= 240)
                 Func<int, int, bool> isWhite = (x, y) =>
                 {
                     int idx = y * srcData.Stride + x * 4;
                     byte b = rgb[idx];
                     byte g = rgb[idx + 1];
                     byte r = rgb[idx + 2];
-                    return (r >= 240 && g >= 240 && b >= 240);
+                    return (r >= 238 && g >= 238 && b >= 238);
                 };
 
                 // Seed border pixels
@@ -117,7 +117,6 @@ public class ImageProcessor
                                 int minC = Math.Min(r, Math.Min(g, b));
                                 if (minC >= 210)
                                 {
-                                    // Smooth alpha falloff near the white edge
                                     double factor = (255 - minC) / 45.0;
                                     if (factor < 0) factor = 0;
                                     if (factor > 1) factor = 1;
@@ -140,6 +139,92 @@ public class ImageProcessor
                 dst.UnlockBits(dstData);
                 dst.Save(outputPath, ImageFormat.Png);
             }
+        }
+    }
+
+    public static Rectangle GetContentBounds(string inputPath)
+    {
+        using (Bitmap src = new Bitmap(inputPath))
+        {
+            int w = src.Width;
+            int h = src.Height;
+            Rectangle rect = new Rectangle(0, 0, w, h);
+            BitmapData data = src.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            int bytes = Math.Abs(data.Stride) * h;
+            byte[] buffer = new byte[bytes];
+            Marshal.Copy(data.Scan0, buffer, 0, bytes);
+            src.UnlockBits(data);
+
+            int minX = w, maxX = 0, minY = h, maxY = 0;
+            for (int y = 0; y < h; y++)
+            {
+                int rowOffset = y * data.Stride;
+                for (int x = 0; x < w; x++)
+                {
+                    byte a = buffer[rowOffset + x * 4 + 3];
+                    if (a > 15)
+                    {
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+
+            if (minX > maxX || minY > maxY)
+            {
+                return new Rectangle(0, 0, w, h);
+            }
+            return new Rectangle(minX, minY, maxX - minX + 1, maxY - minY + 1);
+        }
+    }
+
+    public static void CropToContent(string inputPath, string outputPath)
+    {
+        Rectangle bounds = GetContentBounds(inputPath);
+        using (Bitmap src = new Bitmap(inputPath))
+        using (Bitmap dst = new Bitmap(bounds.Width, bounds.Height, PixelFormat.Format32bppArgb))
+        {
+            using (Graphics g = Graphics.FromImage(dst))
+            {
+                g.Clear(Color.Transparent);
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.SmoothingMode = SmoothingMode.HighQuality;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                g.CompositingQuality = CompositingQuality.HighQuality;
+                g.DrawImage(src, new Rectangle(0, 0, bounds.Width, bounds.Height), bounds, GraphicsUnit.Pixel);
+            }
+            dst.Save(outputPath, ImageFormat.Png);
+        }
+    }
+
+    public static void GeneratePaddedIcon(string inputPath, string outputPath, int targetW, int targetH, double contentRatio)
+    {
+        Rectangle bounds = GetContentBounds(inputPath);
+        using (Bitmap src = new Bitmap(inputPath))
+        using (Bitmap dst = new Bitmap(targetW, targetH, PixelFormat.Format32bppArgb))
+        {
+            using (Graphics g = Graphics.FromImage(dst))
+            {
+                g.Clear(Color.Transparent);
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.SmoothingMode = SmoothingMode.HighQuality;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                g.CompositingQuality = CompositingQuality.HighQuality;
+
+                double maxContentDim = Math.Min(targetW, targetH) * contentRatio;
+                double scale = Math.Min(maxContentDim / bounds.Width, maxContentDim / bounds.Height);
+
+                int drawW = (int)Math.Round(bounds.Width * scale);
+                int drawH = (int)Math.Round(bounds.Height * scale);
+
+                int drawX = (targetW - drawW) / 2;
+                int drawY = (targetH - drawH) / 2;
+
+                g.DrawImage(src, new Rectangle(drawX, drawY, drawW, drawH), bounds, GraphicsUnit.Pixel);
+            }
+            dst.Save(outputPath, ImageFormat.Png);
         }
     }
 

@@ -1673,6 +1673,22 @@ export default function App() {
     };
   }, []);
 
+  // Telefonning o'z Android sozlamalarini (GPS / ilova ruxsatlarini) to'g'ridan-to'g'ri ochish
+  const handleOpenNativeSettings = useCallback(() => {
+    try {
+      if (/android/i.test(navigator.userAgent)) {
+        if (locationStatus === "denied") {
+          window.location.href = "intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;package=uz.axmap.app;end";
+        } else {
+          window.location.href = "intent:#Intent;action=android.settings.LOCATION_SOURCE_SETTINGS;end";
+        }
+      }
+    } catch (e) {
+      console.warn("Native sozlamalarni ochishda xatolik:", e);
+    }
+    requestLocation();
+  }, [locationStatus, requestLocation]);
+
   // 1. Dastur ishga tushishi yoki sahifa yangilanishi (refresh) bilanoq geolokatsiyani so'rash
   useEffect(() => {
     const cleanup = requestLocation();
@@ -2974,10 +2990,10 @@ export default function App() {
                             <button
                               type="button"
                               className="location-retry-btn"
-                              onClick={requestLocation}
+                              onClick={locationStatus === "disabled" || locationStatus === "denied" ? handleOpenNativeSettings : requestLocation}
                             >
                               <LocateFixed size={16} />
-                              <span>Geolokatsiyani yoqish</span>
+                              <span>{locationStatus === "disabled" ? "Sozlamalarda GPS ni yoqish" : "Geolokatsiyani yoqish"}</span>
                             </button>
                             <button
                               type="button"
@@ -5348,6 +5364,7 @@ export default function App() {
         onRequestGps={() => {
           requestLocation();
         }}
+        onOpenSettings={handleOpenNativeSettings}
         isLocating={isLocating}
         locationStatus={locationStatus}
         isThemeLight={isThemeLight}
