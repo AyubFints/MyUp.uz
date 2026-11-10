@@ -71,10 +71,12 @@ import {
   Navigation,
   MapPinOff,
   LocateFixed,
+  HelpCircle,
 } from "lucide-react";
 import "./App.css";
 
 // Lazy loaded heavy views and modals for optimal code-splitting
+const SmartOnboardingModal = lazy(() => import("./components/SmartOnboardingModal"));
 const MapView = lazy(() => import("./components/MapView"));
 const NavigationMode = lazy(() => import("./components/NavigationMode"));
 const AddStationModal = lazy(() => import("./components/AddStationModal"));
@@ -180,6 +182,31 @@ export default function App() {
   }, []);
 
   const [activeTab, setActiveTab] = useState("home");
+
+  // SMART ONBOARDING & SMART GUIDANCE (INTERAKTIV YO'RIQNOMA TIZIMI)
+  const [showSmartOnboarding, setShowSmartOnboarding] = useState(false);
+  const [smartOnboardingMode, setSmartOnboardingMode] = useState("welcome_tour");
+  const [submittedStationForModal, setSubmittedStationForModal] = useState(null);
+
+  // Birinchi marta dasturga kirganda avtomatik tanishtiruv (welcome tour)
+  useEffect(() => {
+    try {
+      const tourDone = localStorage.getItem("myup_onboarding_completed");
+      if (!tourDone) {
+        const timer = setTimeout(() => {
+          setShowSmartOnboarding(true);
+          setSmartOnboardingMode("welcome_tour");
+        }, 1400);
+        return () => clearTimeout(timer);
+      }
+    } catch (e) {}
+  }, []);
+
+  const handleOpenSmartGuide = useCallback((guideMode = "menu", extraData = null) => {
+    setSmartOnboardingMode(guideMode);
+    if (extraData) setSubmittedStationForModal(extraData);
+    setShowSmartOnboarding(true);
+  }, []);
 
   // Telegram uslubidagi mavzu rangi (Sozlamalar bo'limi uchun)
   const [appTheme, setAppTheme] = useState(() => {
@@ -1811,6 +1838,10 @@ export default function App() {
         } else {
           // Hali admin tasdiqlamagan bo'lsa, asosiy ro'yxatdan chiqarib tashlanadi
           setStations((prev) => prev.filter((s) => s.id !== savedSt.id && s.id !== station.id));
+          // Administrator tekshiruviga yuborildi modal oynasini ko'rsatish
+          setSubmittedStationForModal(savedSt || station);
+          setSmartOnboardingMode("station_submitted");
+          setShowSmartOnboarding(true);
         }
         return;
       }
@@ -1835,6 +1866,9 @@ export default function App() {
       });
     } else {
       setStations((prev) => prev.filter((s) => s.id !== station.id));
+      setSubmittedStationForModal(station);
+      setSmartOnboardingMode("station_submitted");
+      setShowSmartOnboarding(true);
     }
   };
 
@@ -2637,6 +2671,18 @@ export default function App() {
           </div>
         </div>
         
+        {/* Qo'llanma va yo'riqnoma tugmasi */}
+        <button
+          type="button"
+          className="header-guide-trigger-btn"
+          onClick={() => handleOpenSmartGuide("menu")}
+          title="Qo'llanma va yo'riqnoma"
+          aria-label="Qo'llanma"
+        >
+          <HelpCircle size={18} />
+          <span className="header-guide-trigger-text">Qo'llanma</span>
+        </button>
+
         <button
           className="mobile-header-profile"
           onClick={() => handleTabChange("my")}
@@ -2680,6 +2726,14 @@ export default function App() {
           >
             <Settings size={18} className="desktop-nav-icon" />
             <span>Sozlamalar</span>
+          </button>
+          <button
+            className="desktop-nav-item"
+            onClick={() => handleOpenSmartGuide("menu")}
+            title="Qo'llanma va yo'riqnoma"
+          >
+            <HelpCircle size={18} className="desktop-nav-icon" />
+            <span>Qo'llanma</span>
           </button>
         </nav>
       </header>
@@ -3880,6 +3934,26 @@ export default function App() {
                                       <Plus size={16} />
                                       <span>Joylashuv qo'shish</span>
                                     </button>
+
+                                    <button
+                                      type="button"
+                                      style={{
+                                        marginTop: '0.65rem',
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#38bdf8',
+                                        fontSize: '0.82rem',
+                                        fontWeight: 600,
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                      }}
+                                      onClick={() => handleOpenSmartGuide("add_location_guide")}
+                                    >
+                                      <HelpCircle size={14} />
+                                      <span>Joylashuv qo'shish yo'riqnomasi</span>
+                                    </button>
                                   </div>
                                 ) : (
                                   <div className="my-stations-list mt-2">
@@ -3892,7 +3966,9 @@ export default function App() {
                                           className="my-station-simple-card"
                                           onClick={() => {
                                             if (!isApproved) {
-                                              setPendingInspectionModalStation(st);
+                                              setSubmittedStationForModal(st);
+                                              setSmartOnboardingMode("station_submitted");
+                                              setShowSmartOnboarding(true);
                                             } else {
                                               setSelectedManageStationId(st.id);
                                             }
@@ -4074,6 +4150,7 @@ export default function App() {
                   hasUnreadNotification={unreadNotifCount > 0 || hasUnreadNotification}
                   unreadCount={unreadNotifCount}
                   onOpenAdvertising={() => handleTabChange("advertising")}
+                  onOpenGuide={() => handleOpenSmartGuide("menu")}
                 />
               )}
             </Suspense>
@@ -4172,6 +4249,35 @@ export default function App() {
             editStation={editingStation}
             isLight={isThemeLight}
             userCoords={userCoords}
+          />
+        </Suspense>
+      )}
+
+      {/* Smart Onboarding va Interaktiv Qo'llanma Modali */}
+      {showSmartOnboarding && (
+        <Suspense fallback={null}>
+          <SmartOnboardingModal
+            isOpen={showSmartOnboarding}
+            mode={smartOnboardingMode}
+            onClose={() => setShowSmartOnboarding(false)}
+            onNavigate={(tab, authMode) => {
+              setShowSmartOnboarding(false);
+              handleTabChange(tab, authMode);
+            }}
+            onStartAddLocation={() => {
+              setShowSmartOnboarding(false);
+              if (!user) {
+                handleTabChange("my", "register");
+              } else {
+                setEditingStation(null);
+                setShowAddStation(true);
+              }
+            }}
+            user={user}
+            submittedStation={submittedStationForModal}
+            isThemeLight={isThemeLight}
+            appTheme={appTheme}
+            onChangeMode={(m) => setSmartOnboardingMode(m)}
           />
         </Suspense>
       )}

@@ -10,6 +10,7 @@ import {
   Trash2,
   X,
   Megaphone,
+  HelpCircle,
 } from 'lucide-react';
 import amapsEmptyMascot from '../assets/amaps-empty-notif.webp';
 import api from '../api/client';
@@ -253,6 +254,7 @@ export default function SettingsSection({
   hasUnreadNotification,
   unreadCount = 0,
   onOpenAdvertising,
+  onOpenGuide,
 }) {
   const [selectedTheme, setSelectedTheme] = useState(currentTheme || TWELVE_PRESETS[0]);
   const [customHex, setCustomHex] = useState(selectedTheme?.bg || '#0e0e10');
@@ -452,6 +454,27 @@ export default function SettingsSection({
           </div>
 
           <ChevronRight size={20} className="new-profile-arrow" />
+        </div>
+
+        {/* INTERAKTIV YO'RIQNOMA VA QO'LLANMA BO'LIMI */}
+        <div
+          className="new-settings-ad-card"
+          onClick={onOpenGuide}
+          role="button"
+          tabIndex={0}
+          title="Dastur qo'llanmasi va yo'riqnomasi"
+          style={{ marginBottom: '0.75rem' }}
+        >
+          <div className="new-settings-ad-icon-wrap" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
+            <HelpCircle size={22} color="#38bdf8" />
+          </div>
+
+          <div className="new-settings-ad-details">
+            <span className="new-settings-ad-title">Yo'riqnoma va Qo'llanma</span>
+            <span className="new-settings-ad-subtitle">Dasturdan foydalanish va shoxobcha qo'shish</span>
+          </div>
+
+          <ChevronRight size={20} className="new-settings-ad-arrow" />
         </div>
 
         {/* REKLAMA HAQIDA BO'LIMI: Fon rangining tepasida */}
