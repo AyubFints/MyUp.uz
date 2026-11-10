@@ -30,10 +30,10 @@ export default function GuideSection({
   appTheme = null,
 }) {
   const [openAccordion, setOpenAccordion] = useState({
-    about: true,
-    register: true,
-    location: true,
-    admin: true,
+    about: false,
+    register: false,
+    location: false,
+    admin: false,
   });
 
   const toggleSection = (key) => {

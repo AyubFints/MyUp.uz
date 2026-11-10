@@ -3028,8 +3028,8 @@ export default function App() {
         </div>
       )}
 
-      {activeTab !== "home" && activeTab !== "map" && activeTab !== "settings" && activeTab !== "advertising" && (
-        <main className={`content-area pb-20 ${activeTab === "my" ? "profile-content-area" : ""}`}>
+      {activeTab === "my" && (
+        <main className={`content-area pb-20 profile-content-area`}>
           {/* MY (PROFILE) */}
           {activeTab === "my" && !user && (
             <div
