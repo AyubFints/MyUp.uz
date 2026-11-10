@@ -254,9 +254,9 @@ export default function App() {
     if (newTab === "advertising" || newTab === "privacy") {
       setPrevTab(activeTab || "home");
     }
+    const targetPath = newTab === "privacy" ? "/privacy" : "/";
     const searchStr = (typeof window !== "undefined" && window.location.search) ? window.location.search : "";
-    const targetPath = (newTab === "privacy" ? "/privacy" : "/") + searchStr;
-    window.history.pushState({ tab: newTab }, "", targetPath);
+    window.history.pushState({ tab: newTab }, "", targetPath + searchStr);
     setActiveTab(newTab);
     if (newTab !== "my") {
       setShowNotificationsPage(false);

@@ -1,6 +1,6 @@
 # AX-Map (uz.axmap.app) — Production Release Guide
 
-This document provides complete documentation of keystore credentials, cryptographic certificates, Digital Asset Links, Android Trusted Web Activity (TWA) project architecture, build instructions, and verification procedures for publishing AX-Map to the Google Play Store.
+This document provides complete documentation of keystore credentials, cryptographic certificates, Digital Asset Links, Android Trusted Web Activity (TWA) project architecture, build instructions, Google Play Console submission requirements, manual QA protocol, and master E2E verification procedures for publishing AX-Map to the Google Play Store.
 
 ---
 
@@ -119,12 +119,28 @@ android-twa/
 
 ## 5. Build and Signing Instructions
 
-### Build Prerequisites:
+### 5.1 Web App & PWA Production Build
+Before building the native Android bundle or running the E2E verification suite, compile and lint the web distribution:
+
+```powershell
+cd c:\Users\user\Desktop\MyUp
+npm run build
+npm run lint
+```
+
+#### Pre-Release Web Artifact Checklist:
+- [ ] `dist/index.html` generated with `<link rel="manifest" href="/manifest.json" />` and theme color `#0284c7`.
+- [ ] `dist/manifest.json` present with package ID `uz.axmap.app` and shortcuts.
+- [ ] `dist/sw.js` present with Cache-First asset caching and map tile bypass rules.
+- [ ] `dist/.well-known/assetlinks.json` present and byte-for-byte identical to public assetlinks.
+- [ ] `dist/icons/` contains all 5 PNG icons (192x192, 512x512, maskable icons, play-store icon).
+- [ ] `dist/assets/` contains code-split chunks: `PrivacyPolicyPage-*.js`, `MapView-*.js`, and `NavigationMode-*.js`.
+
+### 5.2 Build Prerequisites & Environment Variables:
 - Java Development Kit 17 (Eclipse Temurin 17 x64)
 - Android SDK Command-line tools (API 34/35 platform and build-tools)
 - Node.js 18+ (for web bundling and Bubblewrap CLI)
 
-### Environment Variables:
 ```powershell
 $env:JAVA_HOME = "C:\Users\user\.bubblewrap\jdk\jdk-17.0.11+9"
 $env:ANDROID_HOME = "C:\Users\user\.bubblewrap\android_sdk"
@@ -133,39 +149,39 @@ $env:BUBBLEWRAP_KEYSTORE_PASSWORD = "AxMap2026ReleasePass!"
 $env:BUBBLEWRAP_KEY_PASSWORD = "AxMap2026ReleasePass!"
 ```
 
-### Option A: Gradle Wrapper Build (Direct)
+### 5.3 Option A: Gradle Wrapper Build (Direct)
 ```powershell
 cd c:\Users\user\Desktop\MyUp\android-twa
 .\gradlew.bat bundleRelease
 ```
 The pre-configured `signingConfigs.release` in `app/build.gradle` signs the bundle with `axmap-release-key.jks`.
 
-### Option B: Bubblewrap CLI Build
+### 5.4 Option B: Bubblewrap CLI Build
 ```powershell
 cd c:\Users\user\Desktop\MyUp\android-twa
 npx @bubblewrap/cli build --manifest twa-manifest.json
 ```
 
-### Release Binary Location:
+### 5.5 Release Binary Location:
 - Workspace root: `c:\Users\user\Desktop\MyUp\uz.axmap.app-v1.0.0-release.aab`
 
 ---
 
 ## 6. Cryptographic 3-Way Verification Procedure
 
-Run the following commands to independently verify the signature and integrity of the release bundle:
+Run the following modernized JDK 17 commands to independently verify the signature, certificate, and integrity of the release bundle:
 
 ### 1. Verify JAR Signature:
 ```powershell
-jarsigner -verify -verbose -certs c:\Users\user\Desktop\MyUp\uz.axmap.app-v1.0.0-release.aab
+& "C:\Users\user\.bubblewrap\jdk\jdk-17.0.11+9\bin\jarsigner.exe" -verify -verbose -certs c:\Users\user\Desktop\MyUp\uz.axmap.app-v1.0.0-release.aab
 ```
-*Expected Result*: Output ends with `jar verified.`
+*Expected Result*: Output confirms signed by `CN=AX-Map, OU=Mobile, O=AX-Map, L=Tashkent, ST=Tashkent, C=UZ` and ends with `jar verified.`
 
 ### 2. Verify Certificate SHA-256 Fingerprint:
 ```powershell
-& "C:\Program Files\Java\jre-1.8\bin\keytool.exe" -printcert -jarfile c:\Users\user\Desktop\MyUp\uz.axmap.app-v1.0.0-release.aab
+& "C:\Users\user\.bubblewrap\jdk\jdk-17.0.11+9\bin\keytool.exe" -printcert -jarfile c:\Users\user\Desktop\MyUp\uz.axmap.app-v1.0.0-release.aab
 ```
-*Expected Result*: SHA-256 equals `55:BC:55:2E:84:F5:16:5C:B7:B1:17:AD:1F:53:D0:0E:5D:94:87:AE:C3:A1:C2:81:B8:A0:94:67:CE:D3:2D:5A`
+*Expected Result*: SHA-256 equals `55:BC:55:2E:84:F5:16:5C:B7:B1:17:AD:1F:53:D0:0E:5D:94:87:AE:C3:A1:C2:81:B8:A0:94:67:CE:D3:2D:5A`.
 
 ### 3. Verify Internal Bundle Structure:
 Verify that the `.aab` ZIP archive contains:
@@ -176,23 +192,96 @@ Verify that the `.aab` ZIP archive contains:
 
 ---
 
-## 7. Google Play Console Upload Checklist
+## 7. Google Play Console Upload & Submission Checklist
 
-1. [ ] Log in to **Google Play Console** at `https://play.google.com/console`.
-2. [ ] Select or create application with Package ID `uz.axmap.app`.
-3. [ ] Under **App Integrity**, review Play App Signing.
-   *(Note: If Play App Signing manages your signing key, also add Google's derived SHA-256 fingerprint to `assetlinks.json`)*.
-4. [ ] Navigate to **Production** (or **Internal Testing**) -> **Create new release**.
-5. [ ] Upload `uz.axmap.app-v1.0.0-release.aab`.
-6. [ ] Enter Release Notes:
-   ```text
-   AX-Map v1.0.0:
-   - Initial release of AX-Map for Android.
-   - Real-time search and filtering for Metan (CNG), Propan (LPG), Benzin, and Electric charging stations across Uzbekistan.
-   - Turn-by-turn navigation and road directions.
-   - Comprehensive privacy policy and zero background location tracking.
-   ```
-7. [ ] Confirm App Content requirements:
-   - **Privacy Policy URL**: `https://myupuz.vercel.app/privacy`
-   - **Location Disclosures**: Foreground location only (for nearby station discovery and route calculation). No background location tracking.
-8. [ ] Save and roll out release.
+### 7.1 Play App Signing & Digital Asset Links Dual-Fingerprint
+Google Play mandates Google Play App Signing for all new applications uploaded via `.aab`.
+1. Upload `uz.axmap.app-v1.0.0-release.aab` to Google Play Console.
+2. In Google Play Console, navigate to **Release > Setup > App Integrity**.
+3. Under **App signing key certificate**, locate the **SHA-256 certificate fingerprint**.
+4. If Google generated a distinct app signing key from your upload key fingerprint (`55:BC:55:2E:...`), update `public/.well-known/assetlinks.json` to include **both** fingerprints:
+```json
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "uz.axmap.app",
+      "sha256_cert_fingerprints": [
+        "55:BC:55:2E:84:F5:16:5C:B7:B1:17:AD:1F:53:D0:0E:5D:94:87:AE:C3:A1:C2:81:B8:A0:94:67:CE:D3:2D:5A",
+        "<GOOGLE_PLAY_DERIVED_SHA256_FINGERPRINT>"
+      ]
+    }
+  }
+]
+```
+5. Deploy to Vercel and verify online using Google's AssetLinks check API:
+   `https://digitalassetlinks.googleapis.com/v1/statements:check?source.web.site=https://myupuz.vercel.app&relation=delegate_permission/common.handle_all_urls&target.android_app.package_name=uz.axmap.app`
+
+### 7.2 Store Listing Assets
+- **App Icon**: 512x512 PNG (located at `public/icons/play-store-512x512.png`).
+- **Feature Graphic**: 1024x500 PNG/JPEG.
+- **Phone Screenshots**: At least 2 screenshots (min 320px, max 3840px, 16:9 or 9:16).
+- **Short Description (max 80 chars)**:
+  `O'zbekiston bo'ylab metan, propan, benzin va elektr quvvatlash shahobchalari xaritasi.`
+- **Full Description**:
+  ```text
+  AX-Map — O'zbekiston bo'ylab eng yaqin metan (CNG), propan (LPG), benzin zapravkalari hamda elektr quvvatlash stansiyalarini (EV) real vaqtda topish va yo'l yo'nalishini olish uchun qulay ilova.
+
+  Asosiy imkoniyatlar:
+  - Real vaqtdagi gaz bosimi (bar) va navbat holati haqida ma'lumotlar.
+  - Yoqilg'i turlari bo'yicha qulay filtrlash: Metan, Propan, Benzin, Elektr.
+  - Turn-by-turn navigatsiya va OSRM orqali qisqa yo'nalish hisoblash.
+  - Oflayn ishlash imkoniyati (Service Worker orqali).
+  - To'liq shaffoflik va xavfsizlik: orqa fonda joylashuv kuzatilmaydi (No background tracking).
+  ```
+
+### 7.3 Google Play Data Safety & App Content Form Responses
+- **Privacy Policy URL**: `https://myupuz.vercel.app/privacy`
+- **Location Data**:
+  - *Data collected?* Yes, **Approximate location** and **Precise location**.
+  - *Is it collected or shared?* **Collected only** (never shared with 3rd parties).
+  - *Is data processed ephemerally?* **Yes** — location is processed in memory solely to display the nearest stations and compute routes, then discarded.
+  - *Is data required or optional?* **Optional** (users can use the app without granting GPS by panning the map).
+  - *Purpose:* **App functionality** (mapping and navigation).
+  - *Background tracking:* **NO** (`ACCESS_BACKGROUND_LOCATION` is neither requested nor used).
+- **User Account & Data Deletion**:
+  - In-app profile deletion and email requests to `support@axmap.uz` or `@axmap_admin`.
+- **Target Audience & Content**:
+  - Target age group: 18 and older.
+  - Ads: Declare appropriately according to ad banner configuration.
+  - News App: No.
+  - Financial Services: No.
+
+---
+
+## 8. Manual QA & Zero-Regression Test Protocol
+
+Run these manual validation checks before submitting releases:
+
+| # | Feature / Area | Verification Steps | Expected Result |
+|---|----------------|--------------------|-----------------|
+| 1 | **Map Rendering** | Open `https://myupuz.vercel.app`, pan, pinch-to-zoom, rotate. | Map tiles load smoothly without WebGL errors or black squares. |
+| 2 | **Marker Clustering** | Zoom out to country level; zoom into Tashkent. | Station markers cluster or hide below LOD zoom; uncluster smoothly on zoom. |
+| 3 | **Fuel Filters** | Click filter pills: "Metan", "Propan", "Benzin", "Elektr". | Map displays only stations offering the selected fuel type. |
+| 4 | **Station Search** | Enter "Shaffof" or an address in the search bar. | Matching stations are filtered and listed immediately. |
+| 5 | **Station Details** | Click any station marker on the map. | Bottom sheet modal opens with station name, fuel prices, pressure (bar), and action buttons. |
+| 6 | **OSRM Navigation** | In station modal, tap "Yo'nalish olish" (Navigate). | Route polyline draws on map, step instructions display distance and ETA; "Yopish" exits navigation mode cleanly. |
+| 7 | **Privacy Policy Route** | Navigate to `/privacy` directly or tap menu -> "Maxfiylik siyosati". | Responsive privacy policy renders with full location disclosures; "Asosiy xaritaga qaytish" returns to map session. |
+| 8 | **PWA Offline Mode** | In DevTools Network tab, select "Offline", reload `/`. | App shell loads from Service Worker cache; external map tiles fail gracefully without crashing app. |
+
+---
+
+## 9. Automated Master E2E Verification Command
+
+To run the complete automated test suite validating all 30 features across the web app, PWA, privacy policy, keystore, and Android `.aab` bundle:
+
+```powershell
+node scripts/verify-release-e2e.mjs
+```
+
+### Passing Criteria:
+- Output displays `🌟 ALL ACCEPTANCE CRITERIA VERIFIED 100% CLEAN!`
+- Total assertions evaluated: 140+
+- Zero test failures (`Failed: 0`).
+- Process terminates with exit code `0`.
