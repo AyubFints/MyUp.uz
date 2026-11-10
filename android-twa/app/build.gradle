@@ -18,7 +18,7 @@ def twaManifest = [
     enableNotifications: true,
     splashScreenFadeOutDuration: 300,
     generatorApp: 'bubblewrap',
-    fallbackType: 'customtabs',
+    fallbackType: 'webview',
     enableSiteSettingsShortcut: true,
     orientation: 'portrait'
 ]
