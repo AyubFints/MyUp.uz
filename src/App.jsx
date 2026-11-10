@@ -77,6 +77,7 @@ import "./App.css";
 
 // Lazy loaded heavy views and modals for optimal code-splitting
 const SmartOnboardingModal = lazy(() => import("./components/SmartOnboardingModal"));
+const GuideSection = lazy(() => import("./components/GuideSection"));
 const MapView = lazy(() => import("./components/MapView"));
 const NavigationMode = lazy(() => import("./components/NavigationMode"));
 const AddStationModal = lazy(() => import("./components/AddStationModal"));
@@ -187,20 +188,6 @@ export default function App() {
   const [showSmartOnboarding, setShowSmartOnboarding] = useState(false);
   const [smartOnboardingMode, setSmartOnboardingMode] = useState("welcome_tour");
   const [submittedStationForModal, setSubmittedStationForModal] = useState(null);
-
-  // Birinchi marta dasturga kirganda avtomatik tanishtiruv (welcome tour)
-  useEffect(() => {
-    try {
-      const tourDone = localStorage.getItem("myup_onboarding_completed");
-      if (!tourDone) {
-        const timer = setTimeout(() => {
-          setShowSmartOnboarding(true);
-          setSmartOnboardingMode("welcome_tour");
-        }, 1400);
-        return () => clearTimeout(timer);
-      }
-    } catch (e) {}
-  }, []);
 
   const handleOpenSmartGuide = useCallback((guideMode = "menu", extraData = null) => {
     setSmartOnboardingMode(guideMode);
@@ -2671,18 +2658,6 @@ export default function App() {
           </div>
         </div>
         
-        {/* Qo'llanma va yo'riqnoma tugmasi */}
-        <button
-          type="button"
-          className="header-guide-trigger-btn"
-          onClick={() => handleOpenSmartGuide("menu")}
-          title="Qo'llanma va yo'riqnoma"
-          aria-label="Qo'llanma"
-        >
-          <HelpCircle size={18} />
-          <span className="header-guide-trigger-text">Qo'llanma</span>
-        </button>
-
         <button
           className="mobile-header-profile"
           onClick={() => handleTabChange("my")}
@@ -2728,9 +2703,9 @@ export default function App() {
             <span>Sozlamalar</span>
           </button>
           <button
-            className="desktop-nav-item"
-            onClick={() => handleOpenSmartGuide("menu")}
-            title="Qo'llanma va yo'riqnoma"
+            className={`desktop-nav-item ${activeTab === "guide" ? "active" : ""}`}
+            onClick={() => handleTabChange("guide")}
+            title="Qo'llanma"
           >
             <HelpCircle size={18} className="desktop-nav-icon" />
             <span>Qo'llanma</span>
@@ -3934,26 +3909,6 @@ export default function App() {
                                       <Plus size={16} />
                                       <span>Joylashuv qo'shish</span>
                                     </button>
-
-                                    <button
-                                      type="button"
-                                      style={{
-                                        marginTop: '0.65rem',
-                                        background: 'none',
-                                        border: 'none',
-                                        color: '#38bdf8',
-                                        fontSize: '0.82rem',
-                                        fontWeight: 600,
-                                        cursor: 'pointer',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '5px',
-                                      }}
-                                      onClick={() => handleOpenSmartGuide("add_location_guide")}
-                                    >
-                                      <HelpCircle size={14} />
-                                      <span>Joylashuv qo'shish yo'riqnomasi</span>
-                                    </button>
                                   </div>
                                 ) : (
                                   <div className="my-stations-list mt-2">
@@ -4150,9 +4105,55 @@ export default function App() {
                   hasUnreadNotification={unreadNotifCount > 0 || hasUnreadNotification}
                   unreadCount={unreadNotifCount}
                   onOpenAdvertising={() => handleTabChange("advertising")}
-                  onOpenGuide={() => handleOpenSmartGuide("menu")}
+                  onOpenGuide={() => handleTabChange("guide")}
                 />
               )}
+            </Suspense>
+          </div>
+
+          {/* O'NG TOMON REKLAMA (Faqat kompyuter holatida) */}
+          <DesktopSideBanner ads={rightAds} ad={rightAd} side="right" customClass="settings-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
+        </div>
+      )}
+
+      {/* QO'LLANMA BO'LIMI (GUIDE SECTION) */}
+      {activeTab === "guide" && (
+        <div
+          className={`guide-three-col-layout profile-three-col-layout ${isThemeLight ? "is-light" : ""}`}
+          style={{
+            '--theme-accent': appTheme?.accent || '#38bdf8',
+            '--theme-bg': appTheme?.bg || '#0e0e10',
+            '--theme-card': appTheme?.card || '#1c1c1e',
+            '--theme-border': appTheme?.border || 'rgba(255, 255, 255, 0.08)',
+            '--theme-panel': appTheme?.panel || '#161618',
+            '--theme-text': appTheme?.text || (isThemeLight ? '#0f172a' : '#ffffff'),
+            '--theme-muted': appTheme?.textMuted || (isThemeLight ? '#64748b' : '#94a3b8'),
+            minHeight: "100vh",
+            backgroundColor: appTheme?.bg || "var(--bg-primary, #0e0e10)",
+            color: appTheme?.text || (isThemeLight ? "#0f172a" : "#ffffff"),
+          }}
+        >
+          {/* CHAP TOMON REKLAMA (Faqat kompyuter holatida) */}
+          <DesktopSideBanner ads={leftAds} ad={leftAd} side="left" customClass="settings-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
+
+          {/* O'RTA ASOSIY QO'LLANMA BO'LIMI */}
+          <div className="guide-center-col profile-center-main-col">
+            <Suspense fallback={<SectionLoadingFallback />}>
+              <GuideSection
+                user={user}
+                onGoToRegister={() => handleTabChange("my", "register")}
+                onGoToAddLocation={() => {
+                  if (!user) {
+                    handleTabChange("my", "register");
+                  } else {
+                    handleTabChange("my");
+                    setEditingStation(null);
+                    setShowAddStation(true);
+                  }
+                }}
+                isThemeLight={isThemeLight}
+                appTheme={appTheme}
+              />
             </Suspense>
           </div>
 

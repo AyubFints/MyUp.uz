@@ -1,5 +1,5 @@
 import React from "react";
-import { Home, Map, Menu, Settings } from "lucide-react";
+import { Home, Map, Menu, Settings, HelpCircle } from "lucide-react";
 
 export default function BottomNav({ activeTab, setActiveTab, onOpenSettings, onOpenServices }) {
   return (
@@ -32,6 +32,14 @@ export default function BottomNav({ activeTab, setActiveTab, onOpenSettings, onO
       >
         <Menu size={20} className="nav-icon" />
         <span>Xizmatlar</span>
+      </button>
+
+      <button
+        className={`bottom-nav-item ${activeTab === "guide" ? "active" : ""}`}
+        onClick={() => setActiveTab("guide")}
+      >
+        <HelpCircle size={20} className="nav-icon" />
+        <span>Qo'llanma</span>
       </button>
 
       <button
