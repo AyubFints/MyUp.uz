@@ -50,15 +50,15 @@ export default function GuideSection({
     <div className="guide-view-container">
       {/* Sarlavha paneli */}
       <div className="guide-view-header">
-        <div className="guide-header-icon-wrap">
-          <BookOpen size={24} color={accentColor} />
-        </div>
-        <div>
+        <div className="guide-header-title-row">
+          <div className="guide-header-icon-wrap">
+            <BookOpen size={24} color={accentColor} />
+          </div>
           <h1 className="guide-view-main-title">Dastur bo'yicha qo'llanma</h1>
-          <p className="guide-view-subtitle">
-            AX-Map imkoniyatlari, ro'yxatdan o'tish va joylashuv qo'shish tartibi
-          </p>
         </div>
+        <p className="guide-view-subtitle">
+          AX-Map imkoniyatlari, ro'yxatdan o'tish va joylashuv qo'shish tartibi
+        </p>
       </div>
 
       <div className="guide-sections-wrapper">
