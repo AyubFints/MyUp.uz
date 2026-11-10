@@ -11,6 +11,7 @@ import {
   X,
   Megaphone,
   HelpCircle,
+  ShieldCheck,
 } from 'lucide-react';
 import amapsEmptyMascot from '../assets/amaps-empty-notif.webp';
 import api from '../api/client';
@@ -255,6 +256,7 @@ export default function SettingsSection({
   unreadCount = 0,
   onOpenAdvertising,
   onOpenGuide,
+  onOpenPrivacy,
 }) {
   const [selectedTheme, setSelectedTheme] = useState(currentTheme || TWELVE_PRESETS[0]);
   const [customHex, setCustomHex] = useState(selectedTheme?.bg || '#0e0e10');
@@ -484,6 +486,7 @@ export default function SettingsSection({
           role="button"
           tabIndex={0}
           title="Reklama haqida bo'limiga o'tish"
+          style={{ marginBottom: '0.75rem' }}
         >
           <div className="new-settings-ad-icon-wrap">
             <Megaphone size={22} color="#38bdf8" />
@@ -492,6 +495,27 @@ export default function SettingsSection({
           <div className="new-settings-ad-details">
             <span className="new-settings-ad-title">Reklama haqida</span>
             <span className="new-settings-ad-subtitle">Platformada reklama berish ma'lumotlari</span>
+          </div>
+
+          <ChevronRight size={20} className="new-settings-ad-arrow" />
+        </div>
+
+        {/* MAXFIYLIK SIYOSATI (PRIVACY POLICY) BO'LIMI */}
+        <div
+          className="new-settings-ad-card"
+          onClick={onOpenPrivacy}
+          role="button"
+          tabIndex={0}
+          title="Maxfiylik siyosati bo'limiga o'tish"
+          style={{ marginBottom: '0.75rem' }}
+        >
+          <div className="new-settings-ad-icon-wrap" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
+            <ShieldCheck size={22} color="#38bdf8" />
+          </div>
+
+          <div className="new-settings-ad-details">
+            <span className="new-settings-ad-title">Maxfiylik Siyosati</span>
+            <span className="new-settings-ad-subtitle">Geolokatsiya, xavfsizlik va Google Play qoidalari</span>
           </div>
 
           <ChevronRight size={20} className="new-settings-ad-arrow" />

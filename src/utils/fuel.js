@@ -40,9 +40,9 @@ export function stationMatchesFuel(st, fuel) {
     return false;
   }
 
-  if (target === 'elektr') {
-    if (cleanList.some((t) => t === 'elektr' || t.includes('elektr') || t.includes('ev') || t.includes('charge'))) return true;
-    if (Number(prices.elektr) > 0 || Number(prices.ev) > 0) return true;
+  if (target === 'elektr' || target === 'electric' || target === 'ev') {
+    if (cleanList.some((t) => t === 'elektr' || t === 'electric' || t.includes('elektr') || t.includes('electric') || t.includes('ev') || t.includes('charge'))) return true;
+    if (Number(prices.elektr) > 0 || Number(prices.electric) > 0 || Number(prices.ev) > 0) return true;
     return false;
   }
 

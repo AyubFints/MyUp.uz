@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="assetStatements">
+    [{
+        \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+        \"target\": {
+            \"namespace\": \"web\",
+            \"site\": \"https://myupuz.vercel.app\"
+        }
+    }]
+  </string>
+  <string name="shortcut_metan_short">Metan</string>
+  <string name="shortcut_metan_long">Metan zapravkalar</string>
+  <string name="shortcut_propan_short">Propan</string>
+  <string name="shortcut_propan_long">Propan zapravkalar</string>
+  <string name="shortcut_electric_short">Elektr</string>
+  <string name="shortcut_electric_long">Elektr quvvatlagichlar</string>
+</resources>

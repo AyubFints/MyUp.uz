@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json.schemastore.org/web-manifest.json",
+  "id": "/?source=pwa",
+  "name": "AX-Map - Sizga eng yaqinini topib beradi!",
+  "short_name": "AX-Map",
+  "description": "O'zbekiston bo'ylab eng yaqin metan, propan, benzin zapravkalari, elektr quvvatlagichlar, 24/7 shifoxonalar va oshxonalarni toping. Jonli gaz bosimi va navbat ma'lumotlari.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui",
+    "browser"
+  ],
+  "orientation": "portrait",
+  "background_color": "#090d16",
+  "theme_color": "#0284c7",
+  "lang": "uz",
+  "dir": "ltr",
+  "categories": [
+    "navigation",
+    "maps",
+    "travel",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Metan zapravkalar",
+      "short_name": "Metan",
+      "description": "Eng yaqin metan (CNG) zapravkalari",
+      "url": "/?filter=metan&source=pwa_shortcut",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Propan zapravkalar",
+      "short_name": "Propan",
+      "description": "Eng yaqin propan (LPG) zapravkalari",
+      "url": "/?filter=propan&source=pwa_shortcut",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Elektr quvvatlagichlar",
+      "short_name": "Elektr",
+      "description": "Eng yaqin EV zaryadlash stansiyalari",
+      "url": "/?filter=electric&source=pwa_shortcut",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "prefer_related_applications": false,
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=uz.axmap.app",
+      "id": "uz.axmap.app"
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+plugins {
+    id 'com.android.application'
+}
+
+def twaManifest = [
+    applicationId: 'uz.axmap.app',
+    hostName: 'myupuz.vercel.app',
+    launchUrl: '/?source=pwa',
+    name: 'AX-Map',
+    launcherName: 'AX-Map',
+    themeColor: '#0284c7',
+    themeColorDark: '#090d16',
+    navigationColor: '#090d16',
+    navigationColorDark: '#090d16',
+    navigationDividerColor: '#00000000',
+    navigationDividerColorDark: '#00000000',
+    backgroundColor: '#090d16',
+    enableNotifications: true,
+    splashScreenFadeOutDuration: 300,
+    generatorApp: 'bubblewrap',
+    fallbackType: 'customtabs',
+    enableSiteSettingsShortcut: true,
+    orientation: 'portrait'
+]
+
+android {
+    compileSdkVersion 34
+    buildToolsVersion "36.1.0"
+    namespace "uz.axmap.app"
+
+    defaultConfig {
+        applicationId "uz.axmap.app"
+        minSdkVersion 21
+        targetSdkVersion 34
+        versionCode 1
+        versionName "1.0.0"
+
+        resValue "string", "appName", twaManifest.name
+        resValue "string", "launcherName", twaManifest.launcherName
+
+        def launchUrl = "https://" + twaManifest.hostName + twaManifest.launchUrl
+        resValue "string", "launchUrl", launchUrl
+        resValue "string", "webManifestUrl", "https://" + twaManifest.hostName + "/manifest.json"
+        resValue "string", "fullScopeUrl", "https://" + twaManifest.hostName + "/"
+        resValue "string", "hostName", twaManifest.hostName
+
+        resValue "color", "colorPrimary", twaManifest.themeColor
+        resValue "color", "colorPrimaryDark", twaManifest.themeColorDark
+        resValue "color", "navigationColor", twaManifest.navigationColor
+        resValue "color", "navigationColorDark", twaManifest.navigationColorDark
+        resValue "color", "navigationDividerColor", twaManifest.navigationDividerColor
+        resValue "color", "navigationDividerColorDark", twaManifest.navigationDividerColorDark
+        resValue "color", "backgroundColor", twaManifest.backgroundColor
+
+        resValue "string", "providerAuthority", twaManifest.applicationId + '.fileprovider'
+        resValue "bool", "enableNotification", twaManifest.enableNotifications.toString()
+        resValue "integer", "splashScreenFadeOutDuration", twaManifest.splashScreenFadeOutDuration.toString()
+        resValue "string", "generatorApp", twaManifest.generatorApp
+        resValue "string", "fallbackType", twaManifest.fallbackType
+        resValue "bool", "enableSiteSettingsShortcut", twaManifest.enableSiteSettingsShortcut.toString()
+        resValue "string", "orientation", twaManifest.orientation
+    }
+
+    signingConfigs {
+        release {
+            def keystoreFile = null
+            if (System.getenv('KEYSTORE_PATH')) {
+                keystoreFile = file(System.getenv('KEYSTORE_PATH'))
+            } else if (file('../../axmap-release-key.jks').exists()) {
+                keystoreFile = file('../../axmap-release-key.jks')
+            } else if (file('../axmap-release-key.jks').exists()) {
+                keystoreFile = file('../axmap-release-key.jks')
+            } else if (file('c:/Users/user/Desktop/MyUp/axmap-release-key.jks').exists()) {
+                keystoreFile = file('c:/Users/user/Desktop/MyUp/axmap-release-key.jks')
+            } else {
+                keystoreFile = file('axmap-release-key.jks')
+            }
+            storeFile keystoreFile
+            storePassword System.getenv('BUBBLEWRAP_KEYSTORE_PASSWORD') ?: 'AxMap2026ReleasePass!'
+            keyAlias 'axmap'
+            keyPassword System.getenv('BUBBLEWRAP_KEY_PASSWORD') ?: 'AxMap2026ReleasePass!'
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    lintOptions {
+        checkReleaseBuilds false
+    }
+}
+
+repositories {
+    maven { url 'https://maven.aliyun.com/repository/google' }
+    maven { url 'https://maven.aliyun.com/repository/public' }
+    google()
+    mavenCentral()
+}
+
+configurations.all {
+    resolutionStrategy {
+        force 'androidx.browser:browser:1.8.0'
+        force 'androidx.core:core:1.13.1'
+        force 'androidx.core:core-ktx:1.13.1'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation 'androidx.browser:browser:1.8.0'
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.7.4'
+    implementation 'com.google.androidbrowserhelper:locationdelegation:1.1.2'
+}

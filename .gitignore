@@ -37,3 +37,10 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Build outputs and agent traces
+.agents/
+*.aab
+android-twa/.gradle/
+android-twa/app/build/
+

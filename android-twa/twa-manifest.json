@@ -1,0 +1,64 @@
+{
+  "packageId": "uz.axmap.app",
+  "host": "myupuz.vercel.app",
+  "name": "AX-Map",
+  "launcherName": "AX-Map",
+  "display": "standalone",
+  "themeColor": "#0284c7",
+  "themeColorDark": "#090d16",
+  "navigationColor": "#090d16",
+  "navigationColorDark": "#090d16",
+  "navigationDividerColor": "#00000000",
+  "navigationDividerColorDark": "#00000000",
+  "backgroundColor": "#090d16",
+  "enableNotifications": true,
+  "startUrl": "/?source=pwa",
+  "iconUrl": "https://myupuz.vercel.app/icons/icon-512x512.png",
+  "maskableIconUrl": "https://myupuz.vercel.app/icons/icon-maskable-512x512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "c:\\Users\\user\\Desktop\\MyUp\\axmap-release-key.jks",
+    "alias": "axmap"
+  },
+  "appVersion": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [
+    {
+      "name": "Metan zapravkalar",
+      "shortName": "Metan",
+      "url": "https://myupuz.vercel.app/?filter=metan&source=pwa_shortcut",
+      "chosenIconUrl": "https://myupuz.vercel.app/icons/icon-192x192.png"
+    },
+    {
+      "name": "Propan zapravkalar",
+      "shortName": "Propan",
+      "url": "https://myupuz.vercel.app/?filter=propan&source=pwa_shortcut",
+      "chosenIconUrl": "https://myupuz.vercel.app/icons/icon-192x192.png"
+    },
+    {
+      "name": "Elektr quvvatlagichlar",
+      "shortName": "Elektr",
+      "url": "https://myupuz.vercel.app/?filter=electric&source=pwa_shortcut",
+      "chosenIconUrl": "https://myupuz.vercel.app/icons/icon-192x192.png"
+    }
+  ],
+  "generatorApp": "bubblewrap",
+  "webManifestUrl": "https://myupuz.vercel.app/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": {
+      "enabled": true
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://myupuz.vercel.app/",
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": []
+}

@@ -85,6 +85,7 @@ const SettingsSection = lazy(() => import("./components/SettingsSection"));
 const NotificationsView = lazy(() => import("./components/NotificationsView"));
 const ProfileDetailModal = lazy(() => import("./components/ProfileDetailModal"));
 const StationReviewModal = lazy(() => import("./components/StationReviewModal"));
+const PrivacyPolicyPage = lazy(() => import("./components/PrivacyPolicyPage"));
 
 const MapLoadingFallback = () => (
   <div className="map-shimmer-fullscreen-overlay">
@@ -182,7 +183,12 @@ export default function App() {
     setShowSplash(false);
   }, []);
 
-  const [activeTab, setActiveTab] = useState("home");
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== "undefined" && window.location.pathname === "/privacy") {
+      return "privacy";
+    }
+    return "home";
+  });
 
   // SMART ONBOARDING & SMART GUIDANCE (INTERAKTIV YO'RIQNOMA TIZIMI)
   const [showSmartOnboarding, setShowSmartOnboarding] = useState(false);
@@ -219,13 +225,19 @@ export default function App() {
     localStorage.setItem("myup_theme_palette", JSON.stringify(newTheme));
   };
 
-  // Telefon ortga tugmasi uchun (Back Button)
+  // Telefon ortga tugmasi va URL routing boshqaruvi (/privacy va boshqalar)
   useEffect(() => {
-    window.history.replaceState({ tab: "home" }, "");
+    const isPrivacy = window.location.pathname === "/privacy";
+    const initialTab = isPrivacy ? "privacy" : "home";
+    const searchStr = (typeof window !== "undefined" && window.location.search) ? window.location.search : "";
+    window.history.replaceState({ tab: initialTab }, "", (isPrivacy ? "/privacy" : "/") + searchStr);
+
     const handlePopState = (e) => {
       setAuthInitialMode("register");
       if (e.state && e.state.tab) {
         setActiveTab(e.state.tab);
+      } else if (window.location.pathname === "/privacy") {
+        setActiveTab("privacy");
       } else {
         setActiveTab("home");
       }
@@ -239,10 +251,12 @@ export default function App() {
   const handleTabChange = (newTab, customAuthMode = "register") => {
     setAuthInitialMode(customAuthMode);
     if (newTab === activeTab) return;
-    if (newTab === "advertising") {
+    if (newTab === "advertising" || newTab === "privacy") {
       setPrevTab(activeTab || "home");
     }
-    window.history.pushState({ tab: newTab }, "");
+    const searchStr = (typeof window !== "undefined" && window.location.search) ? window.location.search : "";
+    const targetPath = (newTab === "privacy" ? "/privacy" : "/") + searchStr;
+    window.history.pushState({ tab: newTab }, "", targetPath);
     setActiveTab(newTab);
     if (newTab !== "my") {
       setShowNotificationsPage(false);
@@ -1183,8 +1197,29 @@ export default function App() {
   });
 
   // Category & sub-filter (global — hamma tabda ishlaydi)
-  const [activeCategory, setActiveCategory] = useState("all"); // 'all' | 'fuel'
-  const [fuelSubFilter, setFuelSubFilter] = useState("all");
+  const [activeCategory, setActiveCategory] = useState(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        return params.get("filter") ? "fuel" : "all";
+      }
+    } catch {}
+    return "all";
+  }); // 'all' | 'fuel'
+  const [fuelSubFilter, setFuelSubFilter] = useState(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const f = params.get("filter");
+        if (f) {
+          const clean = f.toLowerCase();
+          if (clean === "electric" || clean === "elektr" || clean === "ev") return "elektr";
+          if (["metan", "propan", "benzin"].includes(clean)) return clean;
+        }
+      }
+    } catch {}
+    return "all";
+  });
   const [fuelSortBy, setFuelSortBy] = useState("nearest"); // nearest, nearest_cheap, cheapest, nearest_best
 
   // Jonli video reklamalar (A-Maps Super Admin orqali boshqariladi)
@@ -4106,6 +4141,7 @@ export default function App() {
                   unreadCount={unreadNotifCount}
                   onOpenAdvertising={() => handleTabChange("advertising")}
                   onOpenGuide={() => handleTabChange("guide")}
+                  onOpenPrivacy={() => handleTabChange("privacy")}
                 />
               )}
             </Suspense>
@@ -4220,6 +4256,17 @@ export default function App() {
           {/* O'NG TOMON REKLAMA (Faqat kompyuter holatida) */}
           <DesktopSideBanner ads={rightAds} ad={rightAd} side="right" customClass="settings-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
         </div>
+      )}
+
+      {/* MAXFIYLIK SIYOSATI (PRIVACY POLICY) BO'LIMI */}
+      {activeTab === "privacy" && (
+        <Suspense fallback={<SectionLoadingFallback />}>
+          <PrivacyPolicyPage
+            onBack={() => handleTabChange("home")}
+            isThemeLight={isThemeLight}
+            appTheme={appTheme}
+          />
+        </Suspense>
       )}
 
       {/* Profile Detail Modal */}
