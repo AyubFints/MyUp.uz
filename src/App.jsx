@@ -38,6 +38,7 @@ import {
   MapPin,
   Star,
   Clock,
+  Layers,
   Phone,
   Settings,
   Home,
@@ -885,7 +886,7 @@ export default function App() {
     e.preventDefault();
     setEditLocationError("");
     if (!editLocationForm.locationName.trim()) {
-      setEditLocationError("Joylashuv nomini kiriting!");
+      setEditLocationError("Boshqaruv / brend nomini kiriting!");
       return;
     }
     if (!editLocationForm.responsiblePerson.trim()) {
@@ -3822,57 +3823,88 @@ export default function App() {
 
                       return (
                         <>
-                          {/* 1. AGAR JOYLASHUV JOYLAShDAN RO'YXATDAN O'TGAN BO'LSA: ENG TEPADA JOYLASHUV KARTASI */}
+                          {/* 1. CLICK USLUBIDAGI KARTA: BARCHA JOYLASHUVLAR BOSHQARMASI (Katta karta rasmi) */}
                           {isLocationRegistered && (
-                            <div className="profile-top-location-hero-card">
-                              {/* Ruchka ikonasi: kichikroq qilib o'ng yuqorida */}
-                              <button
-                                type="button"
-                                className="location-hero-edit-top-btn"
-                                onClick={handleOpenEditLocationModal}
-                                title="Joylashuv ma'lumotlarini o'zgartirish"
-                                aria-label="Tahrirlash"
-                              >
-                                <Edit3 size={14} />
-                              </button>
+                            <div
+                              className="profile-top-location-hero-card click-style-card"
+                              onClick={handleOpenEditLocationModal}
+                              title="Barcha joylashuvlar boshqarmasini tahrirlash uchun bosing"
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  handleOpenEditLocationModal();
+                                }
+                              }}
+                            >
+                              {/* Karta orqa foni: yuklangan rasm yoki premium gradient */}
+                              {currentLocationImage ? (
+                                <img 
+                                  src={currentLocationImage} 
+                                  alt={currentLocationName} 
+                                  className="click-card-bg-img" 
+                                />
+                              ) : (
+                                <div className="click-card-default-pattern" />
+                              )}
 
-                              <div className="location-hero-left">
-                                <div className="location-hero-image-wrap">
-                                  {currentLocationImage ? (
-                                    <img 
-                                      src={currentLocationImage} 
-                                      alt={currentLocationName} 
-                                      className="location-hero-cover-img" 
-                                    />
-                                  ) : (
-                                    <div className="location-hero-placeholder-icon">
-                                      <Building2 size={28} color="#38bdf8" />
+                              {/* Shishasimon ko'p bosqichli qorong'u gradient overlay (Click bank kartasi ko'rinishi) */}
+                              <div className="click-card-glass-overlay" />
+
+                              {/* Karta ichki kontenti */}
+                              <div className="click-card-inner">
+                                {/* Yuqori qism (Karta ustida): Barcha joylashuvlar boshqarmasi va Tahrirlash */}
+                                <div className="click-card-top-row">
+                                  <div className="click-card-mgmt-badge">
+                                    <Building2 size={13} strokeWidth={2.4} />
+                                    <span>Barcha joylashuvlar boshqarmasi</span>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    className="click-card-edit-pill-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenEditLocationModal();
+                                    }}
+                                    title="Joylashuv ma'lumotlarini o'zgartirish"
+                                    aria-label="Tahrirlash"
+                                  >
+                                    <Edit3 size={12} strokeWidth={2.2} />
+                                    <span>Tahrirlash</span>
+                                  </button>
+                                </div>
+
+                                {/* O'rta qism: Asosiy joylashuv / brend nomi */}
+                                <div className="click-card-mid-section">
+                                  <h3 className="click-card-brand-title">
+                                    {currentLocationName}
+                                  </h3>
+                                  {myStations.length > 0 && (
+                                    <div className="click-card-branches-names">
+                                      Filiallar: {myStations.map((s) => s.name).slice(0, 3).join(" • ")}
+                                      {myStations.length > 3 ? ` (+${myStations.length - 3})` : ""}
                                     </div>
                                   )}
                                 </div>
 
-                                <div className="location-hero-info">
-                                  <div className="location-hero-badge">
-                                    <MapPin size={12} />
-                                    <span>Joylashuv</span>
+                                {/* Pastki qism (Karta pastida): Mas'ul inson, Telefon va Filiallar soni */}
+                                <div className="click-card-bottom-row">
+                                  <div className="click-card-meta-left">
+                                    <div className="click-card-meta-line">
+                                      <User size={12} strokeWidth={2.2} className="text-sky-400" />
+                                      <span>Mas'ul: <strong>{currentResponsiblePerson}</strong></span>
+                                    </div>
+                                    <div className="click-card-meta-line">
+                                      <Phone size={12} strokeWidth={2.2} className="text-emerald-400" />
+                                      <span>{currentLocationPhone}</span>
+                                    </div>
                                   </div>
-                                  <h3 className="location-hero-title">
-                                    {currentLocationName}
-                                  </h3>
-                                  <div className="location-hero-meta-row">
-                                    <span className="location-hero-responsible">
-                                      Mas'ul inson: <strong>{currentResponsiblePerson}</strong>
-                                    </span>
-                                  </div>
-                                  <div className="location-hero-phone-row">
-                                    <Phone size={13} className="text-emerald-400" />
-                                    <span>{currentLocationPhone}</span>
-                                  </div>
-                                  {/* Eng pastida: Jami filiallar soni (kichikroq) */}
-                                  <div className="location-hero-bottom-branch-row">
-                                    <span className="location-hero-branch-badge-mini">
-                                      Jami {branchCount} ta filial mavjud
-                                    </span>
+
+                                  <div className="click-card-branch-badge">
+                                    <Layers size={13} strokeWidth={2.4} />
+                                    <span>Jami {branchCount} ta filial mavjud</span>
                                   </div>
                                 </div>
                               </div>
@@ -5249,9 +5281,9 @@ export default function App() {
               <div className="notif-modal-badge-icon" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
                 <Edit3 size={24} color="#38bdf8" />
               </div>
-              <h3 className="notif-modal-title">Joylashuvni tahrirlash</h3>
+              <h3 className="notif-modal-title">Barcha joylashuvlar boshqarmasi</h3>
               <p className="notif-modal-sub-text" style={{ margin: '4px 0 0', fontSize: '0.86rem' }}>
-                Joylashuv nomi, mas'ul inson, telefon va asosiy rasmni o'zgartiring
+                Boshqaruv nomi, mas'ul inson, telefon va asosiy karta rasmini tahrirlang
               </p>
             </div>
 
@@ -5265,7 +5297,7 @@ export default function App() {
             <form onSubmit={handleSaveEditLocationModal} className="modern-auth-form" style={{ marginTop: '16px' }}>
               {/* Asosiy rasm tanlash / almashtirish */}
               <div className="modern-field-group">
-                <label className="modern-field-label">Joylashuv rasmi</label>
+                <label className="modern-field-label">Karta rasmi (Asosiy foni)</label>
                 <input 
                   type="file" 
                   ref={editLocationFileInputRef} 
@@ -5287,7 +5319,7 @@ export default function App() {
                     <div className="location-photo-preview-wrap">
                       <img 
                         src={editLocationForm.locationImage} 
-                        alt="Joylashuv rasmi" 
+                        alt="Boshqaruv karta rasmi" 
                         className="location-photo-preview-img" 
                       />
                       <div className="photo-preview-overlay-actions">
@@ -5318,16 +5350,16 @@ export default function App() {
                       <div className="upload-arrow-circle" style={{ width: '40px', height: '40px' }}>
                         <Upload size={20} color="#38bdf8" />
                       </div>
-                      <span className="upload-main-text" style={{ fontSize: '0.88rem' }}>Rasm yuklash yoki almashtirish</span>
+                      <span className="upload-main-text" style={{ fontSize: '0.88rem' }}>Karta uchun rasm yuklash</span>
                       <span className="upload-sub-text">PNG, JPG, WEBP (maksimal 5MB)</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Joylashuv nomi */}
+              {/* Joylashuv / Boshqaruv nomi */}
               <div className="modern-field-group">
-                <label className="modern-field-label">Joylashuv nomi *</label>
+                <label className="modern-field-label">Boshqaruv / Brend nomi *</label>
                 <div className="modern-input-wrap">
                   <Building2 size={18} className="modern-input-icon text-sky-400" />
                   <input 

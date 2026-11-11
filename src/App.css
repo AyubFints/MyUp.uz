@@ -14508,125 +14508,242 @@ body {
   color: #38bdf8;
 }
 
-/* 3. Profil: Eng tepada Joylashuv Asosiy Kartasi (Top Location Hero Card) */
-.profile-top-location-hero-card {
+/* 3. Profil: Barcha joylashuvlar boshqarmasi (Click uslubidagi katta bank kartasi) */
+.profile-top-location-hero-card.click-style-card {
   position: relative;
-  background: var(--theme-card, #1c1c1e);
-  border: 1.5px solid rgba(56, 189, 248, 0.28);
-  border-radius: 20px;
-  padding: 16px 18px;
-  box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.45), 0 0 16px rgba(56, 189, 248, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 12px;
-  box-sizing: border-box;
-}
-
-.location-hero-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex: 1;
-  min-width: 0;
-}
-
-.location-hero-image-wrap {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
+  width: 100%;
+  min-height: 200px;
+  border-radius: 22px;
   overflow: hidden;
-  flex-shrink: 0;
-  border: 1.5px solid rgba(56, 189, 248, 0.35);
-  background: rgba(56, 189, 248, 0.08);
   display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 18px 20px 16px 20px;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+  cursor: pointer;
+  border: 1.5px solid rgba(56, 189, 248, 0.35);
+  box-shadow: 0 14px 34px -8px rgba(0, 0, 0, 0.7), 0 0 22px rgba(56, 189, 248, 0.16);
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+  user-select: none;
+  background: #071322;
 }
 
-.location-hero-cover-img {
+.profile-top-location-hero-card.click-style-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(56, 189, 248, 0.65);
+  box-shadow: 0 18px 40px -8px rgba(0, 0, 0, 0.82), 0 0 28px rgba(56, 189, 248, 0.28);
+}
+
+.profile-top-location-hero-card.click-style-card:active {
+  transform: scale(0.985);
+}
+
+/* Karta fonidagi to'liq rasm (Click banking card style) */
+.click-card-bg-img {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
+  object-position: center;
+  z-index: 1;
+  transition: transform 0.4s ease;
 }
 
-.location-hero-placeholder-icon {
+.profile-top-location-hero-card.click-style-card:hover .click-card-bg-img {
+  transform: scale(1.03);
+}
+
+/* Rasm bo'lmaganda chiqadigan premium fon */
+.click-card-default-pattern {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  background: linear-gradient(135deg, #071527 0%, #0c2b4e 50%, #081424 100%);
+}
+
+/* Shishasimon ko'p bosqichli to'q gradient qoplamasi (kontent o'qilishi uchun) */
+.click-card-glass-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  background: linear-gradient(
+    180deg,
+    rgba(6, 14, 26, 0.88) 0%,
+    rgba(6, 14, 26, 0.42) 42%,
+    rgba(5, 11, 20, 0.95) 100%
+  );
+  pointer-events: none;
+}
+
+/* Karta ichki qismi */
+.click-card-inner {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  min-height: 168px;
+}
+
+/* Yuqori qator (Ustida): Badge va Tahrirlash */
+.click-card-top-row {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.location-hero-info {
+.click-card-mgmt-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  background: rgba(2, 132, 199, 0.3);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.click-card-edit-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 13px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+}
+
+.click-card-edit-pill-btn:hover {
+  background: rgba(56, 189, 248, 0.28);
+  border-color: #38bdf8;
+  color: #7dd3fc;
+  transform: scale(1.04);
+}
+
+.click-card-edit-pill-btn:active {
+  transform: scale(0.96);
+}
+
+/* O'rta qism: Asosiy brend / joylashuv nomi */
+.click-card-mid-section {
+  margin: 14px 0 14px 0;
+}
+
+.click-card-brand-title {
+  font-size: 25px;
+  font-weight: 900;
+  color: #ffffff;
+  margin: 0;
+  line-height: 1.15;
+  letter-spacing: -0.3px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+}
+
+.click-card-branches-names {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 600;
+  margin-top: 4px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+  letter-spacing: 0.1px;
+}
+
+/* Pastki qator (Pastida): Mas'ul inson, Telefon va Jami filiallar soni nishoni */
+.click-card-bottom-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.click-card-meta-left {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  min-width: 0;
-  flex: 1;
 }
 
-.location-hero-badge {
+.click-card-meta-line {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 0.7rem;
-  font-weight: 800;
-  color: #38bdf8;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  margin-bottom: 2px;
+  gap: 6px;
+  font-size: 12px;
+  color: #e2e8f0;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
 }
 
-.location-hero-bottom-branch-row {
-  display: flex;
-  align-items: center;
-  margin-top: 4px;
-}
-
-.location-hero-branch-badge-mini {
-  display: inline-flex;
-  align-items: center;
-  font-size: 0.68rem;
+.click-card-meta-line strong {
+  color: #ffffff;
   font-weight: 700;
-  padding: 1.5px 7px;
-  border-radius: 6px;
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.32);
-  color: #34d399;
-  letter-spacing: 0.2px;
-  line-height: 1.25;
 }
 
-.location-hero-edit-top-btn {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: rgba(56, 189, 248, 0.08);
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  color: #38bdf8;
-  display: flex;
+.click-card-branch-badge {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 2;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  background: rgba(16, 185, 129, 0.22);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #34d399;
+  font-size: 11.5px;
+  font-weight: 700;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
 }
 
-.location-hero-edit-top-btn:hover {
-  background: rgba(56, 189, 248, 0.22);
-  border-color: #38bdf8;
-  color: #7dd3fc;
-  transform: scale(1.06);
-  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.2);
-}
+/* Mobil qurilmalarda Click karta ko'rinishi */
+@media (max-width: 768px) {
+  .profile-top-location-hero-card.click-style-card {
+    min-height: 185px !important;
+    border-radius: 20px !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    margin-bottom: 14px !important;
+    padding: 15px 16px 14px 16px !important;
+  }
 
-.location-hero-edit-top-btn:active {
-  transform: scale(0.96);
+  .click-card-brand-title {
+    font-size: 22px !important;
+  }
+
+  .click-card-bottom-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .click-card-branch-badge {
+    align-self: flex-start;
+  }
 }
 
 .profile-user-card-bell-btn {
@@ -14872,7 +14989,7 @@ body {
   color: #0369a1;
 }
 
-.is-light .profile-top-location-hero-card {
+.is-light .profile-top-location-hero-card:not(.click-style-card) {
   background: #ffffff;
   border-color: #e2e8f0;
   box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.08);
@@ -15046,7 +15163,7 @@ body {
   }
 
   /* Profil sahifasidagi asosiy Joylashuv kartasi (Hero Card) ham telefon holatida ikki yonga yopishib turishi */
-  .profile-top-location-hero-card {
+  .profile-top-location-hero-card:not(.click-style-card) {
     background: var(--panel-bg, #1a1a1c) !important;
     border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08)) !important;
     border-left: none !important;
