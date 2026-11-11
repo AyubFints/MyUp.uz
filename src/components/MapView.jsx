@@ -27,6 +27,8 @@ import {
   Megaphone,
   ExternalLink,
   User,
+  Map as MapIcon,
+  Star,
 } from 'lucide-react';
 import { calculateDistance, formatDistance } from '../utils/distance';
 import { stationMatchesFuel } from '../utils/fuel';
@@ -3559,33 +3561,18 @@ export default function MapView({
                 <span className="mobile-sheet-count">{filteredStationList.length} ta natija</span>
               </div>
 
-              {sheetMode !== 'peek' ? (
-                <button
-                  type="button"
-                  className="mobile-sheet-collapse-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSheetMode('peek');
-                  }}
-                  title="Xaritani ko'rish"
-                >
-                  <ChevronDown size={15} strokeWidth={2.6} />
-                  <span>Xaritani ko'rish</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="mobile-sheet-collapse-btn peek-mode"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSheetMode('mid');
-                  }}
-                  title="Ro'yxatni ochish"
-                >
-                  <ChevronUp size={15} strokeWidth={2.6} />
-                  <span>Ro'yxat</span>
-                </button>
-              )}
+              <button
+                type="button"
+                className="mobile-sheet-collapse-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSheetMode(sheetMode === 'peek' ? 'mid' : 'peek');
+                }}
+                title="Xaritani ko'rish"
+              >
+                <MapIcon size={13} strokeWidth={2.4} />
+                <span>Xaritani ko'rish</span>
+              </button>
             </div>
           </div>
 
@@ -3671,7 +3658,7 @@ export default function MapView({
               const duration = Math.max(1, Math.round(((station.distanceKm || 0.6) / 35) * 60));
               const isSelected = (activeMobileStation?.id === station.id) || (index === 0 && !mobileActiveStationId);
               const rankTag = index === 0
-                ? (mobileSortMode === 'cheapest' ? 'ENG ARZON' : mobileSortMode === 'quality' ? 'ENG SIFATLI' : 'ENG YAQIN')
+                ? (mobileSortMode === 'cheapest' ? 'Eng arzon' : mobileSortMode === 'quality' ? 'Eng sifatli' : 'Eng yaqin')
                 : null;
 
               return (
@@ -3689,17 +3676,24 @@ export default function MapView({
                     });
                   }}
                 >
-                  {/* 1-qator: Shahobcha nomi + [ Ochiq ] | [ ENG YAQIN ] 354 m */}
+                  {/* 1-qator: Shahobcha nomi (chapda) + masofa (o'ngda) | tagida [ ● Ochiq ] [ ⭐ Eng yaqin ] */}
                   <div className="mobile-card-top-row">
-                    <div className="mobile-card-name-group">
+                    <div className="mobile-card-header-left">
                       <h3 className="mobile-card-station-name">{station.name || 'Zapravka'}</h3>
-                      <span className={`mobile-card-status-badge ${station.isOpen !== false ? 'open' : 'closed'}`}>
-                        {station.isOpen !== false ? 'Ochiq' : 'Yopiq'}
-                      </span>
+                      <div className="mobile-card-badges-row">
+                        <span className={`mobile-card-status-badge ${station.isOpen !== false ? 'open' : 'closed'}`}>
+                          ● {station.isOpen !== false ? 'Ochiq' : 'Yopiq'}
+                        </span>
+                        {rankTag && (
+                          <span className="mobile-card-rank-badge">
+                            <Star size={11} strokeWidth={2.2} fill="none" />
+                            <span>{rankTag}</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="mobile-card-meta-right">
-                      {rankTag && <span className="mobile-card-rank-tag">{rankTag}</span>}
                       <span className="mobile-card-distance-val">
                         {formatCardDistance(station.distanceKm)}
                       </span>
