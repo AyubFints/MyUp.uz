@@ -44,7 +44,7 @@ const MIN_STATION_ZOOM = 12.0;
 
 // Metan gaz, Benzin, Propan va Elektr uchun SVG ikonlar
 const FUEL_SVG = `
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
     <line x1="3" x2="15" y1="22" y2="22"/>
     <line x1="4" x2="14" y1="9" y2="9"/>
     <path d="M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18"/>
@@ -53,7 +53,7 @@ const FUEL_SVG = `
 `;
 
 const PLUG_SVG = `
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
     <path d="M12 22v-5"/>
     <path d="M9 8V2"/>
     <path d="M15 8V2"/>
@@ -2091,15 +2091,16 @@ export default function MapView({
         }
 
         .yandex-station-marker:hover .ym-icon-pin {
-          box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.35) !important;
+          box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.5), 0 0 12px rgba(220, 38, 38, 0.8) !important;
+          transform: scale(1.1) !important;
         }
 
         .yandex-station-marker .ym-icon-pin {
-          width: 24px !important;
-          height: 24px !important;
+          width: 22px !important;
+          height: 22px !important;
           border-radius: 50% !important;
-          background: #ffffff !important;
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28) !important;
+          background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%) !important;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6), 0 0 8px rgba(220, 38, 38, 0.5) !important;
           border: 1.5px solid #ef4444 !important;
           display: flex !important;
           align-items: center !important;
@@ -2108,11 +2109,16 @@ export default function MapView({
           transition: transform 0.2s;
         }
 
+        .yandex-station-marker .ym-icon-pin svg {
+          stroke: #ffffff !important;
+        }
+
         .yandex-station-marker .ym-name-label {
-          color: #ef4444 !important;
+          color: #f87171 !important;
           font-weight: 700 !important;
-          font-size: 13px !important;
+          font-size: 11px !important;
           line-height: 1 !important;
+          letter-spacing: 0.25px !important;
           white-space: nowrap !important;
           background: transparent !important;
           border: none !important;
@@ -2120,11 +2126,11 @@ export default function MapView({
           padding: 0 !important;
           margin: 0 !important;
           text-shadow:
-            -1.5px -1.5px 0 #ffffff,
-             1.5px -1.5px 0 #ffffff,
-            -1.5px  1.5px 0 #ffffff,
-             1.5px  1.5px 0 #ffffff,
-             0 1px 3px rgba(0, 0, 0, 0.35) !important;
+            -1px -1px 0 #060b18,
+             1px -1px 0 #060b18,
+            -1px  1px 0 #060b18,
+             1px  1px 0 #060b18,
+             0 1px 4px rgba(0, 0, 0, 0.95) !important;
           pointer-events: auto !important;
         }
 
@@ -2143,8 +2149,8 @@ export default function MapView({
           font-weight: 800;
           letter-spacing: 0.3px;
           white-space: nowrap;
-          box-shadow: 0 4px 16px rgba(239, 68, 68, 0.6), 0 0 10px rgba(255, 255, 255, 0.5);
-          border: 1.5px solid #ffffff;
+          box-shadow: 0 4px 16px rgba(239, 68, 68, 0.6), 0 0 10px rgba(220, 38, 38, 0.5);
+          border: 1.5px solid #f87171;
           animation: beaconBadgeFloat 1.2s infinite ease-in-out;
           pointer-events: none;
           z-index: 100;
@@ -2167,8 +2173,8 @@ export default function MapView({
         }
 
         .station-highlight-pulse .ym-icon-pin {
-          background: #ef4444 !important;
-          border: 2.5px solid #ffffff !important;
+          background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%) !important;
+          border: 2px solid #fca5a5 !important;
           animation: yandexBeaconPulse 1.2s infinite ease-in-out !important;
         }
 
@@ -2192,9 +2198,9 @@ export default function MapView({
         }
 
         .station-highlight-pulse .ym-name-label {
-          font-size: 15px !important;
+          font-size: 12.5px !important;
           font-weight: 800 !important;
-          color: #dc2626 !important;
+          color: #f87171 !important;
           animation: yandexNameGlow 1.2s infinite ease-in-out !important;
         }
 
@@ -2202,22 +2208,22 @@ export default function MapView({
           0%, 100% {
             transform: scale(1);
             text-shadow:
-              -2px -2px 0 #ffffff,
-               2px -2px 0 #ffffff,
-              -2px  2px 0 #ffffff,
-               2px  2px 0 #ffffff,
+              -1.5px -1.5px 0 #060b18,
+               1.5px -1.5px 0 #060b18,
+              -1.5px  1.5px 0 #060b18,
+               1.5px  1.5px 0 #060b18,
                0 0 10px rgba(239, 68, 68, 0.8),
-               0 0 20px rgba(239, 68, 68, 0.5);
+               0 0 16px rgba(239, 68, 68, 0.5);
           }
           50% {
-            transform: scale(1.08);
+            transform: scale(1.06);
             text-shadow:
-              -2px -2px 0 #ffffff,
-               2px -2px 0 #ffffff,
-              -2px  2px 0 #ffffff,
-               2px  2px 0 #ffffff,
-               0 0 18px rgba(239, 68, 68, 1),
-               0 0 32px rgba(239, 68, 68, 0.9);
+              -1.5px -1.5px 0 #060b18,
+               1.5px -1.5px 0 #060b18,
+              -1.5px  1.5px 0 #060b18,
+               1.5px  1.5px 0 #060b18,
+               0 0 16px rgba(239, 68, 68, 1),
+               0 0 28px rgba(239, 68, 68, 0.8);
           }
         }
 
