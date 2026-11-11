@@ -1,10 +1,10 @@
 Add-Type -Path "c:\Users\user\Desktop\MyUp\scripts\ImageProcessor.cs" -ReferencedAssemblies "System.Drawing"
 
-$source = "C:\Users\user\.gemini\antigravity\brain\0c842baa-243a-4780-a738-4d11b978cfdf\.user_uploaded\media_1794327303369_b423d5de.jpg"
+$source = "C:\Users\user\.gemini\antigravity\brain\0c842baa-243a-4780-a738-4d11b978cfdf\.user_uploaded\media_1794378577923_240485e1.jpg"
 $masterTransparent = "c:\Users\user\Desktop\MyUp\public\ax-logo-transparent.png"
 
-Write-Host "1. Generating Master Transparent Logo..."
-[ImageProcessor]::MakeTransparent($source, $masterTransparent)
+Write-Host "1. Generating Master Transparent Logo (blue bg removal)..."
+[ImageProcessor]::MakeTransparentBlue($source, $masterTransparent)
 
 function Save-Icon($dst, $w, $h, $ratio = 0.80) {
     $parent = Split-Path -Parent $dst
@@ -29,7 +29,6 @@ Save-Icon "c:\Users\user\Desktop\MyUp\android-twa\app\src\main\res\mipmap-xxhdpi
 Save-Icon "c:\Users\user\Desktop\MyUp\android-twa\app\src\main\res\mipmap-xxxhdpi\ic_launcher.png" 192 192 0.75
 
 Write-Host "3. Generating Web / PWA Assets..."
-Save-Icon "c:\Users\user\Desktop\MyUp\public\ax-logo.png" 512 512 0.85
 Save-Icon "c:\Users\user\Desktop\MyUp\public\icons\icon-512x512.png" 512 512 0.80
 Save-Icon "c:\Users\user\Desktop\MyUp\public\icons\icon-192x192.png" 192 192 0.80
 Save-Icon "c:\Users\user\Desktop\MyUp\public\icons\icon-maskable-512x512.png" 512 512 0.60
