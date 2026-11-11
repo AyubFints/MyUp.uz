@@ -1,12 +1,12 @@
-import baseProtomapsStyle from './protomapsLightStyle.js';
+import baseProtomapsStyle from './protomapsDarkStyle.js';
 
 const DEFAULT_KEY = '9fc0781e9f3a803f';
 
 /**
- * A-Maps rasmiy xarita uslubi (Protomaps Light Vector).
+ * A-Maps rasmiy xarita uslubi (Protomaps Dark Navy Vector).
  * Mahalliy paketlangan holda saqlanadi, shuning uchun tarmoq uzilsa yoki dasturga
- * anchadan keyin qayta kirilsa ham darhol (0ms) yuklanadi va hech qachon
- * Super Admin'dagi rang-barang OpenStreetMap xaritasiga o'tib ketmaydi.
+ * anchadan keyin qayta kirilsa ham darhol (0ms) yuklanadi va dastur umumiy
+ * to'q ko'k / qora dizayni bilan mukammal uyg'unlashadi.
  */
 export function getAppMapStyle(customKey) {
   const key =
@@ -34,27 +34,26 @@ export function getAppMapStyle(customKey) {
   } catch (err) {
     console.error('Xarita uslubini yaratishda xatolik:', err);
 
-    // Kutilmagan favqulodda holatda ham Super Admin'dagi xom OSM emas,
-    // A-Maps dizayniga 100% mos toza och CartoDB Positron uslubi ishlatiladi
+    // Kutilmagan favqulodda holatda ham CartoDB Dark Matter to'q ko'k uslubi ishlatiladi
     return {
       version: 8,
       sources: {
-        'carto-light': {
+        'carto-dark': {
           type: 'raster',
           tiles: [
-            'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-            'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
-            'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+            'https://a.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png',
+            'https://b.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png',
+            'https://c.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png',
           ],
           tileSize: 256,
-          attribution: '&copy; A-Maps',
+          attribution: '&copy; A-Maps &copy; CartoDB',
         },
       },
       layers: [
         {
-          id: 'carto-light-layer',
+          id: 'carto-dark-layer',
           type: 'raster',
-          source: 'carto-light',
+          source: 'carto-dark',
           minzoom: 0,
           maxzoom: 20,
         },
