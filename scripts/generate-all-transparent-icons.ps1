@@ -30,7 +30,6 @@ Save-Icon "c:\Users\user\Desktop\MyUp\android-twa\app\src\main\res\mipmap-xxxhdp
 
 Write-Host "3. Generating Web / PWA Assets..."
 Save-Icon "c:\Users\user\Desktop\MyUp\public\ax-logo.png" 512 512 0.85
-Save-Icon "c:\Users\user\Desktop\MyUp\src\assets\ax-logo.png" 512 512 0.85
 Save-Icon "c:\Users\user\Desktop\MyUp\public\icons\icon-512x512.png" 512 512 0.80
 Save-Icon "c:\Users\user\Desktop\MyUp\public\icons\icon-192x192.png" 192 192 0.80
 Save-Icon "c:\Users\user\Desktop\MyUp\public\icons\icon-maskable-512x512.png" 512 512 0.60

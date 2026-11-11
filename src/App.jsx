@@ -3,7 +3,7 @@ import BottomNav from "./components/BottomNav";
 import StationCard from "./components/StationCard";
 import StationCardSkeleton from "./components/StationCardSkeleton";
 import SplashScreen from "./components/SplashScreen";
-import axLogoImg from "./assets/ax-logo.png";
+import axLogoImg from "./assets/ax-header-logo.png";
 import { DesktopSideBanner, MobileAdBanner } from "./components/AdBannerCard";
 import DeleteStationModal from "./components/DeleteStationModal";
 import PendingInspectionModal from "./components/PendingInspectionModal";
