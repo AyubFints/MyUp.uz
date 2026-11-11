@@ -3823,88 +3823,60 @@ export default function App() {
 
                       return (
                         <>
-                          {/* 1. CLICK USLUBIDAGI KARTA: BARCHA JOYLASHUVLAR BOSHQARMASI (Katta karta rasmi) */}
+                          {/* 1. CLICK USLUBIDAGI KARTA: BARCHA JOYLASHUVLAR BOSHQARMASI (Ixcham, yorqin, eng pastida faqat asosiy nom) */}
                           {isLocationRegistered && (
-                            <div
-                              className="profile-top-location-hero-card click-style-card"
-                              onClick={handleOpenEditLocationModal}
-                              title="Barcha joylashuvlar boshqarmasini tahrirlash uchun bosing"
-                              role="button"
-                              tabIndex={0}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                  e.preventDefault();
-                                  handleOpenEditLocationModal();
-                                }
-                              }}
-                            >
-                              {/* Karta orqa foni: yuklangan rasm yoki premium gradient */}
-                              {currentLocationImage ? (
-                                <img 
-                                  src={currentLocationImage} 
-                                  alt={currentLocationName} 
-                                  className="click-card-bg-img" 
-                                />
-                              ) : (
-                                <div className="click-card-default-pattern" />
-                              )}
-
-                              {/* Shishasimon ko'p bosqichli qorong'u gradient overlay (Click bank kartasi ko'rinishi) */}
-                              <div className="click-card-glass-overlay" />
-
-                              {/* Karta ichki kontenti */}
-                              <div className="click-card-inner">
-                                {/* Yuqori qism (Karta ustida): Barcha joylashuvlar boshqarmasi va Tahrirlash */}
-                                <div className="click-card-top-row">
-                                  <div className="click-card-mgmt-badge">
-                                    <Building2 size={13} strokeWidth={2.4} />
-                                    <span>Barcha joylashuvlar boshqarmasi</span>
-                                  </div>
-
-                                  <button
-                                    type="button"
-                                    className="click-card-edit-pill-btn"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenEditLocationModal();
-                                    }}
-                                    title="Joylashuv ma'lumotlarini o'zgartirish"
-                                    aria-label="Tahrirlash"
-                                  >
-                                    <Edit3 size={12} strokeWidth={2.2} />
-                                    <span>Tahrirlash</span>
-                                  </button>
+                            <div className="profile-mgmt-section-container">
+                              <div className="profile-mgmt-header-bar">
+                                <div className="profile-mgmt-title-cluster">
+                                  <Building2 size={16} color="#38bdf8" />
+                                  <h4 className="profile-mgmt-heading">Barcha joylashuvlar boshqarmasi</h4>
+                                  <span className="my-locations-count-pill">{branchCount}</span>
                                 </div>
+                                <button
+                                  type="button"
+                                  className="profile-mgmt-edit-text-btn"
+                                  onClick={handleOpenEditLocationModal}
+                                  title="Tahrirlash"
+                                  aria-label="Tahrirlash"
+                                >
+                                  <Edit3 size={13} />
+                                  <span>Tahrirlash</span>
+                                </button>
+                              </div>
 
-                                {/* O'rta qism: Asosiy joylashuv / brend nomi */}
-                                <div className="click-card-mid-section">
-                                  <h3 className="click-card-brand-title">
-                                    {currentLocationName}
-                                  </h3>
-                                  {myStations.length > 0 && (
-                                    <div className="click-card-branches-names">
-                                      Filiallar: {myStations.map((s) => s.name).slice(0, 3).join(" • ")}
-                                      {myStations.length > 3 ? ` (+${myStations.length - 3})` : ""}
-                                    </div>
-                                  )}
-                                </div>
+                              <div
+                                className="profile-top-location-hero-card click-style-card"
+                                onClick={handleOpenEditLocationModal}
+                                title="Barcha joylashuvlar boshqarmasini tahrirlash uchun bosing"
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    handleOpenEditLocationModal();
+                                  }
+                                }}
+                              >
+                                {/* Karta orqa foni: yuklangan rasm yoki premium gradient */}
+                                {currentLocationImage ? (
+                                  <img 
+                                    src={currentLocationImage} 
+                                    alt={currentLocationName} 
+                                    className="click-card-bg-img" 
+                                  />
+                                ) : (
+                                  <div className="click-card-default-pattern" />
+                                )}
 
-                                {/* Pastki qism (Karta pastida): Mas'ul inson, Telefon va Filiallar soni */}
-                                <div className="click-card-bottom-row">
-                                  <div className="click-card-meta-left">
-                                    <div className="click-card-meta-line">
-                                      <User size={12} strokeWidth={2.2} className="text-sky-400" />
-                                      <span>Mas'ul: <strong>{currentResponsiblePerson}</strong></span>
-                                    </div>
-                                    <div className="click-card-meta-line">
-                                      <Phone size={12} strokeWidth={2.2} className="text-emerald-400" />
-                                      <span>{currentLocationPhone}</span>
-                                    </div>
-                                  </div>
+                                {/* Faqat eng pastki nom tiniq ko'rinishi uchun yengil pastki gradient (rasm yorqin qoladi) */}
+                                <div className="click-card-glass-overlay" />
 
-                                  <div className="click-card-branch-badge">
-                                    <Layers size={13} strokeWidth={2.4} />
-                                    <span>Jami {branchCount} ta filial mavjud</span>
+                                {/* Karta ichida: ENG PASTIDA FAQAT ASOSIY NOM */}
+                                <div className="click-card-inner">
+                                  <div className="click-card-bottom-name-wrap">
+                                    <h3 className="click-card-brand-title">
+                                      {currentLocationName}
+                                    </h3>
                                   </div>
                                 </div>
                               </div>
