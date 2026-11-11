@@ -251,7 +251,7 @@ export default function App() {
 
   const handleTabChange = (newTab, customAuthMode = "register") => {
     setAuthInitialMode(customAuthMode);
-    if ((newTab === "home" || newTab === "map") && !isGpsActive && !isLocating) {
+    if ((newTab === "home" || newTab === "map") && !isGpsActive && !isLocating && !isGpsDismissed) {
       requestLocation();
     }
     if (newTab === activeTab) return;
@@ -1189,6 +1189,13 @@ export default function App() {
   });
 
   const [isGpsActive, setIsGpsActive] = useState(false);
+  const [isGpsDismissed, setIsGpsDismissed] = useState(() => {
+    try {
+      return sessionStorage.getItem("myup_gps_dismissed") === "true";
+    } catch {
+      return false;
+    }
+  });
   const [showGpsModal, setShowGpsModal] = useState(false);
   const [locationStatus, setLocationStatus] = useState("locating"); // "locating" | "ready" | "denied" | "disabled" | "timeout" | "unsupported"
 
@@ -1525,6 +1532,11 @@ export default function App() {
 
   // Dasturga kirishi bilanoq, refresh berganda yoki qayta ochilganda geolokatsiyani so'rash va tekshirish
   const requestLocation = useCallback(() => {
+    setIsGpsDismissed(false);
+    try {
+      sessionStorage.removeItem("myup_gps_dismissed");
+    } catch (e) {}
+
     if (!navigator.geolocation) {
       setLocationStatus("unsupported");
       setIsLocating(false);
@@ -1739,24 +1751,28 @@ export default function App() {
 
   // 4. GPS o'chiq bo'lsa qayta-qayta eslatish / telefon tizimidan so'rash (har 35 soniyada)
   useEffect(() => {
-    if (isGpsActive) {
+    if (isGpsActive || isGpsDismissed) {
       return;
     }
     const interval = setInterval(() => {
-      if (!isGpsActive && !isLocating) {
+      if (!isGpsActive && !isLocating && !isGpsDismissed) {
         requestLocation();
       }
     }, 35000);
     return () => clearInterval(interval);
-  }, [isGpsActive, isLocating, requestLocation]);
+  }, [isGpsActive, isLocating, isGpsDismissed, requestLocation]);
 
-  // Standart ko'rinishga o'tish (lekin qayta refreshda yana tekshiriladi)
+  // Standart ko'rinishga o'tish (foydalanuvchi "Standart xarita bo'yicha ko'rish"ni bosganda GPS eslatmalarini to'liq yo'qotish)
   const handleUseDefaultLocation = () => {
     const defaultCoords = { lat: 41.311081, lng: 69.240562 };
     setUserCoords(defaultCoords);
     setLocationStatus("ready");
     setLocationAccuracyPercent(80);
     setIsLocating(false);
+    setIsGpsDismissed(true);
+    try {
+      sessionStorage.setItem("myup_gps_dismissed", "true");
+    } catch (e) {}
   };
 
   const handleToggleFavorite = (stationId) => {
@@ -2783,13 +2799,10 @@ export default function App() {
         </nav>
       </header>
 
-      {/* Global persistent GPS alert banner when GPS is off/disabled/denied */}
-      {!isGpsActive && !isLocating && (
+      {/* Global persistent GPS alert banner when GPS is off/disabled/denied and not dismissed */}
+      {!isGpsActive && !isLocating && !isGpsDismissed && (
         <div
           className="global-gps-alert-strip"
-          onClick={() => {
-            requestLocation();
-          }}
           style={{
             background: "linear-gradient(90deg, #b45309 0%, #d97706 100%)",
             color: "#ffffff",
@@ -2799,33 +2812,58 @@ export default function App() {
             justifyContent: "space-between",
             fontSize: "0.86rem",
             fontWeight: "600",
-            cursor: "pointer",
             boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
             zIndex: 1000,
             position: "relative",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div
+            onClick={() => requestLocation()}
+            style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", flex: 1 }}
+          >
             <MapPinOff size={18} />
             <span>Geolokatsiya o'chiq — eng yaqin zapravkalarni aniq ko'rish uchun yoqing</span>
           </div>
-          <button
-            type="button"
-            style={{
-              background: "#ffffff",
-              color: "#b45309",
-              border: "none",
-              borderRadius: "999px",
-              padding: "4px 14px",
-              fontSize: "0.82rem",
-              fontWeight: "700",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              marginLeft: "12px",
-            }}
-          >
-            Yoqish
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <button
+              type="button"
+              onClick={() => requestLocation()}
+              style={{
+                background: "#ffffff",
+                color: "#b45309",
+                border: "none",
+                borderRadius: "999px",
+                padding: "4px 14px",
+                fontSize: "0.82rem",
+                fontWeight: "700",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                marginLeft: "8px",
+              }}
+            >
+              Yoqish
+            </button>
+            <button
+              type="button"
+              onClick={handleUseDefaultLocation}
+              title="Yopish (Standart xarita bo'yicha ko'rish)"
+              style={{
+                background: "rgba(0,0,0,0.2)",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "50%",
+                width: "26px",
+                height: "26px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                padding: 0,
+              }}
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
       )}
 
@@ -2962,7 +3000,7 @@ export default function App() {
                   </div>
                 ) : (
                   <>
-                    {!isLocating && !isGpsActive && (
+                    {!isLocating && !isGpsActive && !isGpsDismissed && (
                       <div className="location-denied-card" style={{ marginBottom: "16px" }}>
                         <div className="location-denied-icon-wrap">
                           <MapPinOff size={28} />
