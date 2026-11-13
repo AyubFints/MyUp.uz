@@ -46,7 +46,14 @@ export default function DesktopFooter({ onNavigate }) {
             <div className="footer-tags-row">
               <span className="footer-tag-pill">Startaplar</span>
               <span className="footer-tag-pill">Veb-saytlar</span>
-              <span className="footer-tag-pill">Mobil ilovalar</span>
+              <span
+                className="footer-tag-pill"
+                onClick={() => handleNav("apps")}
+                style={{ cursor: "pointer" }}
+                title="AX-Map mobil ilovasini yuklab olish"
+              >
+                Mobil ilovalar
+              </span>
             </div>
 
             <div className="footer-products-list">

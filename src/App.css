@@ -19297,3 +19297,901 @@ body.light-theme .location-fallback-btn {
   }
 }
 
+/* ==========================================================================
+   AX-MAP ILOVASINI YUKLAB OLISH (PLAY MARKET USLUBIDA ILOVA TAFSILOTLARI)
+   ========================================================================== */
+.app-download-page-root {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  user-select: text !important;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-sizing: border-box;
+  padding-bottom: 90px;
+}
+
+.app-download-top-header {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: rgba(14, 14, 16, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 50;
+}
+
+.is-light .app-download-top-header {
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom-color: #e2e8f0;
+}
+
+.app-download-back-btn,
+.app-download-share-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.is-light .app-download-back-btn,
+.is-light .app-download-share-btn {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.app-download-back-btn:hover,
+.app-download-share-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: scale(1.05);
+}
+
+.is-light .app-download-back-btn:hover,
+.is-light .app-download-share-btn:hover {
+  background: #e2e8f0;
+}
+
+.app-download-header-title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  margin: 0;
+}
+
+.app-download-main-container {
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+}
+
+/* HERO KARTA (Play Market uslubidagi asosiy ilova info) */
+.app-details-hero-card {
+  border-radius: 20px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s ease;
+}
+
+.is-light .app-details-hero-card {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.app-details-hero-top {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.app-details-icon-wrapper {
+  width: 76px;
+  height: 76px;
+  border-radius: 18px;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #000000;
+}
+
+.app-details-app-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.app-details-hero-meta {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.app-details-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  margin: 0 0 2px 0;
+  line-height: 1.2;
+}
+
+.app-details-developer {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #38bdf8;
+  margin-bottom: 8px;
+}
+
+.app-details-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.app-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-stat-rating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.app-stat-score {
+  font-size: 14.5px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.app-stat-label {
+  font-size: 11.5px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.app-stat-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.is-light .app-stat-divider {
+  background: #cbd5e1;
+}
+
+.app-stat-downloads-val {
+  font-size: 14.5px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+/* YUKLAB OLISH TUGMASI (To'liq va nusxalash tugmasisiz) */
+.app-details-action-area {
+  width: 100%;
+}
+
+.app-primary-download-btn {
+  width: 100%;
+  height: 48px;
+  border-radius: 9999px;
+  background: #0284c7;
+  background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
+  color: #ffffff;
+  border: none;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35);
+}
+
+.app-primary-download-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 26px rgba(56, 189, 248, 0.45);
+  filter: brightness(1.05);
+}
+
+.app-primary-download-btn:active {
+  transform: scale(0.98);
+}
+
+.app-primary-download-btn.success {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+}
+
+.app-details-pills-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.app-spec-pill {
+  color: #94a3b8;
+}
+
+.is-light .app-spec-pill {
+  color: #475569;
+}
+
+.app-spec-dot {
+  opacity: 0.4;
+}
+
+/* BO'LIM KARTALARI */
+.app-download-section-card {
+  border-radius: 18px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.app-section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.app-section-title {
+  font-size: 17px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.app-section-subtitle {
+  font-size: 12.5px;
+  margin: 3px 0 0 0;
+}
+
+.app-section-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.app-about-description {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #cbd5e1;
+  margin: 0;
+}
+
+.is-light .app-about-description {
+  color: #334155;
+}
+
+.app-category-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.app-category-tag {
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.is-light .app-category-tag {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+.app-tech-specs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.is-light .app-tech-specs-grid {
+  border-top-color: #e2e8f0;
+}
+
+.app-tech-spec-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-spec-k {
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.app-spec-v {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* JONLI BAHOLAR VA SHARHLAR */
+.app-add-review-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 9999px;
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.app-add-review-btn:hover {
+  background: rgba(56, 189, 248, 0.2);
+  transform: translateY(-1px);
+}
+
+.app-rating-summary-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.is-light .app-rating-summary-box {
+  background: #f8fafc;
+}
+
+.app-rating-big-num {
+  font-size: 44px;
+  font-weight: 900;
+  line-height: 1;
+  color: #f59e0b;
+  letter-spacing: -1px;
+}
+
+.app-rating-stars-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-rating-stars-row {
+  display: flex;
+  gap: 3px;
+}
+
+.app-rating-count-text {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.app-reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.app-review-item-card {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.is-light .app-review-item-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+.app-review-item-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-review-author-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.app-review-author-meta {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.app-review-author-name {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.app-review-date {
+  font-size: 11px;
+}
+
+.app-review-stars-badge {
+  display: flex;
+  gap: 2px;
+}
+
+.app-review-comment-text {
+  font-size: 12.5px;
+  color: #cbd5e1;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.is-light .app-review-comment-text {
+  color: #475569;
+}
+
+.app-security-trust-box {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px dashed rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.app-security-trust-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.app-security-trust-text p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* SHARH QOLDIRISH MODALI */
+.app-review-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.app-review-modal-content {
+  width: 100%;
+  max-width: 440px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 20px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.app-review-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.app-review-modal-title {
+  font-size: 17px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.app-review-modal-close {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+}
+
+.app-review-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.app-review-rating-select {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-review-rating-label {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.app-review-stars-interactive {
+  display: flex;
+  gap: 6px;
+}
+
+.app-star-pick-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.app-star-pick-btn:hover {
+  transform: scale(1.2);
+}
+
+.app-review-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.app-review-field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.app-review-text-input,
+.app-review-textarea {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: inherit;
+  font-size: 13.5px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.is-light .app-review-text-input,
+.is-light .app-review-textarea {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.app-review-text-input:focus,
+.app-review-textarea:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+}
+
+.app-review-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.app-review-cancel-btn {
+  padding: 8px 16px;
+  border-radius: 9999px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app-review-submit-btn {
+  padding: 8px 20px;
+  border-radius: 9999px;
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+}
+
+.app-download-toast {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1001;
+  background: #0f172a;
+  border: 1px solid #38bdf8;
+  color: #ffffff;
+  padding: 10px 20px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  animation: slideDownFade 0.25s ease-out;
+}
+
+@keyframes slideDownFade {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* ==========================================================================
+   ASOSIY SAHIFA: 5 TA MANZILDAN KEYIN TURADIGAN DOIMIY YUKLAB OLISH KARTASI
+   ========================================================================== */
+.home-download-app-card {
+  width: 100%;
+  margin: 12px 0 16px 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.12) 0%, rgba(14, 165, 233, 0.05) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.home-download-app-card:hover {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.2) 0%, rgba(14, 165, 233, 0.1) 100%);
+  border-color: #38bdf8;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.15);
+}
+
+.home-download-app-card:active {
+  transform: scale(0.99);
+}
+
+.is-light .home-download-app-card {
+  background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
+  border-color: #7dd3fc;
+}
+
+.home-download-card-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.home-download-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.home-download-card-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.home-download-card-badge {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #38bdf8;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  margin-bottom: 3px;
+}
+
+.is-light .home-download-card-badge {
+  color: #0284c7;
+}
+
+.home-download-card-title {
+  font-size: 14px;
+  font-weight: 800;
+  margin: 0 0 2px 0;
+  color: #ffffff;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.is-light .home-download-card-title {
+  color: #0f172a;
+}
+
+.home-download-card-desc {
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.is-light .home-download-card-desc {
+  color: #64748b;
+}
+
+.home-download-card-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 10px rgba(2, 132, 199, 0.35);
+}
+
+.home-download-card-btn:hover {
+  background: #38bdf8;
+  color: #000000;
+}
+
+/* ==========================================================================
+   QO'LLANMALAR BO'LIMI: YUKLAB OLISH BANNERI
+   ========================================================================== */
+.guide-download-app-banner {
+  width: 100%;
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.guide-download-app-banner:hover {
+  border-color: #38bdf8;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(56, 189, 248, 0.15);
+}
+
+.guide-download-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+
+.guide-download-banner-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 13px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.guide-download-banner-title {
+  font-size: 15px;
+  font-weight: 800;
+  margin: 0 0 3px 0;
+  letter-spacing: -0.2px;
+}
+
+.guide-download-banner-sub {
+  font-size: 12px;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.guide-download-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 9999px;
+  background: #0284c7;
+  color: #ffffff;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 12px rgba(2, 132, 199, 0.35);
+}
+
+.guide-download-action-btn:hover {
+  background: #38bdf8;
+  color: #000000;
+}
+
+

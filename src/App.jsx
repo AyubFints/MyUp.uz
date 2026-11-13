@@ -75,6 +75,7 @@ import {
   MapPinOff,
   LocateFixed,
   HelpCircle,
+  Download,
 } from "lucide-react";
 import "./App.css";
 
@@ -89,6 +90,7 @@ const NotificationsView = lazy(() => import("./components/NotificationsView"));
 const ProfileDetailModal = lazy(() => import("./components/ProfileDetailModal"));
 const StationReviewModal = lazy(() => import("./components/StationReviewModal"));
 const PrivacyPolicyPage = lazy(() => import("./components/PrivacyPolicyPage"));
+const AppDownloadPage = lazy(() => import("./components/AppDownloadPage"));
 
 const MapLoadingFallback = () => (
   <div className="map-shimmer-fullscreen-overlay">
@@ -260,10 +262,10 @@ export default function App() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
     if (newTab === activeTab) return;
-    if (newTab === "advertising" || newTab === "privacy") {
+    if (newTab === "advertising" || newTab === "privacy" || newTab === "apps" || newTab === "download") {
       setPrevTab(activeTab || "home");
     }
-    const targetPath = newTab === "privacy" ? "/privacy" : "/";
+    const targetPath = newTab === "privacy" ? "/privacy" : (newTab === "apps" || newTab === "download") ? "/apps" : "/";
     const searchStr = (typeof window !== "undefined" && window.location.search) ? window.location.search : "";
     window.history.pushState({ tab: newTab }, "", targetPath + searchStr);
     setActiveTab(newTab);
@@ -3069,6 +3071,41 @@ export default function App() {
                         </button>
                       </div>
                     )}
+
+                    {/* HAR DOYIM KO'RINIB TURADIGAN "AX-MAP ILOVASINI YUKLAB OLISH" BO'LIMI */}
+                    <div 
+                      className="home-download-app-card"
+                      onClick={() => handleTabChange("apps")}
+                      role="button"
+                      tabIndex={0}
+                      title="AX-Map mobil ilovasini yuklab olish"
+                    >
+                      <div className="home-download-card-content">
+                        <img
+                          src="/ax-app-icon-3d.jpg"
+                          alt="AX-Map Ilova"
+                          className="home-download-card-icon"
+                        />
+                        <div className="home-download-card-info">
+                          <div className="home-download-card-badge">Rasmiy Mobil Ilova</div>
+                          <h4 className="home-download-card-title">AX-Map ilovasini yuklab olish</h4>
+                          <p className="home-download-card-desc">
+                            Tezkor, internetni tejovchi va qulay xarita (Android)
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="home-download-card-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTabChange("apps");
+                        }}
+                      >
+                        <Download size={16} />
+                        <span>Yuklab olish</span>
+                      </button>
+                    </div>
                   </>
                 )}
               </div>
@@ -4269,6 +4306,7 @@ export default function App() {
                   onOpenAdvertising={() => handleTabChange("advertising")}
                   onOpenGuide={() => handleTabChange("guide")}
                   onOpenPrivacy={() => handleTabChange("privacy")}
+                  onOpenDownload={() => handleTabChange("apps")}
                 />
               )}
             </Suspense>
@@ -4314,6 +4352,7 @@ export default function App() {
                     setShowAddStation(true);
                   }
                 }}
+                onOpenDownload={() => handleTabChange("apps")}
                 isThemeLight={isThemeLight}
                 appTheme={appTheme}
               />
@@ -4394,6 +4433,42 @@ export default function App() {
             appTheme={appTheme}
           />
         </Suspense>
+      )}
+
+      {/* ILOVALAR (PLAY MARKET USLUBIDA ILOVA TAFSILOTLARI VA YUKLAB OLISH) */}
+      {(activeTab === "apps" || activeTab === "download") && (
+        <div
+          className={`apps-three-col-layout profile-three-col-layout ${isThemeLight ? "is-light" : ""}`}
+          style={{
+            '--theme-accent': appTheme?.accent || '#38bdf8',
+            '--theme-bg': appTheme?.bg || '#0e0e10',
+            '--theme-card': appTheme?.card || '#18181b',
+            '--theme-border': appTheme?.border || 'rgba(255, 255, 255, 0.08)',
+            '--theme-panel': appTheme?.panel || '#161618',
+            '--theme-text': appTheme?.text || (isThemeLight ? '#0f172a' : '#ffffff'),
+            '--theme-muted': appTheme?.textMuted || (isThemeLight ? '#64748b' : '#94a3b8'),
+            minHeight: "100vh",
+            backgroundColor: appTheme?.bg || "var(--bg-primary, #0e0e10)",
+            color: appTheme?.text || (isThemeLight ? "#0f172a" : "#ffffff"),
+          }}
+        >
+          {/* CHAP TOMON REKLAMA (Faqat kompyuter holatida) */}
+          <DesktopSideBanner ads={leftAds} ad={leftAd} side="left" customClass="settings-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
+
+          {/* O'RTA ASOSIY BO'LIM */}
+          <div className="apps-center-col profile-center-main-col" style={{ width: '100%', maxWidth: '680px', margin: '0 auto' }}>
+            <Suspense fallback={<SectionLoadingFallback />}>
+              <AppDownloadPage
+                onBack={() => handleTabChange(prevTab || "home")}
+                isThemeLight={isThemeLight}
+                appTheme={appTheme}
+              />
+            </Suspense>
+          </div>
+
+          {/* O'NG TOMON REKLAMA (Faqat kompyuter holatida) */}
+          <DesktopSideBanner ads={rightAds} ad={rightAd} side="right" customClass="settings-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
+        </div>
       )}
 
       {/* FAQAT KOMPYUTER HOLATIDA FOOTER (Faqat xarita to'liq ekranida emas) */}

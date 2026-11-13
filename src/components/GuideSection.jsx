@@ -16,6 +16,7 @@ import {
   Info,
   AlertCircle,
   Smartphone,
+  Download,
 } from "lucide-react";
 
 /**
@@ -26,6 +27,7 @@ export default function GuideSection({
   user,
   onGoToRegister,
   onGoToAddLocation,
+  onOpenDownload,
   isThemeLight = false,
   appTheme = null,
 }) {
@@ -62,6 +64,43 @@ export default function GuideSection({
       </div>
 
       <div className="guide-sections-wrapper">
+        {/* AX-MAP RASMIY ILOVASINI YUKLAB OLISH BANNERI */}
+        <div
+          className="guide-download-app-banner"
+          onClick={onOpenDownload}
+          role="button"
+          tabIndex={0}
+          style={{ background: cardBg, borderColor, cursor: "pointer" }}
+          title="AX-Map mobil ilovasini yuklab olish"
+        >
+          <div className="guide-download-banner-left">
+            <img
+              src="/ax-app-icon-3d.jpg"
+              alt="AX-Map"
+              className="guide-download-banner-icon"
+            />
+            <div>
+              <h3 className="guide-download-banner-title" style={{ color: textPrimary }}>
+                AX-Map ilovasini yuklab olish
+              </h3>
+              <p className="guide-download-banner-sub" style={{ color: textMuted }}>
+                Barcha qulayliklar va yoqilg'i narxlari cho'ntagingizda (Android • 4.5 MB)
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="guide-download-action-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onOpenDownload) onOpenDownload();
+            }}
+          >
+            <Download size={16} />
+            <span>Yuklab olish</span>
+          </button>
+        </div>
+
         {/* ========================================================
             1-BO'LIM: DASTUR NIMA QILIB BERADI?
             ======================================================== */}
