@@ -9,8 +9,32 @@ import {
   MessageSquarePlus,
   Send,
   X,
-  Smartphone,
+  Maximize2,
 } from "lucide-react";
+
+// Foydalanuvchi yuborgan 4 ta rasmiy skrinshot
+const SCREENSHOTS = [
+  {
+    id: "sc_1",
+    src: "/screenshots/screenshot-1.jpg",
+    title: "1-rasm: Asosiy sahifa - Shahobchalar ro'yxati",
+  },
+  {
+    id: "sc_2",
+    src: "/screenshots/screenshot-2.jpg",
+    title: "2-rasm: Jonli xarita va eng yaqin zapravkalar",
+  },
+  {
+    id: "sc_3",
+    src: "/screenshots/screenshot-3.jpg",
+    title: "3-rasm: Dastur bo'yicha to'liq qo'llanma",
+  },
+  {
+    id: "sc_4",
+    src: "/screenshots/screenshot-4.jpg",
+    title: "4-rasm: Profil va Joylashuvlar boshqarmasi",
+  },
+];
 
 export default function AppDownloadPage({
   onBack,
@@ -57,6 +81,9 @@ export default function AppDownloadPage({
   const [newReviewComment, setNewReviewComment] = useState("");
   const [newReviewRating, setNewReviewRating] = useState(5);
   const [toastMessage, setToastMessage] = useState("");
+
+  // Kattalashtirib ko'rish uchun tanlangan skrinshot
+  const [selectedImage, setSelectedImage] = useState(null);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -256,39 +283,30 @@ export default function AppDownloadPage({
           </div>
         </section>
 
-        {/* 2. SKRINSHOTLAR BO'LIMI (Ilova haqida dan oldin, ramkalar bilan) */}
+        {/* 2. SKRINSHOTLAR BO'LIMI (1, 2, 3 va 4-rasmlar bilan, tiniq va yirik) */}
         <section className="app-seamless-section">
           <div className="app-seamless-section-header">
             <h3 className="app-seamless-title">Skrinshotlar</h3>
           </div>
 
           <div className="app-screenshots-scroll-row">
-            {/* 1-Ramka */}
-            <div className="app-screenshot-phone-frame">
-              <div className="app-frame-notch" />
-              <div className="app-frame-inner-placeholder">
-                <Smartphone size={32} strokeWidth={1.5} color="rgba(255, 255, 255, 0.25)" />
-                <span className="app-frame-text">1-rasm</span>
+            {SCREENSHOTS.map((item, idx) => (
+              <div
+                key={item.id}
+                className="app-screenshot-card-item"
+                onClick={() => setSelectedImage(item.src)}
+                role="button"
+                tabIndex={0}
+                title={`${idx + 1}-skrinshotni kattalashtirib ko'rish`}
+              >
+                <img
+                  src={item.src}
+                  alt={item.title}
+                  className="app-screenshot-img"
+                  loading="lazy"
+                />
               </div>
-            </div>
-
-            {/* 2-Ramka */}
-            <div className="app-screenshot-phone-frame">
-              <div className="app-frame-notch" />
-              <div className="app-frame-inner-placeholder">
-                <Smartphone size={32} strokeWidth={1.5} color="rgba(255, 255, 255, 0.25)" />
-                <span className="app-frame-text">2-rasm</span>
-              </div>
-            </div>
-
-            {/* 3-Ramka */}
-            <div className="app-screenshot-phone-frame">
-              <div className="app-frame-notch" />
-              <div className="app-frame-inner-placeholder">
-                <Smartphone size={32} strokeWidth={1.5} color="rgba(255, 255, 255, 0.25)" />
-                <span className="app-frame-text">3-rasm</span>
-              </div>
-            </div>
+            ))}
           </div>
         </section>
 
@@ -455,6 +473,28 @@ export default function AppDownloadPage({
               </div>
             </form>
           </div>
+        </div>
+      )}
+      {/* KATTALASHTIRILGAN SKRINSHOT MODALI (Tiniq ko'rish uchun) */}
+      {selectedImage && (
+        <div
+          className="app-screenshot-lightbox-overlay"
+          onClick={() => setSelectedImage(null)}
+        >
+          <button
+            type="button"
+            className="app-lightbox-close-btn"
+            onClick={() => setSelectedImage(null)}
+            title="Yopish"
+          >
+            <X size={26} />
+          </button>
+          <img
+            src={selectedImage}
+            alt="Skrinshot"
+            className="app-lightbox-full-img"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
       )}
     </div>
