@@ -18946,6 +18946,7 @@ body.light-theme .location-fallback-btn {
 /* ==========================================================================
    DESKTOP FOOTER (Faqat kompyuter holatida ko'rinadi - 1-rasm dizayni)
    Orqa foni: 2-rasm (shahar silueti)
+   Ixcham balandlik va butun ekran kengligida ochilgan (ikki yonga yoyilgan)
    ========================================================================== */
 .desktop-footer-section {
   position: relative;
@@ -18969,7 +18970,7 @@ body.light-theme .location-fallback-btn {
     180deg,
     rgba(11, 14, 20, 0.94) 0%,
     rgba(11, 14, 20, 0.72) 35%,
-    rgba(11, 14, 20, 0.85) 100%
+    rgba(11, 14, 20, 0.88) 100%
   );
   pointer-events: none;
   z-index: 1;
@@ -18978,71 +18979,74 @@ body.light-theme .location-fallback-btn {
 .desktop-footer-container {
   position: relative;
   z-index: 2;
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 44px 36px 20px 36px;
-  box-sizing: border-box;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 24px 50px 14px 50px !important;
+  box-sizing: border-box !important;
 }
 
 .desktop-footer-grid {
-  display: grid;
-  grid-template-columns: 1.3fr 1fr 1fr;
-  gap: 40px;
-  align-items: flex-start;
-  margin-bottom: 34px;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  width: 100% !important;
+  gap: 32px !important;
+  margin-bottom: 16px !important;
 }
 
-/* 1-USTUN: AX Kompaniyasi */
+/* 1-USTUN: AX Kompaniyasi (Chap tomonga to'liq moslangan) */
 .footer-col-left {
   display: flex;
   flex-direction: column;
+  flex: 1.35;
+  max-width: 480px;
 }
 
 .footer-logo-row {
   display: flex;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .footer-ax-logo-img {
-  height: 38px;
+  height: 32px;
   width: auto;
   object-fit: contain;
   display: block;
 }
 
 .footer-company-tagline {
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 700;
   color: #fb923c;
-  margin: 0 0 12px 0;
+  margin: 0 0 8px 0;
   letter-spacing: -0.2px;
-  line-height: 1.35;
+  line-height: 1.3;
 }
 
 .footer-company-desc {
-  font-size: 12.5px;
+  font-size: 12px;
   color: #cbd5e1;
-  line-height: 1.55;
-  margin: 0 0 10px 0;
-  max-width: 440px;
+  line-height: 1.45;
+  margin: 0 0 6px 0;
 }
 
 .footer-tags-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 14px 0 18px 0;
+  gap: 8px;
+  margin: 10px 0 12px 0;
   flex-wrap: wrap;
 }
 
 .footer-tag-pill {
-  padding: 5px 14px;
+  padding: 4px 12px;
   border-radius: 9999px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.18);
   color: #e2e8f0;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.1px;
 }
@@ -19050,14 +19054,15 @@ body.light-theme .location-fallback-btn {
 .footer-products-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .footer-product-item {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 800;
   letter-spacing: -0.3px;
   transition: all 0.2s ease;
+  line-height: 1.25;
 }
 
 .footer-product-item.active {
@@ -19076,45 +19081,47 @@ body.light-theme .location-fallback-btn {
   user-select: none;
 }
 
-/* 2-USTUN: Dasturiy ta'minot */
+/* 2-USTUN: Dasturiy ta'minot (O'rtada keng joylashgan) */
 .footer-col-center {
   display: flex;
   flex-direction: column;
-  padding-top: 4px;
+  flex: 1.05;
+  max-width: 420px;
+  padding-top: 2px;
 }
 
 .footer-center-title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 800;
   color: #ffffff;
-  margin: 0 0 6px 0;
+  margin: 0 0 4px 0;
   line-height: 1.25;
   letter-spacing: -0.3px;
 }
 
 .footer-center-subtitle {
-  font-size: 13px;
+  font-size: 12.5px;
   color: #94a3b8;
-  margin: 0 0 18px 0;
-  line-height: 1.4;
+  margin: 0 0 14px 0;
+  line-height: 1.35;
 }
 
 .footer-guide-action-btn {
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   background: #38bdf8;
   color: #000000;
   border: none;
   border-radius: 9999px;
-  padding: 10px 22px;
-  font-size: 13.5px;
+  padding: 8px 18px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 4px 14px rgba(56, 189, 248, 0.35);
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   width: fit-content;
 }
 
@@ -19131,16 +19138,16 @@ body.light-theme .location-fallback-btn {
 .footer-center-contacts {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
 .footer-contact-item {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   color: #e2e8f0;
   text-decoration: none;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   transition: all 0.2s ease;
   width: fit-content;
@@ -19152,8 +19159,8 @@ body.light-theme .location-fallback-btn {
 }
 
 .footer-contact-icon-circle {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -19172,44 +19179,45 @@ body.light-theme .location-fallback-btn {
   color: #cbd5e1;
 }
 
-/* 3-USTUN: Katta AX-Map va Murojaat */
+/* 3-USTUN: Katta AX-Map va Murojaat (O'ng tomonga to'liq moslangan) */
 .footer-col-right {
   display: flex;
   flex-direction: column;
-  padding-top: 4px;
+  flex: 1;
+  max-width: 420px;
+  padding-top: 2px;
 }
 
 .footer-big-brand-title {
-  font-size: 46px;
+  font-size: 38px;
   font-weight: 900;
   color: #ffffff;
-  margin: 0 0 4px 0;
+  margin: 0 0 2px 0;
   line-height: 1.05;
   letter-spacing: -1px;
 }
 
 .footer-right-category {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: #38bdf8;
-  margin: 0 0 10px 0;
+  margin: 0 0 6px 0;
 }
 
 .footer-right-desc {
-  font-size: 12.5px;
+  font-size: 12px;
   color: #94a3b8;
-  line-height: 1.55;
-  margin: 0 0 24px 0;
-  max-width: 380px;
+  line-height: 1.45;
+  margin: 0 0 16px 0;
 }
 
 .footer-murojaat-card-pill {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   color: #ffffff;
   text-decoration: none;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 700;
   transition: all 0.2s ease;
   width: fit-content;
@@ -19221,8 +19229,8 @@ body.light-theme .location-fallback-btn {
 }
 
 .footer-murojaat-icon-circle {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background: #0284c7;
   color: #ffffff;
@@ -19239,10 +19247,11 @@ body.light-theme .location-fallback-btn {
   align-items: center;
   justify-content: space-between;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  padding-top: 18px;
-  margin-top: 6px;
-  font-size: 12px;
+  padding-top: 12px;
+  margin-top: 2px;
+  font-size: 11.5px;
   color: #64748b;
+  width: 100%;
 }
 
 .footer-copyright-text {
@@ -19253,6 +19262,16 @@ body.light-theme .location-fallback-btn {
 .footer-brand-domain {
   color: #94a3b8;
   font-weight: 600;
+}
+
+/* Kichikroq noutbuk ekranlarida moslashuvchanlik */
+@media (min-width: 1024px) and (max-width: 1280px) {
+  .desktop-footer-container {
+    padding: 20px 30px 12px 30px !important;
+  }
+  .desktop-footer-grid {
+    gap: 20px !important;
+  }
 }
 
 /* KOMPYUTERDAN KICHIK QURILMALARDA BUTKUL YASHIRISH */
