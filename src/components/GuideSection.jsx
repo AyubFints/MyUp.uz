@@ -65,34 +65,28 @@ export default function GuideSection({
       </div>
 
       <div className="guide-sections-wrapper">
-        {/* AX-MAP RASMIY ILOVASINI YUKLAB OLISH BANNERI (Faqat veb-saytda ko'rinadi) */}
+        {/* AX-MAP RASMIY MOBIL ILOVA BANNERI (Faqat veb-saytda ko'rinadi) */}
         {!isInstalledApp && (
           <div
-            className="guide-download-app-banner"
+            className="home-download-app-card"
             onClick={onOpenDownload}
             role="button"
             tabIndex={0}
-            style={{ background: cardBg, borderColor, cursor: "pointer" }}
-            title="AX-Map mobil ilovasini yuklab olish"
+            title="Rasmiy mobil ilova"
           >
-            <div className="guide-download-banner-left">
+            <div className="home-download-card-content">
               <img
                 src="/ax-app-icon-3d.jpg"
                 alt="AX-Map"
-                className="guide-download-banner-icon"
+                className="home-download-card-icon"
               />
-              <div>
-                <h3 className="guide-download-banner-title" style={{ color: textPrimary }}>
-                  AX-Map ilovasini yuklab olish
-                </h3>
-                <p className="guide-download-banner-sub" style={{ color: textMuted }}>
-                  Barcha qulayliklar va yoqilg'i narxlari cho'ntagingizda (Android • 4.5 MB)
-                </p>
+              <div className="home-download-card-info">
+                <span className="home-download-card-title">Rasmiy mobil ilova</span>
               </div>
             </div>
             <button
               type="button"
-              className="guide-download-action-btn"
+              className="home-download-card-btn"
               onClick={(e) => {
                 e.stopPropagation();
                 if (onOpenDownload) onOpenDownload();

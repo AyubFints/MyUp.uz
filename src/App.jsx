@@ -3092,11 +3092,7 @@ export default function App() {
                             className="home-download-card-icon"
                           />
                           <div className="home-download-card-info">
-                            <div className="home-download-card-badge">Rasmiy Mobil Ilova</div>
-                            <h4 className="home-download-card-title">AX-Map ilovasini yuklab olish</h4>
-                            <p className="home-download-card-desc">
-                              Tezkor, internetni tejovchi va qulay xarita (Android)
-                            </p>
+                            <span className="home-download-card-title">Rasmiy mobil ilova</span>
                           </div>
                         </div>
                         <button

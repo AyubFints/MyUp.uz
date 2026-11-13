@@ -503,26 +503,37 @@ export default function SettingsSection({
           <ChevronRight size={20} className="new-settings-ad-arrow" />
         </div>
 
-        {/* AX-MAP ILOVASINI YUKLAB OLISH BO'LIMI (Faqat veb-saytda ko'rinadi) */}
+        {/* AX-MAP RASMIY MOBIL ILOVA BANNERI (Faqat veb-saytda ko'rinadi) */}
         {!isInstalledApp && (
           <div
-            className="new-settings-ad-card"
+            className="home-download-app-card"
             onClick={onOpenDownload}
             role="button"
             tabIndex={0}
-            title="AX-Map rasmiy mobil ilovasini yuklab olish"
+            title="Rasmiy mobil ilova"
             style={{ marginBottom: '0.75rem' }}
           >
-            <div className="new-settings-ad-icon-wrap" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
-              <Download size={22} color="#38bdf8" />
+            <div className="home-download-card-content">
+              <img
+                src="/ax-app-icon-3d.jpg"
+                alt="AX-Map"
+                className="home-download-card-icon"
+              />
+              <div className="home-download-card-info">
+                <span className="home-download-card-title">Rasmiy mobil ilova</span>
+              </div>
             </div>
-
-            <div className="new-settings-ad-details">
-              <span className="new-settings-ad-title">AX-Map ilovasini yuklab olish</span>
-              <span className="new-settings-ad-subtitle">Android uchun rasmiy mobil ilovani yuklab oling (4.5 MB)</span>
-            </div>
-
-            <ChevronRight size={20} className="new-settings-ad-arrow" />
+            <button
+              type="button"
+              className="home-download-card-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenDownload) onOpenDownload();
+              }}
+            >
+              <Download size={16} />
+              <span>Yuklab olish</span>
+            </button>
           </div>
         )}
 
