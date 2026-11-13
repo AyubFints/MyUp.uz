@@ -256,6 +256,9 @@ export default function App() {
     if ((newTab === "home" || newTab === "map") && !isGpsActive && !isLocating && !isGpsDismissed) {
       requestLocation();
     }
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
     if (newTab === activeTab) return;
     if (newTab === "advertising" || newTab === "privacy") {
       setPrevTab(activeTab || "home");

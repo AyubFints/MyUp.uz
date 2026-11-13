@@ -19202,6 +19202,22 @@ body.light-theme .location-fallback-btn {
   font-weight: 700;
   color: #38bdf8;
   margin: 0 0 6px 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.footer-right-category:hover {
+  color: #7dd3fc;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.footer-right-category:active {
+  transform: scale(0.97);
 }
 
 .footer-right-desc {

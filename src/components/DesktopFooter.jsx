@@ -4,6 +4,15 @@ import axLogoImg from "../assets/ax-header-logo.png";
 import footerBgImg from "../assets/desktop-footer-bg.jpg";
 
 export default function DesktopFooter({ onNavigate }) {
+  const handleNav = (tab) => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    if (onNavigate) {
+      onNavigate(tab);
+    }
+  };
+
   return (
     <footer
       className="desktop-footer-section"
@@ -43,7 +52,7 @@ export default function DesktopFooter({ onNavigate }) {
             <div className="footer-products-list">
               <div 
                 className="footer-product-item active"
-                onClick={() => onNavigate && onNavigate("home")}
+                onClick={() => handleNav("home")}
                 role="button"
                 tabIndex={0}
                 title="AX-Map asosiy sahifasi"
@@ -65,14 +74,19 @@ export default function DesktopFooter({ onNavigate }) {
               Dasturiy ta'minotga ehtiyojingiz bor bo'lsa
             </h3>
 
-            <p className="footer-center-subtitle">
+            <p
+              className="footer-center-subtitle"
+              onClick={() => handleNav("guide")}
+              style={{ cursor: "pointer" }}
+              title="Qo'llanmalar bo'limiga o'tish"
+            >
               Dasturiy ta'minot olish bo'yicha yo'riqnomalar
             </p>
 
             <button
               type="button"
               className="footer-guide-action-btn"
-              onClick={() => onNavigate && onNavigate("guide")}
+              onClick={() => handleNav("guide")}
               title="Qo'llanmani ko'rish"
             >
               <span>Qo'llanmani ko'rish</span>
@@ -106,9 +120,24 @@ export default function DesktopFooter({ onNavigate }) {
 
           {/* 3-USTUN (O'ng tomon: Katta AX-Map va Murojaat uchun) */}
           <div className="footer-col footer-col-right">
-            <h2 className="footer-big-brand-title">AX-Map</h2>
+            <h2
+              className="footer-big-brand-title"
+              onClick={() => handleNav("home")}
+              style={{ cursor: "pointer" }}
+              title="AX-Map asosiy sahifasi"
+            >
+              AX-Map
+            </h2>
 
-            <h4 className="footer-right-category">Qo'llanmalar</h4>
+            <h4
+              className="footer-right-category"
+              onClick={() => handleNav("guide")}
+              role="button"
+              tabIndex={0}
+              title="Qo'llanmalar bo'limiga o'tish"
+            >
+              Qo'llanmalar
+            </h4>
 
             <p className="footer-right-desc">
               Yoqilg'i shahobchalarini qidirishda, ochiq-yopiqligini, yoqilg'i narxlarini va gaz bosimlarini jonli online bilib turishda yordam beradi.
