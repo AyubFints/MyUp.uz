@@ -14,6 +14,7 @@ import PhoneEditModal from "./components/PhoneEditModal";
 import GpsPromptModal from "./components/GpsPromptModal";
 import AuthScreen from "./components/AuthScreen";
 import StationDetailModal from "./components/StationDetailModal";
+import DesktopFooter from "./components/DesktopFooter";
 import { CITIES, INITIAL_STATIONS, MOCK_NEWS, DEFAULT_DEMO_STATIONS, DEFAULT_THEME } from "./data/mockData";
 import { stationMatchesFuel } from "./utils/fuel";
 
@@ -4390,6 +4391,11 @@ export default function App() {
             appTheme={appTheme}
           />
         </Suspense>
+      )}
+
+      {/* FAQAT KOMPYUTER HOLATIDA FOOTER (Faqat xarita to'liq ekranida emas) */}
+      {activeTab !== "map" && (
+        <DesktopFooter onNavigate={handleTabChange} />
       )}
 
       {/* Profile Detail Modal */}
