@@ -259,6 +259,7 @@ export default function SettingsSection({
   onOpenGuide,
   onOpenPrivacy,
   onOpenDownload,
+  isInstalledApp = false,
 }) {
   const [selectedTheme, setSelectedTheme] = useState(currentTheme || TWELVE_PRESETS[0]);
   const [customHex, setCustomHex] = useState(selectedTheme?.bg || '#0e0e10');
@@ -502,26 +503,28 @@ export default function SettingsSection({
           <ChevronRight size={20} className="new-settings-ad-arrow" />
         </div>
 
-        {/* AX-MAP ILOVASINI YUKLAB OLISH BO'LIMI */}
-        <div
-          className="new-settings-ad-card"
-          onClick={onOpenDownload}
-          role="button"
-          tabIndex={0}
-          title="AX-Map rasmiy mobil ilovasini yuklab olish"
-          style={{ marginBottom: '0.75rem' }}
-        >
-          <div className="new-settings-ad-icon-wrap" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
-            <Download size={22} color="#38bdf8" />
-          </div>
+        {/* AX-MAP ILOVASINI YUKLAB OLISH BO'LIMI (Faqat veb-saytda ko'rinadi) */}
+        {!isInstalledApp && (
+          <div
+            className="new-settings-ad-card"
+            onClick={onOpenDownload}
+            role="button"
+            tabIndex={0}
+            title="AX-Map rasmiy mobil ilovasini yuklab olish"
+            style={{ marginBottom: '0.75rem' }}
+          >
+            <div className="new-settings-ad-icon-wrap" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
+              <Download size={22} color="#38bdf8" />
+            </div>
 
-          <div className="new-settings-ad-details">
-            <span className="new-settings-ad-title">AX-Map ilovasini yuklab olish</span>
-            <span className="new-settings-ad-subtitle">Android uchun rasmiy mobil ilovani yuklab oling (4.5 MB)</span>
-          </div>
+            <div className="new-settings-ad-details">
+              <span className="new-settings-ad-title">AX-Map ilovasini yuklab olish</span>
+              <span className="new-settings-ad-subtitle">Android uchun rasmiy mobil ilovani yuklab oling (4.5 MB)</span>
+            </div>
 
-          <ChevronRight size={20} className="new-settings-ad-arrow" />
-        </div>
+            <ChevronRight size={20} className="new-settings-ad-arrow" />
+          </div>
+        )}
 
         {/* MAXFIYLIK SIYOSATI (PRIVACY POLICY) BO'LIMI */}
         <div

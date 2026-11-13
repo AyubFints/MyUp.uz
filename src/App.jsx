@@ -20,6 +20,7 @@ import { stationMatchesFuel } from "./utils/fuel";
 
 import { calculateDistance } from "./utils/distance";
 import { playReopenAlertSound } from "./utils/audio";
+import { useIsInstalledApp } from "./utils/platform";
 import api from "./api/client";
 import {
   Menu,
@@ -157,6 +158,9 @@ let hasSentVisitOnThisLoad = false;
 
 
 export default function App() {
+  // Foydalanuvchi mobil ilova ichida ekanligini yoki veb-saytda ekanligini aniqlash
+  const isInstalledApp = useIsInstalledApp();
+
   // Eski dark temani tozalash va light ga o'tkazish
   const [theme] = useState(() => {
     localStorage.setItem("myup_theme", "light");
@@ -3072,40 +3076,42 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* HAR DOYIM KO'RINIB TURADIGAN "AX-MAP ILOVASINI YUKLAB OLISH" BO'LIMI */}
-                    <div 
-                      className="home-download-app-card"
-                      onClick={() => handleTabChange("apps")}
-                      role="button"
-                      tabIndex={0}
-                      title="AX-Map mobil ilovasini yuklab olish"
-                    >
-                      <div className="home-download-card-content">
-                        <img
-                          src="/ax-app-icon-3d.jpg"
-                          alt="AX-Map Ilova"
-                          className="home-download-card-icon"
-                        />
-                        <div className="home-download-card-info">
-                          <div className="home-download-card-badge">Rasmiy Mobil Ilova</div>
-                          <h4 className="home-download-card-title">AX-Map ilovasini yuklab olish</h4>
-                          <p className="home-download-card-desc">
-                            Tezkor, internetni tejovchi va qulay xarita (Android)
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        className="home-download-card-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleTabChange("apps");
-                        }}
+                    {/* HAR DOYIM KO'RINIB TURADIGAN "AX-MAP ILOVASINI YUKLAB OLISH" BO'LIMI (FAQAT VEB-SAYTDA) */}
+                    {!isInstalledApp && (
+                      <div 
+                        className="home-download-app-card"
+                        onClick={() => handleTabChange("apps")}
+                        role="button"
+                        tabIndex={0}
+                        title="AX-Map mobil ilovasini yuklab olish"
                       >
-                        <Download size={16} />
-                        <span>Yuklab olish</span>
-                      </button>
-                    </div>
+                        <div className="home-download-card-content">
+                          <img
+                            src="/ax-app-icon-3d.jpg"
+                            alt="AX-Map Ilova"
+                            className="home-download-card-icon"
+                          />
+                          <div className="home-download-card-info">
+                            <div className="home-download-card-badge">Rasmiy Mobil Ilova</div>
+                            <h4 className="home-download-card-title">AX-Map ilovasini yuklab olish</h4>
+                            <p className="home-download-card-desc">
+                              Tezkor, internetni tejovchi va qulay xarita (Android)
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="home-download-card-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTabChange("apps");
+                          }}
+                        >
+                          <Download size={16} />
+                          <span>Yuklab olish</span>
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -4307,6 +4313,7 @@ export default function App() {
                   onOpenGuide={() => handleTabChange("guide")}
                   onOpenPrivacy={() => handleTabChange("privacy")}
                   onOpenDownload={() => handleTabChange("apps")}
+                  isInstalledApp={isInstalledApp}
                 />
               )}
             </Suspense>
@@ -4353,6 +4360,7 @@ export default function App() {
                   }
                 }}
                 onOpenDownload={() => handleTabChange("apps")}
+                isInstalledApp={isInstalledApp}
                 isThemeLight={isThemeLight}
                 appTheme={appTheme}
               />
