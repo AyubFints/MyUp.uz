@@ -5,45 +5,12 @@ import {
   Star,
   CheckCircle2,
   Share2,
-  ShieldCheck,
-  Smartphone,
-  ExternalLink,
+  ChevronRight,
   MessageSquarePlus,
   Send,
   X,
-  Sparkles,
+  Smartphone,
 } from "lucide-react";
-
-const INITIAL_REVIEWS = [
-  {
-    id: "rev_1",
-    author: "Ayubxon Xamitov",
-    rating: 5,
-    date: "12 Noyabr 2026",
-    comment: "Juda qulay ilova, gaz bosimini aniq ko'rsatmoqda! Yo'lda juda qo'l keladi.",
-  },
-  {
-    id: "rev_2",
-    author: "Sardorbek Rahimov",
-    rating: 5,
-    date: "10 Noyabr 2026",
-    comment: "Eng yaqin metan zapravkalarni tez topib beradi, narxlar har doim yangilanib turadi.",
-  },
-  {
-    id: "rev_3",
-    author: "Jamshid Qodirov",
-    rating: 5,
-    date: "8 Noyabr 2026",
-    comment: "Dizayni juda chiroyli va qorong'i rejimda ko'zni charchatmaydi. Rahmat!",
-  },
-  {
-    id: "rev_4",
-    author: "Otabek Umarov",
-    rating: 4.8,
-    date: "5 Noyabr 2026",
-    comment: "Ilova tez ishlaydi, qotmaydi. Barcha haydovchilarga tavsiya qilaman.",
-  },
-];
 
 export default function AppDownloadPage({
   onBack,
@@ -57,25 +24,28 @@ export default function AppDownloadPage({
     }
   }, []);
 
-  // Jonli yuklamalar soni (localStorage orqali saqlanadi va oshiriladi)
+  // Jonli yuklamalar soni (Boshlanishida 0 tursin, yuklab olinganda 1, 2 bo'lib oshib boradi)
   const [downloadCount, setDownloadCount] = useState(() => {
     try {
       const saved = localStorage.getItem("axmap_live_downloads");
-      if (saved) return parseInt(saved, 10);
+      if (saved !== null) {
+        const parsed = parseInt(saved, 10);
+        return isNaN(parsed) ? 0 : parsed;
+      }
     } catch (e) {}
-    return 104280;
+    return 0;
   });
 
-  // Jonli sharhlar ro'yxati
+  // Jonli sharhlar ro'yxati (Boshlanishida 0 tursin, yangi sharh kiritilganda oshadi)
   const [reviews, setReviews] = useState(() => {
     try {
       const saved = localStorage.getItem("axmap_app_user_reviews");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {}
-    return INITIAL_REVIEWS;
+    return [];
   });
 
   const [isDownloading, setIsDownloading] = useState(false);
@@ -93,11 +63,10 @@ export default function AppDownloadPage({
     setTimeout(() => setToastMessage(""), 3000);
   };
 
-  // APK yuklab olish funksiyasi
+  // APK yuklab olish funksiyasi (Avtomatik 1, 2... qilib oshiradi)
   const handleDownload = () => {
     setIsDownloading(true);
 
-    // Yuklashlar sonini jonli oshirish
     const nextCount = downloadCount + 1;
     setDownloadCount(nextCount);
     try {
@@ -140,7 +109,7 @@ export default function AppDownloadPage({
     }
   };
 
-  // Yangi sharh qoldirish
+  // Yangi sharh qoldirish (Avtomatik soni oshadi)
   const handleAddReview = (e) => {
     e.preventDefault();
     if (!newReviewComment.trim()) return;
@@ -167,13 +136,14 @@ export default function AppDownloadPage({
   };
 
   const bgColor = appTheme?.bg || "#0e0e10";
-  const cardBg = appTheme?.card || "#18181b";
-  const borderColor = appTheme?.border || "rgba(255, 255, 255, 0.08)";
   const textPrimary = appTheme?.text || (isThemeLight ? "#0f172a" : "#f8fafc");
   const textMuted = appTheme?.textMuted || (isThemeLight ? "#64748b" : "#94a3b8");
 
   // O'rtacha baho
-  const totalReviewsCount = 12480 + (reviews.length - INITIAL_REVIEWS.length);
+  const averageRating =
+    reviews.length > 0
+      ? (reviews.reduce((acc, r) => acc + (r.rating || 5), 0) / reviews.length).toFixed(1)
+      : "4.9";
 
   return (
     <div
@@ -192,7 +162,7 @@ export default function AppDownloadPage({
       )}
 
       {/* TEPADAGI NAVIGATSIYA QATORI: "Ilovalar" va Orqaga qaytish */}
-      <div className="app-download-top-header" style={{ borderColor }}>
+      <div className="app-download-top-header">
         <button
           type="button"
           className="app-download-back-btn"
@@ -217,10 +187,10 @@ export default function AppDownloadPage({
       </div>
 
       <div className="app-download-main-container">
-        {/* ASOSIY ILOVA TAFSILOTLARI KARTASI (Play Market uslubida) */}
-        <div className="app-details-hero-card" style={{ background: cardBg, borderColor }}>
+        {/* 1. ASOSIY ILOVA TAFSILOTLARI (3-rasmdek: fon bilan bir butun, ajratilmagan) */}
+        <section className="app-seamless-hero-section">
           <div className="app-details-hero-top">
-            {/* 2-RASM: 3D AX PIN LOGO (Foydalanuvchi tanlagan) */}
+            {/* 3D AX PIN LOGO (2-rasm) */}
             <div className="app-details-icon-wrapper">
               <img
                 src="/ax-app-icon-3d.jpg"
@@ -233,29 +203,29 @@ export default function AppDownloadPage({
               <h2 className="app-details-title">AX-Map.uz</h2>
               <span className="app-details-developer">AX dasturlari</span>
 
-              {/* JONLI STATISTIKA (Baho, Sharhlar va Yuklamalar) */}
+              {/* JONLI STATISTIKA: Sharhlar 0 va Yuklanganlar 0 */}
               <div className="app-details-stats-row">
                 <div className="app-stat-item">
                   <div className="app-stat-rating-badge">
-                    <span className="app-stat-score">4.9</span>
+                    <span className="app-stat-score">{averageRating}</span>
                     <Star size={13} fill="#f59e0b" color="#f59e0b" />
                   </div>
                   <span className="app-stat-label">
-                    ({(totalReviewsCount / 1000).toFixed(0)}K sharh)
+                    ({reviews.length} sharh)
                   </span>
                 </div>
 
                 <div className="app-stat-divider" />
 
                 <div className="app-stat-item">
-                  <span className="app-stat-downloads-val">100K+</span>
+                  <span className="app-stat-downloads-val">{downloadCount}</span>
                   <span className="app-stat-label">Yuklangan</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* ASOSIY YUKLAB OLISH TUGMASI (To'liq va nusxalashsiz toza ko'rinish) */}
+          {/* ASOSIY YUKLAB OLISH TUGMASI (To'liq va nusxalash tugmasisiz) */}
           <div className="app-details-action-area">
             <button
               type="button"
@@ -284,16 +254,52 @@ export default function AppDownloadPage({
             <span className="app-spec-dot">•</span>
             <span className="app-spec-pill">Android 8.0+</span>
           </div>
-        </div>
+        </section>
 
-        {/* ILOVA HAQIDA BO'LIMI */}
-        <div className="app-download-section-card" style={{ background: cardBg, borderColor }}>
-          <div className="app-section-header-row">
-            <h3 className="app-section-title">Ilova haqida</h3>
-            <span className="app-section-badge">Rasmiy reliz</span>
+        {/* 2. SKRINSHOTLAR BO'LIMI (Ilova haqida dan oldin, ramkalar bilan) */}
+        <section className="app-seamless-section">
+          <div className="app-seamless-section-header">
+            <h3 className="app-seamless-title">Skrinshotlar</h3>
           </div>
 
-          <p className="app-about-description">
+          <div className="app-screenshots-scroll-row">
+            {/* 1-Ramka */}
+            <div className="app-screenshot-phone-frame">
+              <div className="app-frame-notch" />
+              <div className="app-frame-inner-placeholder">
+                <Smartphone size={32} strokeWidth={1.5} color="rgba(255, 255, 255, 0.25)" />
+                <span className="app-frame-text">1-rasm</span>
+              </div>
+            </div>
+
+            {/* 2-Ramka */}
+            <div className="app-screenshot-phone-frame">
+              <div className="app-frame-notch" />
+              <div className="app-frame-inner-placeholder">
+                <Smartphone size={32} strokeWidth={1.5} color="rgba(255, 255, 255, 0.25)" />
+                <span className="app-frame-text">2-rasm</span>
+              </div>
+            </div>
+
+            {/* 3-Ramka */}
+            <div className="app-screenshot-phone-frame">
+              <div className="app-frame-notch" />
+              <div className="app-frame-inner-placeholder">
+                <Smartphone size={32} strokeWidth={1.5} color="rgba(255, 255, 255, 0.25)" />
+                <span className="app-frame-text">3-rasm</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 3. ILOVA HAQIDA (4-rasmdek: aynan ko'rsatilgan matn va pill, orqafon bilan bir xil) */}
+        <section className="app-seamless-section">
+          <div className="app-seamless-section-header">
+            <h3 className="app-seamless-title">Ilova haqida</h3>
+            <ChevronRight size={20} color={textMuted} />
+          </div>
+
+          <p className="app-about-seamless-description">
             Yo'l chetidagi barcha yoqilg'i shahobchalarini (Metan, Propan, Benzin) qidirish,
             ularning ochiq yoki yopiqligini, narxlarni va gaz bosimlarini jonli (online) bilib
             olishda yordam beradi.
@@ -301,38 +307,18 @@ export default function AppDownloadPage({
 
           <div className="app-category-tags">
             <span className="app-category-tag">Xarita va navigatsiya</span>
-            <span className="app-category-tag">Gaz bosimi monitoringi</span>
-            <span className="app-category-tag">Yoqilg'i narxlari</span>
           </div>
+        </section>
 
-          {/* QO'SHIMCHA TEXNIK MA'LUMOTLAR */}
-          <div className="app-tech-specs-grid">
-            <div className="app-tech-spec-item">
-              <span className="app-spec-k" style={{ color: textMuted }}>Versiya</span>
-              <span className="app-spec-v">1.0.0 (Release)</span>
-            </div>
-            <div className="app-tech-spec-item">
-              <span className="app-spec-k" style={{ color: textMuted }}>Yangilangan sana</span>
-              <span className="app-spec-v">Noyabr 2026</span>
-            </div>
-            <div className="app-tech-spec-item">
-              <span className="app-spec-k" style={{ color: textMuted }}>Ishlab chiquvchi</span>
-              <span className="app-spec-v">AX Dasturlari</span>
-            </div>
-            <div className="app-tech-spec-item">
-              <span className="app-spec-k" style={{ color: textMuted }}>Xavfsizlik</span>
-              <span className="app-spec-v text-emerald-400">Tekshirilgan va xavfsiz ✓</span>
-            </div>
-          </div>
-        </div>
-
-        {/* JONLI BAHOLAR VA SHARHLAR BO'LIMI */}
-        <div className="app-download-section-card" style={{ background: cardBg, borderColor }}>
-          <div className="app-section-header-row">
+        {/* 4. BAHOLAR VA SHARHLAR (Fon bilan bir xil, 0 ta sharh) */}
+        <section className="app-seamless-section">
+          <div className="app-seamless-section-header">
             <div>
-              <h3 className="app-section-title">Baholar va Sharhlar</h3>
-              <p className="app-section-subtitle" style={{ color: textMuted }}>
-                Foydalanuvchilarning jonli fikrlari
+              <h3 className="app-seamless-title">Baholar va Sharhlar</h3>
+              <p className="app-seamless-subtitle" style={{ color: textMuted }}>
+                {reviews.length > 0
+                  ? `${reviews.length} ta foydalanuvchi fikr bildirgan`
+                  : "Hozircha sharhlar yo'q"}
               </p>
             </div>
 
@@ -347,62 +333,49 @@ export default function AppDownloadPage({
             </button>
           </div>
 
-          {/* Katta Baho Xulosasi */}
-          <div className="app-rating-summary-box">
-            <div className="app-rating-big-num">4.9</div>
-            <div className="app-rating-stars-col">
-              <div className="app-rating-stars-row">
+          {reviews.length === 0 ? (
+            <div className="app-reviews-empty-state">
+              <span className="app-reviews-empty-score">0.0</span>
+              <div className="app-reviews-empty-stars">
                 {[1, 2, 3, 4, 5].map((s) => (
-                  <Star key={s} size={18} fill="#f59e0b" color="#f59e0b" />
+                  <Star key={s} size={16} color="rgba(255, 255, 255, 0.2)" />
                 ))}
               </div>
-              <span className="app-rating-count-text" style={{ color: textMuted }}>
-                Jami {totalReviewsCount.toLocaleString()} ta foydalanuvchi baholagan
-              </span>
+              <p className="app-reviews-empty-text" style={{ color: textMuted }}>
+                Ilovadan foydalanib birinchi bo'lib o'z fikringiz va bahoyingizni qoldiring!
+              </p>
             </div>
-          </div>
-
-          {/* Sharhlar ro'yxati */}
-          <div className="app-reviews-list">
-            {reviews.map((rev) => (
-              <div key={rev.id} className="app-review-item-card" style={{ borderColor }}>
-                <div className="app-review-item-top">
-                  <div className="app-review-author-avatar">
-                    {rev.author.charAt(0).toUpperCase()}
+          ) : (
+            <div className="app-reviews-list">
+              {reviews.map((rev) => (
+                <div key={rev.id} className="app-review-item-card">
+                  <div className="app-review-item-top">
+                    <div className="app-review-author-avatar">
+                      {rev.author.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="app-review-author-meta">
+                      <span className="app-review-author-name">{rev.author}</span>
+                      <span className="app-review-date" style={{ color: textMuted }}>
+                        {rev.date}
+                      </span>
+                    </div>
+                    <div className="app-review-stars-badge">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Star
+                          key={s}
+                          size={12}
+                          fill={s <= Math.round(rev.rating) ? "#f59e0b" : "transparent"}
+                          color="#f59e0b"
+                        />
+                      ))}
+                    </div>
                   </div>
-                  <div className="app-review-author-meta">
-                    <span className="app-review-author-name">{rev.author}</span>
-                    <span className="app-review-date" style={{ color: textMuted }}>
-                      {rev.date}
-                    </span>
-                  </div>
-                  <div className="app-review-stars-badge">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star
-                        key={s}
-                        size={12}
-                        fill={s <= Math.round(rev.rating) ? "#f59e0b" : "transparent"}
-                        color="#f59e0b"
-                      />
-                    ))}
-                  </div>
+                  <p className="app-review-comment-text">{rev.comment}</p>
                 </div>
-                <p className="app-review-comment-text">{rev.comment}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* XAVFSIZLIK VA PRIVACY ISHONCH BLOKI */}
-        <div className="app-security-trust-box" style={{ borderColor }}>
-          <ShieldCheck size={26} color="#10b981" />
-          <div className="app-security-trust-text">
-            <strong>Google Play Xavfsizlik talablariga mos</strong>
-            <p style={{ color: textMuted }}>
-              Ilova zararli kodlardan to'liq tozalangan va rasmiy sertifikat bilan imzolangan.
-            </p>
-          </div>
-        </div>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
 
       {/* SHARH QOLDIRISH MODALI */}
@@ -410,7 +383,6 @@ export default function AppDownloadPage({
         <div className="app-review-modal-overlay" onClick={() => setShowReviewModal(false)}>
           <div
             className="app-review-modal-content"
-            style={{ background: cardBg, borderColor }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="app-review-modal-header">

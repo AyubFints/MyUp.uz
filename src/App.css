@@ -19299,6 +19299,7 @@ body.light-theme .location-fallback-btn {
 
 /* ==========================================================================
    AX-MAP ILOVASINI YUKLAB OLISH (PLAY MARKET USLUBIDA ILOVA TAFSILOTLARI)
+   Orqa fondan ajratilmagan, bir butun sof dizayn (3- va 4-rasmdek)
    ========================================================================== */
 .app-download-page-root {
   min-height: 100vh;
@@ -19322,25 +19323,23 @@ body.light-theme .location-fallback-btn {
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  background: rgba(14, 14, 16, 0.88);
+  background: rgba(14, 14, 16, 0.94);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   z-index: 50;
 }
 
 .is-light .app-download-top-header {
-  background: rgba(255, 255, 255, 0.92);
-  border-bottom-color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .app-download-back-btn,
 .app-download-share-btn {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   border: none;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
   color: inherit;
   display: flex;
   align-items: center;
@@ -19357,17 +19356,12 @@ body.light-theme .location-fallback-btn {
 
 .app-download-back-btn:hover,
 .app-download-share-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.14);
   transform: scale(1.05);
 }
 
-.is-light .app-download-back-btn:hover,
-.is-light .app-download-share-btn:hover {
-  background: #e2e8f0;
-}
-
 .app-download-header-title {
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 800;
   letter-spacing: -0.3px;
   margin: 0;
@@ -19377,27 +19371,19 @@ body.light-theme .location-fallback-btn {
   width: 100%;
   max-width: 680px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 12px 18px 24px 18px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 22px;
   box-sizing: border-box;
 }
 
-/* HERO KARTA (Play Market uslubidagi asosiy ilova info) */
-.app-details-hero-card {
-  border-radius: 20px;
-  padding: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* 1. ASOSIY HERO QISMI (3-rasmdek: orqafondan ajratilmagan, kartasiz va tekis) */
+.app-seamless-hero-section {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
-  transition: all 0.2s ease;
-}
-
-.is-light .app-details-hero-card {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  padding-top: 4px;
 }
 
 .app-details-hero-top {
@@ -19407,13 +19393,12 @@ body.light-theme .location-fallback-btn {
 }
 
 .app-details-icon-wrapper {
-  width: 76px;
-  height: 76px;
-  border-radius: 18px;
+  width: 82px;
+  height: 82px;
+  border-radius: 20px;
   overflow: hidden;
   flex-shrink: 0;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
   background: #000000;
 }
 
@@ -19432,7 +19417,7 @@ body.light-theme .location-fallback-btn {
 }
 
 .app-details-title {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
   letter-spacing: -0.4px;
   margin: 0 0 2px 0;
@@ -19449,7 +19434,7 @@ body.light-theme .location-fallback-btn {
 .app-details-stats-row {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 
 .app-stat-item {
@@ -19479,7 +19464,7 @@ body.light-theme .location-fallback-btn {
 .app-stat-divider {
   width: 1px;
   height: 22px;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .is-light .app-stat-divider {
@@ -19501,7 +19486,7 @@ body.light-theme .location-fallback-btn {
   width: 100%;
   height: 48px;
   border-radius: 9999px;
-  background: #0284c7;
+  background: #0ea5e9;
   background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
   color: #ffffff;
   border: none;
@@ -19555,52 +19540,114 @@ body.light-theme .location-fallback-btn {
   opacity: 0.4;
 }
 
-/* BO'LIM KARTALARI */
-.app-download-section-card {
-  border-radius: 18px;
-  padding: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* 2. SKRINSHOTLAR BO'LIMI (Ilova haqida dan oldin, ramkalar bilan) */
+.app-seamless-section {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
-.app-section-header-row {
+.app-seamless-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.app-section-title {
-  font-size: 17px;
+.app-seamless-title {
+  font-size: 18px;
   font-weight: 800;
   margin: 0;
   letter-spacing: -0.2px;
 }
 
-.app-section-subtitle {
+.app-seamless-subtitle {
   font-size: 12.5px;
   margin: 3px 0 0 0;
 }
 
-.app-section-badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 9999px;
-  background: rgba(56, 189, 248, 0.12);
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.25);
+.app-screenshots-scroll-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  overflow-x: auto;
+  padding: 4px 2px 10px 2px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 
-.app-about-description {
+.app-screenshots-scroll-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* Telefon ramkasi (Skrinshotlar uchun joy) */
+.app-screenshot-phone-frame {
+  width: 145px;
+  height: 270px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s ease;
+}
+
+.is-light .app-screenshot-phone-frame {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.app-screenshot-phone-frame:hover {
+  border-color: rgba(56, 189, 248, 0.4);
+  transform: translateY(-2px);
+}
+
+.app-frame-notch {
+  width: 44px;
+  height: 9px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 8px auto 0 auto;
+}
+
+.is-light .app-frame-notch {
+  background: #94a3b8;
+}
+
+.app-frame-inner-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.is-light .app-frame-inner-placeholder {
+  color: #94a3b8;
+}
+
+.app-frame-text {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* 3. ILOVA HAQIDA BO'LIMI (4-rasmdek: aynan ko'rsatilgan matn va pill, orqafondan ajratilmagan) */
+.app-about-seamless-description {
   font-size: 13.5px;
   line-height: 1.55;
   color: #cbd5e1;
   margin: 0;
 }
 
-.is-light .app-about-description {
+.is-light .app-about-seamless-description {
   color: #334155;
 }
 
@@ -19612,11 +19659,11 @@ body.light-theme .location-fallback-btn {
 
 .app-category-tag {
   font-size: 12px;
-  padding: 5px 12px;
+  padding: 6px 14px;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
   font-weight: 600;
 }
 
@@ -19626,36 +19673,7 @@ body.light-theme .location-fallback-btn {
   color: #475569;
 }
 
-.app-tech-specs-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 6px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.is-light .app-tech-specs-grid {
-  border-top-color: #e2e8f0;
-}
-
-.app-tech-spec-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.app-spec-k {
-  font-size: 11.5px;
-  font-weight: 500;
-}
-
-.app-spec-v {
-  font-size: 13px;
-  font-weight: 700;
-}
-
-/* JONLI BAHOLAR VA SHARHLAR */
+/* 4. BAHOLAR VA SHARHLAR (Fon bilan bir xil, 0 ta sharh) */
 .app-add-review-btn {
   display: inline-flex;
   align-items: center;
@@ -19676,41 +19694,30 @@ body.light-theme .location-fallback-btn {
   transform: translateY(-1px);
 }
 
-.app-rating-summary-box {
+.app-reviews-empty-state {
   display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 14px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px 0;
 }
 
-.is-light .app-rating-summary-box {
-  background: #f8fafc;
-}
-
-.app-rating-big-num {
-  font-size: 44px;
+.app-reviews-empty-score {
+  font-size: 38px;
   font-weight: 900;
   line-height: 1;
   color: #f59e0b;
-  letter-spacing: -1px;
 }
 
-.app-rating-stars-col {
+.app-reviews-empty-stars {
   display: flex;
-  flex-direction: column;
   gap: 4px;
 }
 
-.app-rating-stars-row {
-  display: flex;
-  gap: 3px;
-}
-
-.app-rating-count-text {
-  font-size: 12px;
-  font-weight: 500;
+.app-reviews-empty-text {
+  font-size: 12.5px;
+  margin: 4px 0 0 0;
+  line-height: 1.45;
 }
 
 .app-reviews-list {
@@ -19722,8 +19729,8 @@ body.light-theme .location-fallback-btn {
 .app-review-item-card {
   padding: 12px 14px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
   gap: 8px;
