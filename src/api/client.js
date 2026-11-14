@@ -1,5 +1,7 @@
 // MyUp.uz Markaziy API mijozi (Frontend -> Backend Express + PostgreSQL)
 
+export const PUBLIC_BACKEND_URL = 'https://shift-eggs-sugar-top.trycloudflare.com/api';
+
 export const getApiBaseUrl = () => {
   if (typeof window !== 'undefined') {
     // 0. URL parametri orqali kiritilgan backend manzili (masalan: ?api=https://... yoki ngrok)
@@ -30,12 +32,12 @@ export const getApiBaseUrl = () => {
       return envUrl.replace('localhost', hostname);
     }
 
-    // 3. Vercel yoki internetdagi domen orqali kirilayotgan bo'lsa
+    // 3. Vercel yoki internetdagi domen orqali kirilayotgan bo'lsa (Cloudflare orqali markaziy serverga to'g'ridan-to'g'ri ulanish)
     if (!isLocalIp && hostname !== 'localhost' && hostname !== '127.0.0.1') {
       if (envUrl && !envUrl.includes('localhost')) {
         return envUrl.replace(/\/$/, '');
       }
-      return `${window.location.origin}/api`;
+      return PUBLIC_BACKEND_URL;
     }
 
     if (envUrl) return envUrl.replace(/\/$/, '');
@@ -61,11 +63,40 @@ async function request(endpoint, options = {}, retries = 1) {
 
   try {
     const baseUrl = getApiBaseUrl();
-    const response = await fetch(`${baseUrl}${endpoint}`, {
-      ...options,
-      headers,
-      signal: options.signal || controller.signal,
-    });
+    let response;
+
+    try {
+      response = await fetch(`${baseUrl}${endpoint}`, {
+        ...options,
+        headers,
+        signal: options.signal || controller.signal,
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+      if ((!response.ok || contentType.includes('text/html')) && baseUrl !== PUBLIC_BACKEND_URL) {
+        // Asosiy baseUrl xato bersa, to'g'ridan-to'g'ri Cloudflare backendiga ulanish
+        const fbRes = await fetch(`${PUBLIC_BACKEND_URL}${endpoint}`, {
+          ...options,
+          headers,
+          signal: options.signal || controller.signal,
+        });
+        const fbType = fbRes.headers.get('content-type') || '';
+        if (fbRes.ok && !fbType.includes('text/html')) {
+          response = fbRes;
+        }
+      }
+    } catch (netErr) {
+      if (baseUrl !== PUBLIC_BACKEND_URL) {
+        response = await fetch(`${PUBLIC_BACKEND_URL}${endpoint}`, {
+          ...options,
+          headers,
+          signal: options.signal || controller.signal,
+        });
+      } else {
+        throw netErr;
+      }
+    }
+
     clearTimeout(timeoutId);
 
     const contentType = response.headers.get('content-type') || '';

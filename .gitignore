@@ -41,6 +41,7 @@ Thumbs.db
 # Build outputs and agent traces
 .agents/
 *.aab
+cloudflared.exe
 android-twa/.gradle/
 android-twa/app/build/
 
