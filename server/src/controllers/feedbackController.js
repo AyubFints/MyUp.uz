@@ -59,13 +59,13 @@ export const getFeedbacks = async (req, res) => {
 
       if (isValidUuid && cleanPhone) {
         params.push(userId, cleanPhone);
-        conditions.push(`(user_id = ${params.length - 1} OR REPLACE(author_phone, ' ', '') = ${params.length})`);
+        conditions.push(`(user_id = $${params.length - 1} OR REPLACE(author_phone, ' ', '') = $${params.length})`);
       } else if (isValidUuid) {
         params.push(userId);
-        conditions.push(`user_id = ${params.length}`);
+        conditions.push(`user_id = $${params.length}`);
       } else if (cleanPhone) {
         params.push(cleanPhone);
-        conditions.push(`REPLACE(author_phone, ' ', '') = ${params.length}`);
+        conditions.push(`REPLACE(author_phone, ' ', '') = $${params.length}`);
       }
     }
 
