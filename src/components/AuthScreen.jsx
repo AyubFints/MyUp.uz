@@ -166,7 +166,40 @@ export default function AuthScreen({
       }
     } catch (apiErr) {
       console.warn("Ro'yxatdan o'tish xatosi:", apiErr.message);
-      setErrorMsg(apiErr.message || "Ushbu telefon raqam allaqachon ro'yxatdan o'tgan bo'lishi mumkin.");
+      if (apiErr.message?.includes('allaqachon') || apiErr.message?.includes('mavjud')) {
+        setErrorMsg("Ushbu telefon raqam allaqachon ro'yxatdan o'tgan. Iltimos, Kirish bo'limidan kiring.");
+        return;
+      }
+      // Agar backend serverga ulanolmasa (Vercel yoki offline holatda), foydalanuvchini to'xtatib qo'ymay, avtonom ro'yxatdan o'tkazamiz
+      const offlineId = "user_" + Date.now();
+      const newUser = {
+        id: offlineId,
+        firstName: formData.firstName.trim() || 'Foydalanuvchi',
+        lastName: formData.lastName.trim() || '',
+        phoneNumber: cleanPhone,
+        birthDate: `${formData.bYear}-${String(formData.bMonth).padStart(2, '0')}-${String(formData.bDay).padStart(2, '0')}`,
+        registeredAt: new Date().toISOString(),
+        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanPhone}`,
+        role: 'user',
+        hasLocation: false,
+        registeredViaLocation: false,
+        userProfileCompleted: true,
+      };
+
+      const syncPayload = {
+        phone: cleanPhone,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        password: formData.password,
+        hasLocation: false,
+        role: 'user',
+      };
+      try {
+        localStorage.setItem('myup_user', JSON.stringify(newUser));
+        localStorage.setItem('myup_pending_user_reg', JSON.stringify(syncPayload));
+      } catch (e) {}
+
+      onLoginSuccess(newUser, null, []);
     }
   };
 
@@ -260,7 +293,30 @@ export default function AuthScreen({
             throw err;
           }
         } else {
-          throw err;
+          // Offline / Vercel fallback: Foydalanuvchini avtonom tarzda kiritib, sinxronlash navbatiga qo'yish
+          const offlineId = "owner_" + Date.now();
+          regRes = {
+            success: true,
+            token: "offline_token_" + Date.now(),
+            user: {
+              id: offlineId,
+              role: 'owner',
+              hasLocation: true,
+              canAddStation: true,
+              registeredViaLocation: true,
+              firstName: locationData.responsiblePerson.trim(),
+              lastName: '',
+              phone: cleanPhone,
+              locationName: locationData.locationName.trim(),
+              responsiblePerson: locationData.responsiblePerson.trim(),
+              locationPhone: locationData.phone,
+              locationImage: finalImage || null,
+            },
+            stations: []
+          };
+          try {
+            localStorage.setItem('myup_pending_user_reg', JSON.stringify(regPayload));
+          } catch (e) {}
         }
       }
 

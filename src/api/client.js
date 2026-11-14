@@ -1,17 +1,46 @@
 // MyUp.uz Markaziy API mijozi (Frontend -> Backend Express + PostgreSQL)
 
 export const getApiBaseUrl = () => {
-  const envUrl = import.meta.env.VITE_API_URL;
   if (typeof window !== 'undefined') {
-    // Agar telefon yoki boshqa qurilmadan kompyuterning lokal IP si orqali kirilayotgan bo'lsa
-    if (envUrl && envUrl.includes('localhost') && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      return envUrl.replace('localhost', window.location.hostname);
+    // 0. URL parametri orqali kiritilgan backend manzili (masalan: ?api=https://... yoki ngrok)
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryApi = urlParams.get('api') || urlParams.get('apiUrl');
+      if (queryApi && queryApi.startsWith('http')) {
+        const clean = queryApi.replace(/\/$/, '');
+        localStorage.setItem('myup_custom_api_url', clean);
+        return clean;
+      }
+    } catch {}
+
+    // 1. Saqlangan maxsus backend manzili
+    try {
+      const storedApi = localStorage.getItem('myup_custom_api_url');
+      if (storedApi && storedApi.startsWith('http')) {
+        return storedApi.replace(/\/$/, '');
+      }
+    } catch {}
+
+    const hostname = window.location.hostname;
+    const isLocalIp = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(hostname) || hostname.endsWith('.local');
+
+    // 2. Wi-Fi dagi telefon kompyuterning lokal IP si (192.168.x.x) orqali kirayotgan bo'lsa
+    const envUrl = import.meta.env.VITE_API_URL;
+    if (isLocalIp && envUrl && envUrl.includes('localhost')) {
+      return envUrl.replace('localhost', hostname);
     }
-    if (!envUrl && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      return `${window.location.protocol}//${window.location.hostname}:5000/api`;
+
+    // 3. Vercel yoki internetdagi domen orqali kirilayotgan bo'lsa
+    if (!isLocalIp && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      if (envUrl && !envUrl.includes('localhost')) {
+        return envUrl.replace(/\/$/, '');
+      }
+      return `${window.location.origin}/api`;
     }
+
+    if (envUrl) return envUrl.replace(/\/$/, '');
   }
-  return envUrl || 'http://localhost:5000/api';
+  return import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 };
 
 export const API_BASE_URL = getApiBaseUrl();
@@ -31,12 +60,18 @@ async function request(endpoint, options = {}, retries = 1) {
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const baseUrl = getApiBaseUrl();
+    const response = await fetch(`${baseUrl}${endpoint}`, {
       ...options,
       headers,
       signal: options.signal || controller.signal,
     });
     clearTimeout(timeoutId);
+
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('text/html')) {
+      throw new Error("Server API javobi o'rniga HTML qaytdi (Backend ulanmagan yoki so'rov yo'naltirilmadi)");
+    }
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {

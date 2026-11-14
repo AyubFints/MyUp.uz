@@ -5354,17 +5354,22 @@ body {
   flex-direction: column;
   gap: 8px;
   margin-bottom: 14px;
+  width: 100%;
 }
 
 .modern-service-row-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  border-radius: 14px;
+  padding: 8px 10px;
+  border-radius: 13px;
   background: rgba(255, 255, 255, 0.04);
   border: 1.5px solid var(--theme-border, rgba(255, 255, 255, 0.08));
   transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  gap: 8px;
 }
 
 .modern-service-row-card.is-available {
@@ -5380,13 +5385,17 @@ body {
 .service-card-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .service-card-icon-box {
-  width: 38px;
-  height: 38px;
-  border-radius: 11px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--theme-border, rgba(255, 255, 255, 0.1));
   display: flex;
@@ -5397,15 +5406,19 @@ body {
 }
 
 .service-card-icon-box.pay-icon-box {
-  padding: 0 4px;
+  width: 42px;
+  height: 28px;
+  min-width: 42px;
+  border-radius: 7px;
+  padding: 0;
 }
 
 .service-card-unavailable-badge {
   position: absolute;
   top: -4px;
   right: -4px;
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: #ef4444;
   color: #ffffff;
@@ -5419,18 +5432,29 @@ body {
 .service-card-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .service-card-title {
-  font-size: 0.92rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: var(--theme-text, #ffffff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
 }
 
 .service-card-status {
-  font-size: 0.74rem;
+  font-size: 0.70rem;
   color: var(--theme-muted, #94a3b8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
 .modern-service-row-card.is-available .service-card-status {
@@ -5439,24 +5463,30 @@ body {
 }
 
 .service-card-toggle-group {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .service-toggle-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 7px 12px;
-  border-radius: 9px;
-  font-size: 0.8rem;
+  justify-content: center;
+  gap: 3px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  font-size: 0.74rem;
   font-weight: 700;
   border: 1.5px solid var(--theme-border, rgba(255, 255, 255, 0.1));
   background: rgba(255, 255, 255, 0.04);
   color: var(--theme-muted, #94a3b8);
   cursor: pointer;
   transition: all 0.18s ease;
+  white-space: nowrap;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  line-height: 1;
 }
 
 .service-toggle-btn:hover {
@@ -5467,14 +5497,14 @@ body {
   background: rgba(16, 185, 129, 0.18);
   border-color: #10b981;
   color: #34d399;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.2);
 }
 
 .service-toggle-btn.btn-no.active {
   background: rgba(239, 68, 68, 0.18);
   border-color: #ef4444;
   color: #f87171;
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.2);
 }
 
 /* Actions Row Buttons */

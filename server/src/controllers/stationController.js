@@ -255,8 +255,10 @@ export const createStation = async (req, res) => {
         [ownerId]
       ).catch(() => {});
     }
-    // Super admin yaratgan yoki ishlab chiqish (lokal test) muhitida yaratilgan shahobchalar darhol faollashadi
-    const isApproved = process.env.NODE_ENV !== 'production' || (req.user ? req.user.role === 'super_admin' : false);
+    // Foydalanuvchi qo'shgan yangi manzil har doim Super Admin tekshiruvi (moderatsiya) uchun yuboriladi!
+    // Faqat super_admin roli bilan yaratilgan shahobchalargina avtomatik tasdiqlanadi.
+    const isApproved = Boolean(req.user && req.user.role === 'super_admin');
+    const stationStatus = isApproved ? 'approved' : 'pending';
 
     const normalizedTypes = Array.isArray(types) && types.length > 0
       ? types
@@ -264,13 +266,13 @@ export const createStation = async (req, res) => {
 
     const finalGasPressure = Number(gasPressure || pressures?.metan || 200);
 
-    // 1. Shahobcha yaratish
+    // 1. Shahobcha yaratish (is_approved: false, status: 'pending')
     const stResult = await query(
       `INSERT INTO stations (
         name, lat, lng, address, city, phone, is_open, reopen_time,
-        owner_id, is_approved, description, images, types, gas_pressure, verification_images
+        owner_id, is_approved, status, description, images, types, gas_pressure, verification_images
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING *`,
       [
         name.trim(),
@@ -283,6 +285,7 @@ export const createStation = async (req, res) => {
         reopenTime || '',
         ownerId,
         isApproved,
+        stationStatus,
         description || '',
         JSON.stringify(Array.isArray(images) && images.length > 0 ? images : []),
         JSON.stringify(normalizedTypes),
@@ -382,6 +385,7 @@ export const createStation = async (req, res) => {
       ratingCount: station.rating_count || 1,
       ownerId: station.owner_id,
       isApproved: station.is_approved,
+      status: station.status || 'pending',
       description: station.description,
       images: Array.isArray(station.images) ? station.images : (images || []),
       verificationImages: station.verification_images || verificationImages || {},

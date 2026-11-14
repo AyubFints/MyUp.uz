@@ -404,51 +404,104 @@ export default function App() {
       .catch(() => {});
   }, []);
 
-  // Offline/Lokal yaratilgan shahobchalarni avtomatik PostgreSQL bazasiga yuklash (Auto-sync)
+  // Avtomatik orqa fonda sinxronlash (Offline yaratilgan foydalanuvchilar va shahobchalarni PostgreSQL bazasiga yuklash)
   useEffect(() => {
-    if (!Array.isArray(myStations) || myStations.length === 0) return;
-    const localStations = myStations.filter((s) => s && s.id && String(s.id).startsWith("st_user_"));
-    if (localStations.length === 0) return;
-
-    localStations.forEach(async (localSt) => {
+    const runAutoSync = async () => {
+      // 1. Kutilayotgan foydalanuvchi registratsiyasini bazaga yuborish
       try {
-        const res = await api.stations.create({
-          name: localSt.name,
-          lat: localSt.lat,
-          lng: localSt.lng,
-          address: localSt.address,
-          city: localSt.city || "Toshkent",
-          phone: localSt.phone || user?.phoneNumber || "",
-          isOpen: localSt.isOpen ?? true,
-          prices: localSt.prices,
-          pressures: localSt.pressures,
-          gasPressure: localSt.gasPressure,
-          types: localSt.type || localSt.types,
-          description: localSt.description,
-          images: localSt.images,
-          verificationImages: localSt.verificationImages,
-          amenities: localSt.amenities,
-          payments: localSt.payments,
-          userId: user?.id,
-          ownerId: user?.id,
-        });
-
-        if (res.success && res.station) {
-          console.log("✅ Lokal shahobcha bazaga sinxronlandi:", res.station.id, res.station.name);
-          setMyStations((prev) =>
-            prev.map((s) => (s.id === localSt.id ? { ...res.station, isApproved: true, is_approved: true } : s))
-          );
-          setStations((prev) => {
-            const exists = prev.find((s) => s.id === res.station.id || s.id === localSt.id);
-            return exists
-              ? prev.map((s) => (s.id === res.station.id || s.id === localSt.id ? res.station : s))
-              : [res.station, ...prev];
-          });
+        const pendingUserRaw = localStorage.getItem("myup_pending_user_reg");
+        if (pendingUserRaw) {
+          const pendingUser = JSON.parse(pendingUserRaw);
+          if (pendingUser && pendingUser.phone) {
+            const res = await api.auth.register(pendingUser).catch(async (e) => {
+              if (e.message?.includes('allaqachon') || e.message?.includes('mavjud')) {
+                return await api.auth.login(pendingUser.phone, pendingUser.password).catch(() => null);
+              }
+              return null;
+            });
+            if (res && res.success && res.token && res.user) {
+              console.log("✅ Offline foydalanuvchi bazaga sinxronlandi:", res.user.id);
+              localStorage.setItem("myup_token", res.token);
+              setUser((prev) => ({ ...prev, id: res.user.id, role: res.user.role || prev?.role }));
+              localStorage.removeItem("myup_pending_user_reg");
+            }
+          }
         }
-      } catch (err) {
-        // Hali server ulanmagan bo'lsa keyinroq qayta sinaydi
+      } catch (e) {}
+
+      // 2. Kutilayotgan lokal shahobchalarni (st_user_) bazaga yuborish
+      if (Array.isArray(myStations) && myStations.length > 0) {
+        const localStations = myStations.filter((s) => s && s.id && String(s.id).startsWith("st_user_"));
+        for (const localSt of localStations) {
+          try {
+            const res = await api.stations.create({
+              name: localSt.name,
+              lat: localSt.lat,
+              lng: localSt.lng,
+              address: localSt.address,
+              city: localSt.city || "Toshkent",
+              phone: localSt.phone || user?.phoneNumber || "",
+              isOpen: localSt.isOpen ?? true,
+              prices: localSt.prices,
+              pressures: localSt.pressures,
+              gasPressure: localSt.gasPressure,
+              types: localSt.type || localSt.types,
+              description: localSt.description,
+              images: localSt.images,
+              verificationImages: localSt.verificationImages,
+              amenities: localSt.amenities,
+              payments: localSt.payments,
+              userId: user?.id,
+              ownerId: user?.id,
+            });
+
+            if (res && res.success && res.station) {
+              console.log("✅ Offline shahobcha bazaga muvaffaqiyatli sinxronlandi:", res.station.id, res.station.name);
+              const isStApproved = res.station.isApproved === true || res.station.is_approved === true || res.station.status === 'approved';
+              setMyStations((prev) => {
+                const next = prev.map((s) =>
+                  s.id === localSt.id
+                    ? { ...localSt, ...res.station, isApproved: isStApproved, is_approved: isStApproved, status: res.station.status || 'pending' }
+                    : s
+                );
+                try {
+                  localStorage.setItem("myup_my_stations", JSON.stringify(next));
+                } catch (e) {}
+                return next;
+              });
+
+              if (isStApproved) {
+                setStations((prev) => {
+                  const exists = prev.find((s) => s.id === res.station.id || s.id === localSt.id);
+                  return exists
+                    ? prev.map((s) => (s.id === res.station.id || s.id === localSt.id ? res.station : s))
+                    : [res.station, ...prev];
+                });
+              } else {
+                setStations((prev) => prev.filter((s) => s.id !== res.station.id && s.id !== localSt.id));
+              }
+            }
+          } catch (syncErr) {
+            // Server javob bermasa keyingi siklda qayta urinadi
+          }
+        }
       }
-    });
+    };
+
+    // Dastlabki sinxronlash
+    runAutoSync();
+
+    // Har 20 soniyada va tarmoq tiklanganda sinxronlash
+    const interval = setInterval(runAutoSync, 20000);
+    const handleOnline = () => runAutoSync();
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("focus", handleOnline);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("focus", handleOnline);
+    };
   }, [myStations, user?.id]);
   const [showAddStation, setShowAddStation] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -1974,8 +2027,8 @@ export default function App() {
           } catch (e) {}
           return nextList;
         });
-        // Faqat admin tasdiqlagan bo'lsa (yoki lokal/ishlab chiqish muhitida), asosiy ro'yxatga qo'shiladi!
-        const isApprovedBool = savedSt.isApproved === true || savedSt.is_approved === true || !import.meta.env.PROD;
+        // Faqat super admin tasdiqlagan bo'lsa, asosiy ro'yxatga qo'shiladi!
+        const isApprovedBool = savedSt.isApproved === true || savedSt.is_approved === true || savedSt.status === 'approved';
         if (isApprovedBool) {
           setStations((prev) => {
             const exists = prev.find((s) => s.id === savedSt.id || s.id === station.id);
@@ -1984,7 +2037,7 @@ export default function App() {
               : [savedSt, ...prev];
           });
         } else {
-          // Hali admin tasdiqlamagan bo'lsa, asosiy ro'yxatdan chiqarib tashlanadi
+          // Hali admin tasdiqlamagan bo'lsa, asosiy ro'yxatdan qat'iy chiqarib tashlanadi
           setStations((prev) => prev.filter((s) => s.id !== savedSt.id && s.id !== station.id));
           // Administrator tekshiruviga yuborildi modal oynasini ko'rsatish
           setSubmittedStationForModal(savedSt || station);
@@ -1994,12 +2047,11 @@ export default function App() {
         return;
       }
     } catch (err) {
-      console.error("❌ Shahobchani PostgreSQL ga saqlashda xato:", err);
-      alert(`Shahobchani saqlashda xatolik: ${err.message}`);
+      console.warn("Shahobchani PostgreSQL ga saqlashda xato (offline rejimga o'tildi):", err);
     }
 
-    // Fallback: Agar backend vaqtinchalik javob bermasa
-    const isApprovedFallback = station.isApproved === true || station.is_approved === true || !import.meta.env.PROD;
+    // Fallback: Agar backend vaqtinchalik javob bermasa (offline saqlash)
+    const isApprovedFallback = station.isApproved === true || station.is_approved === true || station.status === 'approved';
     const exists = myStations.find((s) => s.id === station.id);
     if (exists) {
       setMyStations(myStations.map((s) => (s.id === station.id ? station : s)));
@@ -2599,8 +2651,9 @@ export default function App() {
     });
 
     myStList.forEach((st) => {
-      // Foydalanuvchining o'z shahobchasi har doim ko'rinadi (admin tasdiqlagan yoki lokal test holatida)
-      if (st && st.id && typeof st === 'object' && (st.isApproved === true || st.is_approved === true || String(st.id).startsWith("st_user_") || !import.meta.env.PROD)) {
+      // Shahobcha faqat super admin tasdiqlaganidan keyingina asosiy xarita va umumiy ro'yxatda paydo bo'ladi!
+      const isApproved = st.isApproved === true || st.is_approved === true || st.status === 'approved';
+      if (st && st.id && typeof st === 'object' && isApproved) {
         const prev = stationDict[st.id];
         stationDict[st.id] = prev && typeof prev === 'object' ? { ...prev, ...st } : st;
       }

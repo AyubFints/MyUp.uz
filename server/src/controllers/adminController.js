@@ -167,7 +167,12 @@ export const approveStation = async (req, res) => {
 export const getAllUsers = async (req, res) => {
   try {
     const result = await query(`
-      SELECT id, phone, first_name AS "firstName", last_name AS "lastName", role, bio, created_at AS "createdAt"
+      SELECT 
+        id, phone, first_name AS "firstName", last_name AS "lastName", role, bio,
+        has_location AS "hasLocation", can_add_station AS "canAddStation",
+        location_name AS "locationName", responsible_person AS "responsiblePerson",
+        location_phone AS "locationPhone", location_image AS "locationImage",
+        created_at AS "createdAt"
       FROM users
       ORDER BY created_at DESC
     `);

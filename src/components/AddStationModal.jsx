@@ -186,20 +186,20 @@ const CashBanknoteIcon = () => (
 );
 
 const UzcardBadge = () => (
-  <div style={{ background: '#0f4c81', borderRadius: '6px', padding: '3px 8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-    <span style={{ color: '#ffffff', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.02em' }}>Uzcard</span>
+  <div style={{ background: '#0f4c81', borderRadius: '5px', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <span style={{ color: '#ffffff', fontSize: '0.62rem', fontWeight: 800, letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>Uzcard</span>
   </div>
 );
 
 const HumoBadge = () => (
-  <div style={{ background: '#1e2d40', borderRadius: '6px', padding: '3px 8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-    <span style={{ color: '#f59e0b', fontSize: '0.70rem', fontWeight: 900, letterSpacing: '0.06em' }}>HUMO</span>
+  <div style={{ background: '#1e2d40', borderRadius: '5px', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <span style={{ color: '#f59e0b', fontSize: '0.64rem', fontWeight: 900, letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>HUMO</span>
   </div>
 );
 
 const VisaBadge = () => (
-  <div style={{ background: '#1a1f71', borderRadius: '6px', padding: '3px 8px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-    <span style={{ color: '#ffffff', fontSize: '0.70rem', fontWeight: 900, fontStyle: 'italic', letterSpacing: '0.04em' }}>VISA</span>
+  <div style={{ background: '#1a1f71', borderRadius: '5px', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <span style={{ color: '#ffffff', fontSize: '0.64rem', fontWeight: 900, fontStyle: 'italic', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>VISA</span>
   </div>
 );
 
@@ -210,7 +210,7 @@ const AMENITIES_DATA = [
 ];
 
 const PAYMENTS_DATA = [
-  { id: 'cash', label: 'cash', subLabel: "Naqd to'lov", icon: CashBanknoteIcon },
+  { id: 'cash', label: 'Naqd pul', subLabel: "Naqd to'lov", icon: CashBanknoteIcon },
   { id: 'uzcard', label: 'Uzcard', subLabel: 'Uzcard plastik kartasi', badge: UzcardBadge },
   { id: 'humo', label: 'HUMO', subLabel: 'HUMO plastik kartasi', badge: HumoBadge },
   { id: 'visa', label: 'VISA', subLabel: 'Visa / bank kartasi', badge: VisaBadge },
@@ -226,6 +226,7 @@ const FUEL_TYPES = [
 export default function AddStationModal({ isOpen, onClose, onSave, editStation, isLight = false, userCoords = null }) {
   const [step, setStep] = useState(1);
   const [animating, setAnimating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form states
   const [stationType, setStationType] = useState('fuel');
@@ -490,7 +491,7 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
     setImages(images.filter((_, i) => i !== idx));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const parsedPrices = Object.fromEntries(
       Object.entries(fuelPrices)
         .filter(([k]) => selectedTypes.includes(k))
@@ -550,12 +551,26 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
       dailyNotification: q1,
       priceUpdate: q2,
       isOpen: true,
+      isApproved: false,
+      is_approved: false,
+      status: 'pending',
       rating: 5.0,
       reviewsCount: 1,
     };
-    onSave(newStation);
-    setShowSuccessSubmittedModal(true);
-    setSubmittedCountdown(5);
+
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      if (onSave) {
+        await onSave(newStation);
+      }
+    } catch (err) {
+      console.warn("Shahobcha saqlash xatosi:", err);
+    } finally {
+      setIsSubmitting(false);
+      setShowSuccessSubmittedModal(true);
+      setSubmittedCountdown(5);
+    }
   };
 
   // Validations
@@ -1108,7 +1123,7 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
                       <div className="service-card-info">
                         <span className="service-card-title">{item.label}</span>
                         <span className="service-card-status">
-                          {isAvail ? "Mavjud (Bor)" : "Mavjud emas (Yo'q)"}
+                          {isAvail ? "Mavjud" : "Mavjud emas"}
                         </span>
                       </div>
                     </div>
@@ -1119,7 +1134,7 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
                         className={`service-toggle-btn btn-yes ${isAvail ? 'active' : ''}`}
                         onClick={() => setAmenities({ ...amenities, [item.id]: true })}
                       >
-                        <Check size={14} strokeWidth={2.5} />
+                        <Check size={12} strokeWidth={2.5} />
                         <span>Bor</span>
                       </button>
                       <button
@@ -1127,7 +1142,7 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
                         className={`service-toggle-btn btn-no ${!isAvail ? 'active' : ''}`}
                         onClick={() => setAmenities({ ...amenities, [item.id]: false })}
                       >
-                        <X size={14} strokeWidth={2.5} />
+                        <X size={12} strokeWidth={2.5} />
                         <span>Yo'q</span>
                       </button>
                     </div>
@@ -1162,7 +1177,7 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
                       <div className="service-card-info">
                         <span className="service-card-title">{item.label}</span>
                         <span className="service-card-status">
-                          {isAvail ? "Qabul qilinadi (Bor)" : "Qabul qilinmaydi (Yo'q)"}
+                          {isAvail ? "Qabul qilinadi" : "Qabul qilinmaydi"}
                         </span>
                       </div>
                     </div>
@@ -1173,7 +1188,7 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
                         className={`service-toggle-btn btn-yes ${isAvail ? 'active' : ''}`}
                         onClick={() => setPayments({ ...payments, [item.id]: true })}
                       >
-                        <Check size={14} strokeWidth={2.5} />
+                        <Check size={12} strokeWidth={2.5} />
                         <span>Bor</span>
                       </button>
                       <button
@@ -1181,7 +1196,7 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
                         className={`service-toggle-btn btn-no ${!isAvail ? 'active' : ''}`}
                         onClick={() => setPayments({ ...payments, [item.id]: false })}
                       >
-                        <X size={14} strokeWidth={2.5} />
+                        <X size={12} strokeWidth={2.5} />
                         <span>Yo'q</span>
                       </button>
                     </div>
@@ -1272,10 +1287,16 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
               <button 
                 type="button" 
                 className="modern-add-btn-primary" 
-                disabled={!isStep7Valid} 
+                disabled={!isStep7Valid || isSubmitting} 
                 onClick={handleSubmit}
               >
-                <Check size={18} /> Tasdiqlash va saqlash
+                {isSubmitting ? (
+                  <span>Yuborilmoqda...</span>
+                ) : (
+                  <>
+                    <Check size={18} /> Tasdiqlash va saqlash
+                  </>
+                )}
               </button>
             </div>
           </div>
