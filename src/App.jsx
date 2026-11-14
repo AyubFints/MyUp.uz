@@ -21,6 +21,7 @@ import { stationMatchesFuel } from "./utils/fuel";
 import { calculateDistance } from "./utils/distance";
 import { playReopenAlertSound } from "./utils/audio";
 import { useIsInstalledApp } from "./utils/platform";
+import { DEFAULT_ACTIVE_ADS } from "./data/defaultAds";
 import api from "./api/client";
 import {
   Menu,
@@ -402,6 +403,53 @@ export default function App() {
       })
       .catch(() => {});
   }, []);
+
+  // Offline/Lokal yaratilgan shahobchalarni avtomatik PostgreSQL bazasiga yuklash (Auto-sync)
+  useEffect(() => {
+    if (!Array.isArray(myStations) || myStations.length === 0) return;
+    const localStations = myStations.filter((s) => s && s.id && String(s.id).startsWith("st_user_"));
+    if (localStations.length === 0) return;
+
+    localStations.forEach(async (localSt) => {
+      try {
+        const res = await api.stations.create({
+          name: localSt.name,
+          lat: localSt.lat,
+          lng: localSt.lng,
+          address: localSt.address,
+          city: localSt.city || "Toshkent",
+          phone: localSt.phone || user?.phoneNumber || "",
+          isOpen: localSt.isOpen ?? true,
+          prices: localSt.prices,
+          pressures: localSt.pressures,
+          gasPressure: localSt.gasPressure,
+          types: localSt.type || localSt.types,
+          description: localSt.description,
+          images: localSt.images,
+          verificationImages: localSt.verificationImages,
+          amenities: localSt.amenities,
+          payments: localSt.payments,
+          userId: user?.id,
+          ownerId: user?.id,
+        });
+
+        if (res.success && res.station) {
+          console.log("✅ Lokal shahobcha bazaga sinxronlandi:", res.station.id, res.station.name);
+          setMyStations((prev) =>
+            prev.map((s) => (s.id === localSt.id ? { ...res.station, isApproved: true, is_approved: true } : s))
+          );
+          setStations((prev) => {
+            const exists = prev.find((s) => s.id === res.station.id || s.id === localSt.id);
+            return exists
+              ? prev.map((s) => (s.id === res.station.id || s.id === localSt.id ? res.station : s))
+              : [res.station, ...prev];
+          });
+        }
+      } catch (err) {
+        // Hali server ulanmagan bo'lsa keyinroq qayta sinaydi
+      }
+    });
+  }, [myStations, user?.id]);
   const [showAddStation, setShowAddStation] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showServicesModal, setShowServicesModal] = useState(false);
@@ -1245,17 +1293,33 @@ export default function App() {
   });
   const [fuelSortBy, setFuelSortBy] = useState("nearest"); // nearest, nearest_cheap, cheapest, nearest_best
 
-  // Jonli video reklamalar (A-Maps Super Admin orqali boshqariladi)
-  const [activeAds, setActiveAds] = useState([]);
+  // Jonli video reklamalar (A-Maps Super Admin orqali boshqariladi, Vercel va offline uchun DEFAULT_ACTIVE_ADS)
+  const [activeAds, setActiveAds] = useState(() => {
+    try {
+      const cached = localStorage.getItem("myup_cached_ads");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return Array.isArray(DEFAULT_ACTIVE_ADS) ? DEFAULT_ACTIVE_ADS : [];
+  });
+
   useEffect(() => {
     let isMounted = true;
     api.ads.getActive()
       .then((res) => {
-        if (isMounted && res.success && Array.isArray(res.ads)) {
+        if (isMounted && res.success && Array.isArray(res.ads) && res.ads.length > 0) {
           setActiveAds(res.ads);
+          try {
+            localStorage.setItem("myup_cached_ads", JSON.stringify(res.ads));
+          } catch (e) {}
         }
       })
-      .catch((err) => console.warn("Reklamalarni olishda xato:", err.message));
+      .catch((err) => {
+        console.warn("Reklamalarni olishda xato:", err.message);
+        setActiveAds((prev) => (Array.isArray(prev) && prev.length > 0 ? prev : (DEFAULT_ACTIVE_ADS || [])));
+      });
     return () => { isMounted = false; };
   }, []);
 
@@ -1910,8 +1974,8 @@ export default function App() {
           } catch (e) {}
           return nextList;
         });
-        // Faqat admin tasdiqlagan bo'lsa (masalan Super Admin yaratgan bo'lsa), asosiy ro'yxatga qo'shiladi!
-        const isApprovedBool = savedSt.isApproved === true || savedSt.is_approved === true;
+        // Faqat admin tasdiqlagan bo'lsa (yoki lokal/ishlab chiqish muhitida), asosiy ro'yxatga qo'shiladi!
+        const isApprovedBool = savedSt.isApproved === true || savedSt.is_approved === true || !import.meta.env.PROD;
         if (isApprovedBool) {
           setStations((prev) => {
             const exists = prev.find((s) => s.id === savedSt.id || s.id === station.id);
@@ -1935,7 +1999,7 @@ export default function App() {
     }
 
     // Fallback: Agar backend vaqtinchalik javob bermasa
-    const isApprovedFallback = station.isApproved === true || station.is_approved === true;
+    const isApprovedFallback = station.isApproved === true || station.is_approved === true || !import.meta.env.PROD;
     const exists = myStations.find((s) => s.id === station.id);
     if (exists) {
       setMyStations(myStations.map((s) => (s.id === station.id ? station : s)));
@@ -2535,8 +2599,8 @@ export default function App() {
     });
 
     myStList.forEach((st) => {
-      // Foydalanuvchining o'z shahobchasi faqat admin tasdiqlagan bo'lsagina asosiy xaritaga chiqadi!
-      if (st && st.id && typeof st === 'object' && (st.isApproved === true || st.is_approved === true)) {
+      // Foydalanuvchining o'z shahobchasi har doim ko'rinadi (admin tasdiqlagan yoki lokal test holatida)
+      if (st && st.id && typeof st === 'object' && (st.isApproved === true || st.is_approved === true || String(st.id).startsWith("st_user_") || !import.meta.env.PROD)) {
         const prev = stationDict[st.id];
         stationDict[st.id] = prev && typeof prev === 'object' ? { ...prev, ...st } : st;
       }
@@ -3103,7 +3167,7 @@ export default function App() {
                             handleTabChange("apps");
                           }}
                         >
-                          <Download size={16} />
+                          <Download size={14} />
                           <span>Yuklab olish</span>
                         </button>
                       </div>

@@ -619,20 +619,21 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
               <span>Yangi joylashuv qo'shishni boshlaysizmi?</span>
             </div>
 
-            <div className="modern-add-actions-row">
+            <div className="modern-add-actions-row modern-add-step1-actions">
               <button 
                 type="button" 
                 className="modern-add-btn-secondary" 
                 onClick={onClose}
               >
-                Yo'q, bekor qilish
+                Bekor qilish
               </button>
               <button 
                 type="button" 
                 className="modern-add-btn-primary" 
                 onClick={() => goToStep(2)}
               >
-                Ha, boshlash <ChevronRight size={18} />
+                <span>Ha, boshlash</span>
+                <ChevronRight size={18} />
               </button>
             </div>
           </div>
@@ -930,7 +931,7 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
                     className="modern-add-image-uploader-tile"
                     title="Rasm yuklash"
                   >
-                    <Camera size={22} className="text-cyan-400" />
+                    <Camera size={20} className="text-cyan-400" />
                     <span>Rasm qo'shish</span>
                   </div>
                 )}

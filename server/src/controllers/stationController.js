@@ -255,8 +255,8 @@ export const createStation = async (req, res) => {
         [ownerId]
       ).catch(() => {});
     }
-    // Super admin yaratgan shahobcha avtomatik tasdiqlanadi
-    const isApproved = req.user ? (req.user.role === 'super_admin') : false;
+    // Super admin yaratgan yoki ishlab chiqish (lokal test) muhitida yaratilgan shahobchalar darhol faollashadi
+    const isApproved = process.env.NODE_ENV !== 'production' || (req.user ? req.user.role === 'super_admin' : false);
 
     const normalizedTypes = Array.isArray(types) && types.length > 0
       ? types

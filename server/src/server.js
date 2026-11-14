@@ -45,16 +45,9 @@ const corsOptions = {
     // Brauzersiz (masalan curl, mobile app yoki server-to-server) so'rovlar
     if (!origin) return callback(null, true);
 
-    // Ishlab chiqish muhitida lokal domenlarga ruxsat berish
+    // Ishlab chiqish muhitida barcha lokal va tarmoq (Wi-Fi orqali ulangan telefonlar) ga to'liq ruxsat
     if (process.env.NODE_ENV !== 'production') {
-      const isLocal =
-        origin.startsWith('http://localhost') ||
-        origin.startsWith('http://127.0.0.1') ||
-        origin.startsWith('https://localhost') ||
-        origin.startsWith('https://127.0.0.1');
-      if (isLocal) {
-        return callback(null, true);
-      }
+      return callback(null, true);
     }
 
     // Sozlangan domenlar ro'yxatida mavjudligini tekshirish

@@ -92,7 +92,7 @@ export default function GuideSection({
                 if (onOpenDownload) onOpenDownload();
               }}
             >
-              <Download size={16} />
+              <Download size={14} />
               <span>Yuklab olish</span>
             </button>
           </div>

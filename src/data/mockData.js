@@ -49,9 +49,11 @@ export const MOCK_NEWS = [
   },
 ];
 
-// Startap dastlabki holatida hech qanday manzil ko'rsatilmasligi uchun ro'yxat bo'shatildi
-export const INITIAL_STATIONS = [];
-export const DEFAULT_DEMO_STATIONS = [];
+import { DEFAULT_APPROVED_STATIONS } from './defaultStations.js';
+
+// PostgreSQL dan olingan tasdiqlangan shahobchalar (Vercel va offline holatlarda doimiy ko'rinishi uchun)
+export const INITIAL_STATIONS = Array.isArray(DEFAULT_APPROVED_STATIONS) ? DEFAULT_APPROVED_STATIONS : [];
+export const DEFAULT_DEMO_STATIONS = INITIAL_STATIONS;
 
 export const DEFAULT_THEME = {
   id: 'classic-dark',

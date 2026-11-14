@@ -1,6 +1,20 @@
 // MyUp.uz Markaziy API mijozi (Frontend -> Backend Express + PostgreSQL)
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+export const getApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (typeof window !== 'undefined') {
+    // Agar telefon yoki boshqa qurilmadan kompyuterning lokal IP si orqali kirilayotgan bo'lsa
+    if (envUrl && envUrl.includes('localhost') && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      return envUrl.replace('localhost', window.location.hostname);
+    }
+    if (!envUrl && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      return `${window.location.protocol}//${window.location.hostname}:5000/api`;
+    }
+  }
+  return envUrl || 'http://localhost:5000/api';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 // Yordamchi so'rov yuboruvchi funksiya (avtomatik retry va 8s barqaror timeout)
 async function request(endpoint, options = {}, retries = 1) {

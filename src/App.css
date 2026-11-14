@@ -56,6 +56,10 @@ body {
   margin-top: 0.5rem;
 }
 
+.mt-3 {
+  margin-top: 0.75rem;
+}
+
 .mt-4 {
   margin-top: 1rem;
 }
@@ -4206,26 +4210,26 @@ body {
   }
 
   /* Form Maydonlari - Ixcham va toza */
-  .modern-auth-form {
+  .modern-auth-screen-wrapper .modern-auth-form {
     display: flex !important;
     flex-direction: column !important;
     gap: 9px !important;
   }
 
-  .modern-field-group {
+  .modern-auth-screen-wrapper .modern-field-group {
     display: flex !important;
     flex-direction: column !important;
     gap: 3px !important;
   }
 
-  .modern-field-label {
+  .modern-auth-screen-wrapper .modern-field-label {
     font-size: 0.72rem !important;
     font-weight: 600 !important;
     margin-bottom: 2px !important;
     color: #94a3b8 !important;
   }
 
-  .modern-input-wrap {
+  .modern-auth-screen-wrapper .modern-input-wrap {
     height: 40px !important;
     min-height: 40px !important;
     border-radius: 10px !important;
@@ -4239,17 +4243,17 @@ body {
     border-color: #cbd5e1 !important;
   }
 
-  .modern-input-field {
+  .modern-auth-screen-wrapper .modern-input-field {
     font-size: 0.84rem !important;
     padding: 0 !important;
   }
 
-  .modern-input-icon {
+  .modern-auth-screen-wrapper .modern-input-icon {
     width: 15px !important;
     height: 15px !important;
   }
 
-  .modern-pwd-toggle-btn {
+  .modern-auth-screen-wrapper .modern-pwd-toggle-btn {
     width: 30px !important;
     height: 30px !important;
     padding: 0 !important;
@@ -5196,6 +5200,7 @@ body {
 .modern-add-image-thumb {
   position: relative;
   aspect-ratio: 1;
+  min-height: 84px;
   border-radius: 14px;
   overflow: hidden;
   border: 1.5px solid var(--theme-border, rgba(255, 255, 255, 0.12));
@@ -5225,6 +5230,7 @@ body {
 
 .modern-add-image-uploader-tile {
   aspect-ratio: 1;
+  min-height: 84px;
   border-radius: 14px;
   border: 1.5px dashed rgba(56, 189, 248, 0.4);
   background: rgba(56, 189, 248, 0.06);
@@ -5232,12 +5238,17 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
+  padding: 8px 4px;
+  box-sizing: border-box;
   color: #38bdf8;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
   cursor: pointer;
   transition: all 0.2s ease;
+  overflow: hidden;
 }
 
 .modern-add-image-uploader-tile:hover {
@@ -5247,23 +5258,34 @@ body {
 
 /* Textarea */
 .modern-textarea-wrap {
-  padding: 6px 10px !important;
+  display: block !important;
+  height: auto !important;
+  min-height: 84px !important;
+  max-height: none !important;
+  padding: 10px 12px !important;
+  box-sizing: border-box !important;
+  align-items: flex-start !important;
 }
 
 .modern-textarea-field {
-  width: 100%;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--theme-text, #ffffff);
-  font-size: 0.9rem;
-  font-family: inherit;
-  resize: none;
-  line-height: 1.45;
+  width: 100% !important;
+  min-height: 64px !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  color: var(--theme-text, #ffffff) !important;
+  font-size: 0.88rem !important;
+  font-family: inherit !important;
+  resize: vertical !important;
+  line-height: 1.45 !important;
+  box-sizing: border-box !important;
+  display: block !important;
+  padding: 0 !important;
 }
 
 .modern-textarea-field::placeholder {
-  color: var(--theme-muted, #64748b);
+  color: var(--theme-muted, #64748b) !important;
+  opacity: 0.85 !important;
 }
 
 /* Question toggles */
@@ -5458,17 +5480,17 @@ body {
 /* Actions Row Buttons */
 .modern-add-actions-row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 12px;
   margin-top: 22px;
 }
 
 .modern-add-btn-secondary {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 12px 18px;
+  padding: 12px 16px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.06);
   border: 1.5px solid var(--theme-border, rgba(255, 255, 255, 0.12));
@@ -5477,6 +5499,9 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
+  box-sizing: border-box;
+  min-height: 48px;
 }
 
 .modern-add-btn-secondary:hover {
@@ -5485,20 +5510,23 @@ body {
 
 .modern-add-btn-primary {
   flex: 1;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px 20px;
+  padding: 12px 18px;
   border-radius: 12px;
   background: linear-gradient(135deg, #0284c7, #0369a1);
   color: #ffffff;
   border: none;
-  font-size: 0.95rem;
+  font-size: 0.93rem;
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(2, 132, 199, 0.35);
   transition: all 0.2s ease;
+  white-space: nowrap;
+  box-sizing: border-box;
+  min-height: 48px;
 }
 
 .modern-add-btn-primary:hover:not(:disabled) {
@@ -5511,6 +5539,37 @@ body {
   opacity: 0.45;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* 1-bosqich: Boshlashni tasdiqlash uchun teng nisbatli va chiroyli tugmalar */
+.modern-add-step1-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.modern-add-step1-actions .modern-add-btn-secondary,
+.modern-add-step1-actions .modern-add-btn-primary {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 0.9rem;
+  border-radius: 14px;
+  white-space: nowrap;
+  text-align: center;
+  min-height: 48px;
+}
+
+@media (max-width: 380px) {
+  .modern-add-step1-actions {
+    gap: 8px;
+  }
+  .modern-add-step1-actions .modern-add-btn-secondary,
+  .modern-add-step1-actions .modern-add-btn-primary {
+    padding: 11px 8px;
+    font-size: 0.84rem;
+    gap: 4px;
+  }
 }
 
 /* ==========================================================================
@@ -20052,22 +20111,22 @@ body.light-theme .location-fallback-btn {
    ========================================================================== */
 .home-download-app-card {
   width: 100%;
-  margin: 12px 0 16px 0;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(2, 132, 199, 0.12) 0%, rgba(14, 165, 233, 0.05) 100%);
-  border: 1px solid rgba(56, 189, 248, 0.28);
+  margin: 10px 0 14px 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.14) 0%, rgba(14, 165, 233, 0.06) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.32);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
   box-sizing: border-box;
 }
 
 .home-download-app-card:hover {
-  background: linear-gradient(135deg, rgba(2, 132, 199, 0.2) 0%, rgba(14, 165, 233, 0.1) 100%);
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.22) 0%, rgba(14, 165, 233, 0.12) 100%);
   border-color: #38bdf8;
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(56, 189, 248, 0.15);
@@ -20085,15 +20144,15 @@ body.light-theme .location-fallback-btn {
 .home-download-card-content {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex: 1;
   min-width: 0;
 }
 
 .home-download-card-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
   object-fit: cover;
   flex-shrink: 0;
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -20103,7 +20162,9 @@ body.light-theme .location-fallback-btn {
 .home-download-card-info {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   min-width: 0;
+  flex: 1;
 }
 
 .home-download-card-badge {
@@ -20113,7 +20174,7 @@ body.light-theme .location-fallback-btn {
   color: #38bdf8;
   letter-spacing: 0.5px;
   line-height: 1;
-  margin-bottom: 3px;
+  margin-bottom: 2px;
 }
 
 .is-light .home-download-card-badge {
@@ -20121,13 +20182,14 @@ body.light-theme .location-fallback-btn {
 }
 
 .home-download-card-title {
-  font-size: 15px;
-  font-weight: 800;
+  font-size: 13.5px;
+  font-weight: 700;
   margin: 0;
   color: #ffffff;
   letter-spacing: -0.2px;
-  white-space: nowrap;
-  line-height: 1.2;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: normal;
 }
 
 .is-light .home-download-card-title {
@@ -20135,7 +20197,7 @@ body.light-theme .location-fallback-btn {
 }
 
 .home-download-card-desc {
-  font-size: 11.5px;
+  font-size: 11px;
   color: #94a3b8;
   margin: 0;
   line-height: 1.35;
@@ -20151,13 +20213,13 @@ body.light-theme .location-fallback-btn {
 .home-download-card-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: 5px;
+  padding: 6px 12px;
   border-radius: 9999px;
   background: #0284c7;
   color: #ffffff;
   border: none;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
