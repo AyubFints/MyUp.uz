@@ -10,6 +10,27 @@ class ErrorBoundary extends React.Component {
   }
 
   static getDerivedStateFromError(error) {
+    const msg = error?.message || String(error || '');
+    if (
+      msg.includes('Failed to fetch dynamically imported module') ||
+      msg.includes('dynamically imported module') ||
+      msg.includes('Loading chunk')
+    ) {
+      const reloadLock = sessionStorage.getItem('chunk_reload_lock');
+      if (!reloadLock) {
+        sessionStorage.setItem('chunk_reload_lock', 'true');
+        try {
+          if ('caches' in window) {
+            caches.keys().then((names) => Promise.all(names.map((n) => caches.delete(n)))).finally(() => {
+              window.location.reload();
+            });
+            return { hasError: false, error: null, errorInfo: null };
+          }
+        } catch (e) {}
+        window.location.reload();
+        return { hasError: false, error: null, errorInfo: null };
+      }
+    }
     return { hasError: true, error };
   }
 
@@ -67,10 +88,21 @@ class ErrorBoundary extends React.Component {
             </pre>
             <div style={{ marginTop: '20px', display: 'flex', gap: '12px' }}>
               <button
-                onClick={() => {
+                onClick={async () => {
                   try {
                     localStorage.removeItem('myup_my_stations');
                     localStorage.removeItem('myup_stations');
+                    sessionStorage.clear();
+                    if ('serviceWorker' in navigator) {
+                      const registrations = await navigator.serviceWorker.getRegistrations();
+                      for (const reg of registrations) {
+                        await reg.unregister();
+                      }
+                    }
+                    if ('caches' in window) {
+                      const keys = await caches.keys();
+                      await Promise.all(keys.map((k) => caches.delete(k)));
+                    }
                   } catch (e) {}
                   window.location.reload();
                 }}

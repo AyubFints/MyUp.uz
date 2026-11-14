@@ -81,18 +81,48 @@ import {
 } from "lucide-react";
 import "./App.css";
 
-// Lazy loaded heavy views and modals for optimal code-splitting
-const SmartOnboardingModal = lazy(() => import("./components/SmartOnboardingModal"));
-const GuideSection = lazy(() => import("./components/GuideSection"));
-const MapView = lazy(() => import("./components/MapView"));
-const NavigationMode = lazy(() => import("./components/NavigationMode"));
-const AddStationModal = lazy(() => import("./components/AddStationModal"));
-const SettingsSection = lazy(() => import("./components/SettingsSection"));
-const NotificationsView = lazy(() => import("./components/NotificationsView"));
-const ProfileDetailModal = lazy(() => import("./components/ProfileDetailModal"));
-const StationReviewModal = lazy(() => import("./components/StationReviewModal"));
-const PrivacyPolicyPage = lazy(() => import("./components/PrivacyPolicyPage"));
-const AppDownloadPage = lazy(() => import("./components/AppDownloadPage"));
+// Yangi deploy paytida eski chunk 404 bo'lib qolishini oldini oluvchi xavfsiz lazy yuklovchi
+function lazyWithRetry(componentImport) {
+  return lazy(async () => {
+    try {
+      return await componentImport();
+    } catch (err) {
+      const msg = err?.message || String(err || '');
+      if (
+        msg.includes('Failed to fetch dynamically imported module') ||
+        msg.includes('dynamically imported module') ||
+        msg.includes('Loading chunk')
+      ) {
+        const hasRetried = sessionStorage.getItem('sw_chunk_retried');
+        if (!hasRetried) {
+          sessionStorage.setItem('sw_chunk_retried', 'true');
+          if ('caches' in window) {
+            try {
+              const keys = await caches.keys();
+              await Promise.all(keys.map((k) => caches.delete(k)));
+            } catch (e) {}
+          }
+          window.location.reload();
+          return new Promise(() => {});
+        }
+      }
+      throw err;
+    }
+  });
+}
+
+// Lazy loaded heavy views and modals for optimal code-splitting with auto-retry
+const SmartOnboardingModal = lazyWithRetry(() => import("./components/SmartOnboardingModal"));
+const GuideSection = lazyWithRetry(() => import("./components/GuideSection"));
+const MapView = lazyWithRetry(() => import("./components/MapView"));
+const NavigationMode = lazyWithRetry(() => import("./components/NavigationMode"));
+const AddStationModal = lazyWithRetry(() => import("./components/AddStationModal"));
+const SettingsSection = lazyWithRetry(() => import("./components/SettingsSection"));
+const NotificationsView = lazyWithRetry(() => import("./components/NotificationsView"));
+const ProfileDetailModal = lazyWithRetry(() => import("./components/ProfileDetailModal"));
+const StationReviewModal = lazyWithRetry(() => import("./components/StationReviewModal"));
+const PrivacyPolicyPage = lazyWithRetry(() => import("./components/PrivacyPolicyPage"));
+const AppDownloadPage = lazyWithRetry(() => import("./components/AppDownloadPage"));
 
 const MapLoadingFallback = () => (
   <div className="map-shimmer-fullscreen-overlay">
