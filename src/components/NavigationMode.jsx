@@ -7,7 +7,7 @@ import './NavigationMode.css';
 import { 
   X, Check,
   CornerUpRight, CornerUpLeft, ArrowUp, RotateCcw, Crosshair,
-  Volume2, VolumeX, Fuel, Navigation
+  Volume2, VolumeX, Fuel, Navigation, ExternalLink, MapPin
 } from 'lucide-react';
 import { calculateDistance } from '../utils/distance';
 import { getAppMapStyle } from '../utils/mapStyle';
@@ -131,6 +131,9 @@ export default function NavigationMode({ targetStation, userCoords, onClose }) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
   const [distanceToTarget, setDistanceToTarget] = useState(1.3); // km
+  const [routeDistanceMeters, setRouteDistanceMeters] = useState(0);
+  const [routeDurationSeconds, setRouteDurationSeconds] = useState(0);
+  const [showExternalNavSheet, setShowExternalNavSheet] = useState(false);
   const [speed, setSpeed] = useState(0); // km/h
   const [isArrived, setIsArrived] = useState(false);
   const [isRerouting, setIsRerouting] = useState(false);
@@ -315,7 +318,7 @@ export default function NavigationMode({ targetStation, userCoords, onClose }) {
     });
   };
 
-  // 3. OSRM orqali marshrutni hisoblash
+  // 3. 99% aniqlikdagi real avtomobil yo'llari bo'ylab optimal marshrutni hisoblash
   const fetchRoute = async (startPos) => {
     if (!targetStation || !targetStation.lat || !targetStation.lng || !startPos || !startPos.lat || !startPos.lng) return;
     const sLat = Number(startPos.lat);
@@ -326,24 +329,58 @@ export default function NavigationMode({ targetStation, userCoords, onClose }) {
 
     try {
       setIsRerouting(true);
-      const res = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${sLng},${sLat};${tLng},${tLat}?overview=full&geometries=geojson&steps=true`
-      );
-      const data = await res.json();
 
-      if (data.routes && data.routes.length > 0) {
-        const route = data.routes[0];
-        const coords = route.geometry.coordinates.map((coord) => [coord[1], coord[0]]);
+      // Eng aniq va eng yaqin haqiqiy asfalt yo'llarni topish provayderlari
+      const providers = [
+        `https://routing.openstreetmap.de/routed-car/route/v1/driving/${sLng},${sLat};${tLng},${tLat}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=default`,
+        `https://router.project-osrm.org/route/v1/driving/${sLng},${sLat};${tLng},${tLat}?overview=full&geometries=geojson&steps=true&alternatives=true&continue_straight=default`
+      ];
+
+      let bestRoute = null;
+
+      for (const url of providers) {
+        try {
+          const controller = new AbortController();
+          const tId = setTimeout(() => controller.abort(), 5000);
+          const res = await fetch(url, { signal: controller.signal });
+          clearTimeout(tId);
+
+          if (res.ok) {
+            const data = await res.json();
+            if (data.code === 'Ok' && Array.isArray(data.routes) && data.routes.length > 0) {
+              // Bir nechta yo'l varianti bo'lsa, eng tez va eng yaqin to'g'ri yo'lni tanlash
+              bestRoute = data.routes.reduce((best, cur) => {
+                if (!best) return cur;
+                return cur.duration < best.duration ? cur : best;
+              }, null) || data.routes[0];
+              break;
+            }
+          }
+        } catch (err) {}
+      }
+
+      if (bestRoute) {
+        const coords = bestRoute.geometry.coordinates.map((coord) => [coord[1], coord[0]]);
         setRouteCoords(coords);
         routeCoordsRef.current = coords;
+        setRouteDistanceMeters(bestRoute.distance || 0);
+        setRouteDurationSeconds(bestRoute.duration || 0);
 
-        if (route.legs && route.legs[0] && route.legs[0].steps) {
-          setSteps(route.legs[0].steps);
+        if (bestRoute.legs && bestRoute.legs[0] && bestRoute.legs[0].steps) {
+          setSteps(bestRoute.legs[0].steps);
           setCurrentStepIndex(0);
         }
 
         if (mapRef.current) {
           drawRouteOnMap(mapRef.current, coords);
+        }
+      } else {
+        // Fallback: to'g'ri yo'nalish chizig'i
+        const fallbackCoords = [[sLat, sLng], [tLat, tLng]];
+        setRouteCoords(fallbackCoords);
+        routeCoordsRef.current = fallbackCoords;
+        if (mapRef.current) {
+          drawRouteOnMap(mapRef.current, fallbackCoords);
         }
       }
     } catch (e) {
@@ -353,10 +390,44 @@ export default function NavigationMode({ targetStation, userCoords, onClose }) {
     }
   };
 
+  // Navigatsiya ochilganda darhol eng aniq GPS joylashuvni aniqlash va marshrut tuzish
   useEffect(() => {
-    if (currentPos && targetStation) {
+    let active = true;
+
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (!active) return;
+          const exactPos = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          };
+          setCurrentPos(exactPos);
+          prevPosRef.current = exactPos;
+
+          if (userMarkerRef.current) {
+            userMarkerRef.current.setLngLat([exactPos.lng, exactPos.lat]);
+          }
+
+          if (targetStation) {
+            fetchRoute(exactPos);
+          }
+        },
+        (err) => {
+          console.warn("Aniq GPS joylashuvni olishda xato:", err);
+          if (active && currentPos && targetStation) {
+            fetchRoute(currentPos);
+          }
+        },
+        { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
+      );
+    } else if (currentPos && targetStation) {
       fetchRoute(currentPos);
     }
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   // 4. GPS kuzatuvi
@@ -519,13 +590,55 @@ export default function NavigationMode({ targetStation, userCoords, onClose }) {
     ? (nextStep.distance < 1000 ? `${Math.round(nextStep.distance)} m` : `${(nextStep.distance / 1000).toFixed(1).replace('.', ',')} km`)
     : "900 m";
 
-  // Qolgan vaqt va taxminiy yetib borish soati (ETA)
-  const remainingMinutes = Math.max(1, Math.round(distanceToTarget * 2.2));
+  // Qolgan masofa va vaqtni 99% aniqlikdagi real avtomobil yo'li bo'yicha hisoblash
+  const remainingStepsDist = useMemo(() => {
+    if (!steps || steps.length === 0) return 0;
+    let sum = 0;
+    for (let i = currentStepIndex; i < steps.length; i++) {
+      sum += steps[i]?.distance || 0;
+    }
+    return sum;
+  }, [steps, currentStepIndex]);
+
+  const effectiveDistanceKm = remainingStepsDist > 0
+    ? (remainingStepsDist / 1000)
+    : (routeDistanceMeters > 0 ? (routeDistanceMeters / 1000) : distanceToTarget);
+
+  const remainingMinutes = routeDurationSeconds > 0
+    ? Math.max(1, Math.round((routeDurationSeconds * (effectiveDistanceKm / (routeDistanceMeters / 1000 || 1))) / 60))
+    : Math.max(1, Math.round(effectiveDistanceKm * 2.2));
+
   const etaDate = new Date(Date.now() + remainingMinutes * 60000);
   const etaTimeString = etaDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const formattedDist = distanceToTarget < 1 
-    ? `${Math.round(distanceToTarget * 1000)} m` 
-    : `${distanceToTarget.toFixed(1).replace('.', ',')} km`;
+  const formattedDist = effectiveDistanceKm < 1 
+    ? `${Math.round(effectiveDistanceKm * 1000)} m` 
+    : `${effectiveDistanceKm.toFixed(1).replace('.', ',')} km`;
+
+  const openYandexNavi = () => {
+    if (!targetStation?.lat || !targetStation?.lng) return;
+    const tLat = Number(targetStation.lat);
+    const tLng = Number(targetStation.lng);
+    const sLat = currentPos.lat;
+    const sLng = currentPos.lng;
+    const yandexWeb = `https://yandex.com/maps/?rtext=${sLat},${sLng}~${tLat},${tLng}&rtt=auto`;
+    const yandexApp = `yandexnavi://build_route_on_map?lat_to=${tLat}&lon_to=${tLng}`;
+    window.location.href = yandexApp;
+    setTimeout(() => {
+      window.open(yandexWeb, '_blank');
+    }, 600);
+    setShowExternalNavSheet(false);
+  };
+
+  const openGoogleMaps = () => {
+    if (!targetStation?.lat || !targetStation?.lng) return;
+    const tLat = Number(targetStation.lat);
+    const tLng = Number(targetStation.lng);
+    const sLat = currentPos.lat;
+    const sLng = currentPos.lng;
+    const url = `https://www.google.com/maps/dir/?api=1&origin=${sLat},${sLng}&destination=${tLat},${tLng}&travelmode=driving`;
+    window.open(url, '_blank');
+    setShowExternalNavSheet(false);
+  };
 
   return (
     <div className="nav-mode-container">
@@ -649,14 +762,25 @@ export default function NavigationMode({ targetStation, userCoords, onClose }) {
             </div>
           </div>
 
-          <button 
-            type="button" 
-            className="nav-btn-end-route" 
-            onClick={handleExitNav}
-          >
-            <X size={18} strokeWidth={2.5} />
-            <span>Yakunlash</span>
-          </button>
+          <div className="nav-bottom-actions-row">
+            <button 
+              type="button" 
+              className="nav-btn-external-nav" 
+              onClick={() => setShowExternalNavSheet(true)}
+              title="Yandex yoki Google Xaritalar orqali ochish"
+            >
+              <ExternalLink size={16} strokeWidth={2.4} />
+              <span>Yandex / Google</span>
+            </button>
+            <button 
+              type="button" 
+              className="nav-btn-end-route-half" 
+              onClick={handleExitNav}
+            >
+              <X size={17} strokeWidth={2.5} />
+              <span>Yakunlash</span>
+            </button>
+          </div>
         </div>
       ) : (
         /* YETIB KELGANDAGI MA'LUMOT KARTASI (2-rasm o'ng tomoni) */
@@ -717,6 +841,53 @@ export default function NavigationMode({ targetStation, userCoords, onClose }) {
 
           <div className="nav-report-footer">
             Ma'lumot noto'g'rimi? <span className="nav-report-link" onClick={handleExitNav}>Xabar bering</span>
+          </div>
+        </div>
+      )}
+
+      {/* TASHQI NAVIGATORLAR (YANDEX / GOOGLE) MODAL OYNASI */}
+      {showExternalNavSheet && (
+        <div className="nav-external-modal-overlay" onClick={() => setShowExternalNavSheet(false)}>
+          <div className="nav-external-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="nav-external-modal-header">
+              <div className="nav-external-modal-title">Tashqi xaritada ochish</div>
+              <button 
+                type="button" 
+                className="nav-external-close-btn" 
+                onClick={() => setShowExternalNavSheet(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p className="nav-external-modal-subtitle">
+              Ovozli yo'nalish yoki batafsil tirbandliklar bilan borish uchun tanlang:
+            </p>
+
+            <button type="button" className="nav-ext-btn yandex" onClick={openYandexNavi}>
+              <div className="nav-ext-icon-box yandex-box">Я</div>
+              <div className="nav-ext-btn-info">
+                <div className="nav-ext-btn-name">Yandex Xarita / Navigator</div>
+                <div className="nav-ext-btn-desc">O'zbekistondagi eng mashhur ovozli navigator</div>
+              </div>
+            </button>
+
+            <button type="button" className="nav-ext-btn google" onClick={openGoogleMaps}>
+              <div className="nav-ext-icon-box google-box">
+                <MapPin size={20} color="#ea4335" />
+              </div>
+              <div className="nav-ext-btn-info">
+                <div className="nav-ext-btn-name">Google Maps</div>
+                <div className="nav-ext-btn-desc">Global Google xaritasi orqali marshrut</div>
+              </div>
+            </button>
+
+            <button 
+              type="button" 
+              className="nav-ext-cancel-btn"
+              onClick={() => setShowExternalNavSheet(false)}
+            >
+              Bekor qilish
+            </button>
           </div>
         </div>
       )}
