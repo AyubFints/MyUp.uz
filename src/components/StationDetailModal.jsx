@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  ChevronLeft, ChevronRight, MapPin, Phone, Info, Navigation, X, Maximize2, Edit3
+  ChevronLeft, ChevronRight, MapPin, Phone, Info, Navigation, X, Maximize2
 } from 'lucide-react';
 import { formatDistance } from '../utils/distance';
 
@@ -428,42 +428,12 @@ export default function StationDetailModal({
           </div>
 
           {/* ========================================================
-              6. BORISH VA BOSHQARISH TUGMALARI
+              6. BORISH TUGMASI
               ======================================================== */}
           <div className="sd-bottom-actions">
-            {isMyStation && onManageStation && (
-              <button
-                type="button"
-                className="sd-manage-action-btn"
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '14px 18px',
-                  borderRadius: '16px',
-                  background: 'rgba(59, 130, 246, 0.1)',
-                  border: '1.5px solid rgba(59, 130, 246, 0.4)',
-                  color: '#3b82f6',
-                  fontWeight: 700,
-                  fontSize: '0.95rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                }}
-                onClick={() => {
-                  onClose();
-                  onManageStation(station);
-                }}
-              >
-                <Edit3 size={18} />
-                <span>Boshqarish</span>
-              </button>
-            )}
             <button
               type="button"
               className="sd-borish-action-btn"
-              style={{ flex: isMyStation && onManageStation ? 1.4 : 1 }}
               onClick={() => {
                 onClose();
                 if (onStartNavigation) {
