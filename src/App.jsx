@@ -4206,8 +4206,8 @@ export default function App() {
 
                           {/* 3. FAQAT JOYLAShUV JOYLAShDAN RO'YXATDAN O'TGAN BO'LSA:
                                  Joylashuv qo'shish va Mening joylashuvlarim ko'rinadi.
-                                 Oddiy user bo'lsa butkul olib tashlanadi! */}
-                          {isLocationRegistered && (
+                                 Oddiy user bo'lsa faollashtirish kartasi ko'rsatiladi */}
+                          {isLocationRegistered ? (
                             <>
                               {/* 2. PROFIL PASTIDA JOYLASHUV QO'SHISH DEGAN JOY */}
                               <button
@@ -4340,6 +4340,68 @@ export default function App() {
                                 )}
                               </div>
                             </>
+                          ) : (
+                            <div 
+                              className="profile-activate-location-card" 
+                              style={{
+                                marginTop: '16px',
+                                padding: '18px 20px',
+                                borderRadius: '20px',
+                                background: 'rgba(56, 189, 248, 0.06)',
+                                border: '1.5px dashed rgba(56, 189, 248, 0.35)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '12px',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{
+                                  width: '42px',
+                                  height: '42px',
+                                  borderRadius: '14px',
+                                  background: 'rgba(56, 189, 248, 0.16)',
+                                  color: '#38bdf8',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0
+                                }}>
+                                  <Building2 size={22} />
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: '#38bdf8' }}>
+                                    Yoqilg'i shahobchangiz bormi?
+                                  </h4>
+                                  <p style={{ margin: '3px 0 0', fontSize: '0.82rem', color: 'var(--theme-muted, #94a3b8)', lineHeight: 1.4 }}>
+                                    O'z shahobchangizni xaritaga joylashtirish va narxlarni boshqarish imkoniyatini profilingizda faollashtiring.
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                style={{
+                                  width: '100%',
+                                  padding: '12px 18px',
+                                  borderRadius: '14px',
+                                  background: 'linear-gradient(135deg, #0284c7, #38bdf8)',
+                                  color: '#ffffff',
+                                  fontWeight: 700,
+                                  fontSize: '0.92rem',
+                                  border: 'none',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '8px',
+                                  cursor: 'pointer',
+                                  boxShadow: '0 4px 16px rgba(2, 132, 199, 0.35)',
+                                  transition: 'all 0.2s ease',
+                                }}
+                                onClick={handleGoToLocationRegister}
+                              >
+                                <Plus size={18} />
+                                <span>Joylashuv qo'shishni faollashtirish</span>
+                              </button>
+                            </div>
                           )}
                         </>
                       );

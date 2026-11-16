@@ -17,6 +17,8 @@ import {
   AlertCircle,
   Smartphone,
   Download,
+  Bell,
+  Sparkles,
 } from "lucide-react";
 
 /**
@@ -35,6 +37,7 @@ export default function GuideSection({
   const [openAccordion, setOpenAccordion] = useState({
     about: false,
     register: false,
+    activation: true,
     location: false,
     admin: false,
   });
@@ -287,7 +290,122 @@ export default function GuideSection({
         </section>
 
         {/* ========================================================
-            3-BO'LIM: JOYLASHUV QO'SHISH TARTIBI
+            3-BO'LIM: PROFIL OCHIB, JOYLASHUV QO'SHISHNI FAOLLASHTIRISH (MAXSUS QO'LLANMA)
+            ======================================================== */}
+        <section
+          className="guide-card-block"
+          style={{ background: cardBg, borderColor }}
+        >
+          <div
+            className="guide-card-header"
+            onClick={() => toggleSection("activation")}
+            role="button"
+            tabIndex={0}
+          >
+            <div className="guide-card-title-group">
+              <span className="guide-card-number" style={{ background: 'linear-gradient(135deg, #0284c7, #38bdf8)', color: '#ffffff' }}>3</span>
+              <div>
+                <h2 className="guide-card-title" style={{ color: textPrimary, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span>Profil ochib, joylashuv qo'shishni qayerdan faollashtirish kerak?</span>
+                  <span style={{ fontSize: '0.72rem', background: 'rgba(56, 189, 248, 0.18)', color: '#38bdf8', padding: '2px 8px', borderRadius: '6px', fontWeight: 700 }}>
+                    Muhim qo'llanma
+                  </span>
+                </h2>
+                <span className="guide-card-meta" style={{ color: textMuted }}>
+                  Ro'yxatdan o'tgan bo'lsangiz-u, joylashuv qo'shish tugmasi ko'rinmayotgan bo'lsa nima qilish kerak?
+                </span>
+              </div>
+            </div>
+            <div className="guide-accordion-arrow" style={{ color: textMuted }}>
+              {openAccordion.activation ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+            </div>
+          </div>
+
+          {openAccordion.activation && (
+            <div className="guide-card-body">
+              <div 
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: '14px',
+                  background: 'rgba(56, 189, 248, 0.08)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px'
+                }}
+              >
+                <Info size={20} color="#38bdf8" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ fontSize: '0.86rem', lineHeight: 1.5, color: textPrimary }}>
+                  <strong>Nima uchun darhol «Joylashuv qo'shish» chiqmaydi?</strong>
+                  <p style={{ margin: '4px 0 0', color: textMuted }}>
+                    AX-Map ilovasida oddiy haydovchilar ortiqcha murakkab boshqaruv tugmalaridan chalg'imasligi uchun dastlab oddiy shaxsiy profil beriladi. Yoqilg'i shahobchalari yoki avto-servis egalari esa o'z profilida 1 marta tasdiqlash orqali <strong>«Joylashuv qo'shish»</strong> huquqini juda oson faollashtirib oladilar.
+                  </p>
+                </div>
+              </div>
+
+              <h4 className="guide-subheading" style={{ color: textPrimary }}>
+                Qanday holatda nima qilish kerak? (Bosqichma-bosqich):
+              </h4>
+
+              <div className="guide-ordered-steps">
+                <div className="guide-step-row">
+                  <div className="guide-step-index">1</div>
+                  <div className="guide-step-detail">
+                    <strong style={{ color: textPrimary }}>«Profil» bo'limiga o'ting</strong>
+                    <p style={{ color: textMuted }}>
+                      Ilovaning pastki o'ng burchagidagi (yoki kompyuterda tepa o'ngdagi) <strong>«Profil»</strong> tugmasini bosing va o'z hisobingizga kiring.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="guide-step-row">
+                  <div className="guide-step-index">2</div>
+                  <div className="guide-step-detail">
+                    <strong style={{ color: textPrimary }}>«Joylashuv qo'shishni faollashtirish» tugmasini toping</strong>
+                    <p style={{ color: textMuted }}>
+                      Profilingiz sahifasida shaxsiy ma'lumotlaringiz tagida joylashgan havorang-ko'k hoshiyali <strong>«Yoqilg'i shahobchangiz bormi? Joylashuv qo'shishni faollashtirish»</strong> tugmasini bosing. (Shuningdek, profilingiz tepasidagi qo'ng'iroqcha <Bell size={13} style={{ display: 'inline', verticalAlign: 'middle', color: '#38bdf8' }} /> bildirishnomalar oynasi orqali ham buni 1 bosishda ochishingiz mumkin).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="guide-step-row">
+                  <div className="guide-step-index">3</div>
+                  <div className="guide-step-detail">
+                    <strong style={{ color: textPrimary }}>Shahobcha boshqaruv ma'lumotlarini kiriting</strong>
+                    <p style={{ color: textMuted }}>
+                      Ochilgan oynada shahobchangizning asosiy nomi, mas'ul inson ismi, boshqaruv paroli va telefon raqamingizni kiriting hamda «Saqlash» tugmasini bosing.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="guide-step-row">
+                  <div className="guide-step-index">4</div>
+                  <div className="guide-step-detail">
+                    <strong style={{ color: textPrimary }}>Profilingizda «Joylashuv qo'shish» tugmasi ochiladi!</strong>
+                    <p style={{ color: textMuted }}>
+                      Tasdiqlashingiz bilan profilingizda darhol <strong>«Barcha joylashuvlar boshqarmasi»</strong> hamda yorqin ko'k rangdagi <strong>«Joylashuv qo'shish»</strong> tugmasi doimiy ravishda ko'rinib turadi. Endi siz istalgancha o'z shahobchalaringizni qo'shishingiz mumkin!
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="guide-action-footer">
+                <button
+                  type="button"
+                  className="guide-primary-btn"
+                  onClick={onGoToAddLocation}
+                >
+                  <Sparkles size={16} />
+                  <span>Profilingizga o'tib faollashtirish</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* ========================================================
+            4-BO'LIM: JOYLASHUV QO'SHISH TARTIBI (7 TA QADAM)
             ======================================================== */}
         <section
           className="guide-card-block"
@@ -300,13 +418,13 @@ export default function GuideSection({
             tabIndex={0}
           >
             <div className="guide-card-title-group">
-              <span className="guide-card-number">3</span>
+              <span className="guide-card-number">4</span>
               <div>
                 <h2 className="guide-card-title" style={{ color: textPrimary }}>
-                  Joylashuv qo'shish (Shahobcha egalari uchun)
+                  Shahobchani xaritaga joylashtirish tartibi (7 bosqich)
                 </h2>
                 <span className="guide-card-meta" style={{ color: textMuted }}>
-                  Shoxobchangizni 5 ta aniq qadamda xaritaga joylashtirish
+                  «Joylashuv qo'shish» bosilgandan so'ng ma'lumotlarni to'ldirish bosqichlari
                 </span>
               </div>
             </div>
@@ -318,16 +436,16 @@ export default function GuideSection({
           {openAccordion.location && (
             <div className="guide-card-body">
               <p className="guide-lead-text" style={{ color: textPrimary }}>
-                Agar siz yoqilg'i quyish stansiyasi (Metan, Propan, Benzin, Elektr zaryadka) yoki avto-servis (moyka, moy almashtirish) egasi bo'lsangiz, o'z ob'ektingizni bepul xaritaga qo'shishingiz mumkin:
+                Ko'k rangli <strong>«Joylashuv qo'shish»</strong> tugmasini bosganingizdan keyin 7 ta aniq bosqich orqali manzilingiz shakllanadi:
               </p>
 
               <div className="guide-ordered-steps">
                 <div className="guide-step-row">
                   <div className="guide-step-index">1</div>
                   <div className="guide-step-detail">
-                    <strong style={{ color: textPrimary }}>«Joylashuv qo'shish» tugmasini bosing</strong>
+                    <strong style={{ color: textPrimary }}>1-bosqich: Xaritadan nuqtani aniq belgilang</strong>
                     <p style={{ color: textMuted }}>
-                      Profil sahifasining pastki qismidagi ko'k rangli «Joylashuv qo'shish» tugmasini tanlang.
+                      Xaritadagi qizil belgi (pin)ni surib, shahobchangizning kirish yo'li yoki binosi ustiga to'g'rilang va «Joylashuvni tasdiqlash» tugmasini bosing.
                     </p>
                   </div>
                 </div>
@@ -335,9 +453,9 @@ export default function GuideSection({
                 <div className="guide-step-row">
                   <div className="guide-step-index">2</div>
                   <div className="guide-step-detail">
-                    <strong style={{ color: textPrimary }}>Xaritadan nuqtani belgilang</strong>
+                    <strong style={{ color: textPrimary }}>2-bosqich: Manzil turi va nomi</strong>
                     <p style={{ color: textMuted }}>
-                      Xaritadagi qizil markerni shahobchangiz joylashgan aniq manzil ustiga olib boring yoki «Mening joylashuvim» tugmasini bosing.
+                      Shahobcha turini (Yoqilg'i shahobchasi) va uning rasmiy nomini kiriting (Masalan: «Mustang Gaz», «Real Metan», «UzGazOil»).
                     </p>
                   </div>
                 </div>
@@ -345,9 +463,9 @@ export default function GuideSection({
                 <div className="guide-step-row">
                   <div className="guide-step-index">3</div>
                   <div className="guide-step-detail">
-                    <strong style={{ color: textPrimary }}>Asosiy ma'lumotlarni kiriting</strong>
+                    <strong style={{ color: textPrimary }}>3-bosqich: Yoqilg'i turlari va narxlar</strong>
                     <p style={{ color: textMuted }}>
-                      Shahobcha nomi (masalan: «Real Metan Gaz»), viloyat/shahar nomi, aniq mo'ljal va mijozlar qo'ng'iroq qilishi uchun telefon raqami.
+                      Shahobchangizda mavjud yoqilg'i turlarini tanlang: Metan, Propan, Benzin (Ai-80, 92, 95), Dizel yoki Elektr zaryadka. Har birining amaldagi so'mdagi narxini va metan uchun amaldagi gaz bosimini kiriting.
                     </p>
                   </div>
                 </div>
@@ -355,9 +473,9 @@ export default function GuideSection({
                 <div className="guide-step-row">
                   <div className="guide-step-index">4</div>
                   <div className="guide-step-detail">
-                    <strong style={{ color: textPrimary }}>Yoqilg'i turlari va narxlarni belgilang</strong>
+                    <strong style={{ color: textPrimary }}>4-bosqich: Menejer telefoni</strong>
                     <p style={{ color: textMuted }}>
-                      Metan, Propan, Ai-80, 92, 95 yoki Elektro turlarini belgilab, joriy narxlarini (so'mda) va amaldagi gaz bosimini kiriting.
+                      Mijozlar qo'ng'iroq qilishi va ma'lumot olishi uchun shahobcha operatori yoki menejerining amaldagi telefon raqamini ko'rsating.
                     </p>
                   </div>
                 </div>
@@ -365,9 +483,29 @@ export default function GuideSection({
                 <div className="guide-step-row">
                   <div className="guide-step-index">5</div>
                   <div className="guide-step-detail">
-                    <strong style={{ color: textPrimary }}>Rasmlarni yuklang va yuboring</strong>
+                    <strong style={{ color: textPrimary }}>5-bosqich: Tavsif, umumiy rasmlar va Super Admin uchun 3 ta rasm</strong>
                     <p style={{ color: textMuted }}>
-                      Ob'ektingizning tashqi ko'rinishi, peshtoqi yoki stendi aks etgan fotosuratlarni biriktiring va «Saqlash» (yuborish) tugmasini bosing.
+                      Foydalanuvchilar ko'rishi uchun qisqacha tavsif yozing. So'ngra shahobchaning haqiqiyligini tekshirish uchun Dastur Administratsiyasi talab qiladigan <strong>3 ta rasm</strong>ni yuklang: 1) Tashqi tomondan, 2) Ichki tomondan, 3) Yo'l yuzi tomonidan olingan rasmlar.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="guide-step-row">
+                  <div className="guide-step-index">6</div>
+                  <div className="guide-step-detail">
+                    <strong style={{ color: textPrimary }}>6-bosqich: Qulayliklar va to'lov turlari</strong>
+                    <p style={{ color: textMuted }}>
+                      Shahobchangizda Qahva, Hojatxona, Do'kon bormi («Bor» yoki «Yo'q» ni belgilang). Shuningdek qabul qilinadigan to'lov usullarini (Naqd, Uzcard, HUMO, Visa) tasdiqlang.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="guide-step-row">
+                  <div className="guide-step-index">7</div>
+                  <div className="guide-step-detail">
+                    <strong style={{ color: textPrimary }}>7-bosqich: So'nggi savollar va tasdiqlash</strong>
+                    <p style={{ color: textMuted }}>
+                      Har kuni narxlarni yangilab turish bo'yicha qisqa savollarga javob bering va <strong>«Tasdiqlash va saqlash»</strong> tugmasini bosing.
                     </p>
                   </div>
                 </div>
@@ -388,7 +526,7 @@ export default function GuideSection({
         </section>
 
         {/* ========================================================
-            4-BO'LIM: ADMINISTRATORGA YUBORILISHI VA TASDIQLANISHI
+            5-BO'LIM: ADMINISTRATORGA YUBORILISHI VA TASDIQLANISHI
             ======================================================== */}
         <section
           className="guide-card-block"
@@ -401,7 +539,7 @@ export default function GuideSection({
             tabIndex={0}
           >
             <div className="guide-card-title-group">
-              <span className="guide-card-number">4</span>
+              <span className="guide-card-number">5</span>
               <div>
                 <h2 className="guide-card-title" style={{ color: textPrimary }}>
                   Administrator tekshiruvi va tasdiqlanish tartibi

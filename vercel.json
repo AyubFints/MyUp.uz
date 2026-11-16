@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://desperate-availability-building-limousines.trycloudflare.com/api/:path*"
+      "destination": "https://retained-titans-proof-done.trycloudflare.com/api/:path*"
     },
     {
       "source": "/(.*)",
