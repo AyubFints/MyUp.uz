@@ -1,6 +1,6 @@
 // MyUp.uz Markaziy API mijozi (Frontend -> Backend Express + PostgreSQL)
 
-export const PUBLIC_BACKEND_URL = 'https://retained-titans-proof-done.trycloudflare.com/api';
+export const PUBLIC_BACKEND_URL = 'https://ruby-comes-logs-ist.trycloudflare.com/api';
 
 export const getApiBaseUrl = () => {
   if (typeof window !== 'undefined') {
