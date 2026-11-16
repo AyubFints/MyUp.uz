@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://ruby-comes-logs-ist.trycloudflare.com/api/:path*"
+      "destination": "https://encryption-southwest-blogging-templates.trycloudflare.com/api/:path*"
     },
     {
       "source": "/(.*)",
