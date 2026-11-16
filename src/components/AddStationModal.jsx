@@ -911,9 +911,9 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
             <h2 className="modern-add-step-title">Ma'lumotlar va rasmlar</h2>
             <p className="modern-add-step-desc">Shahobchangiz haqida qisqacha ma'lumot va rasmlar:</p>
 
-            <div className="modern-field-group">
-              <label className="modern-field-label">Shahobcha tavsifi</label>
-              <div className="modern-input-wrap modern-textarea-wrap">
+            <div className="modern-field-group" style={{ marginBottom: '18px' }}>
+              <label className="modern-field-label" style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem' }}>Shahobcha tavsifi</label>
+              <div className="modern-input-wrap modern-textarea-wrap" style={{ display: 'block', minHeight: '88px', padding: '10px 12px' }}>
                 <textarea 
                   placeholder="Foydalanuvchilar ko'rishi uchun qisqacha ma'lumot (qulayliklar, xizmatlar)..." 
                   value={description}
@@ -924,8 +924,8 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
               </div>
             </div>
 
-            <div className="modern-field-group mt-3">
-              <label className="modern-field-label">Rasmlar (kamida 1 ta, ko'pi bilan 5 ta) *</label>
+            <div className="modern-field-group" style={{ marginTop: '18px', marginBottom: '18px' }}>
+              <label className="modern-field-label" style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem' }}>Rasmlar (kamida 1 ta, ko'pi bilan 5 ta) *</label>
               <div className="modern-add-images-grid">
                 {images.map((img, idx) => (
                   <div key={idx} className="modern-add-image-thumb">

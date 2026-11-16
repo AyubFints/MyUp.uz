@@ -4,12 +4,32 @@ import { getLiveTrafficStats } from './analyticsController.js';
 // Super Admin Asosiy Statistikasi (Dashboard Stats)
 export const getDashboardStats = async (req, res) => {
   try {
+    // 1 kundan oshgan rad etilgan shahobchalarni avtomatik tozalash (getAllStationsAdmin bilan sinxron)
+    await query(`
+      DELETE FROM stations 
+      WHERE status = 'rejected' 
+        AND rejected_at IS NOT NULL 
+        AND rejected_at < NOW() - INTERVAL '1 day'
+    `).catch(() => {});
+
     // 1. Foydalanuvchilar, Shahobchalar va Jonli trafik
-    const [usersCount, stationsCount, openStationsCount, pendingStationsCount, feedbacksCount, newFeedbacksCount, traffic] = await Promise.all([
+    const [
+      usersCount,
+      stationsCount,
+      openStationsCount,
+      pendingStationsCount,
+      approvedStationsCount,
+      rejectedStationsCount,
+      feedbacksCount,
+      newFeedbacksCount,
+      traffic
+    ] = await Promise.all([
       query('SELECT COUNT(*)::int AS count FROM users'),
-      query('SELECT COUNT(*)::int AS count FROM stations'),
-      query('SELECT COUNT(*)::int AS count FROM stations WHERE is_open = true'),
-      query('SELECT COUNT(*)::int AS count FROM stations WHERE is_approved = false'),
+      query("SELECT COUNT(*)::int AS count FROM stations WHERE (rejected_at IS NULL OR rejected_at >= NOW() - INTERVAL '1 day')"),
+      query("SELECT COUNT(*)::int AS count FROM stations WHERE is_open = true AND (status != 'rejected' OR status IS NULL)"),
+      query("SELECT COUNT(*)::int AS count FROM stations WHERE (is_approved = false OR status = 'pending') AND (status IS NULL OR status != 'rejected')"),
+      query("SELECT COUNT(*)::int AS count FROM stations WHERE is_approved = true OR status = 'approved'"),
+      query("SELECT COUNT(*)::int AS count FROM stations WHERE status = 'rejected'"),
       query('SELECT COUNT(*)::int AS count FROM feedbacks'),
       query('SELECT COUNT(*)::int AS count FROM feedbacks WHERE status = \'yangi\''),
       getLiveTrafficStats(),
@@ -48,8 +68,11 @@ export const getDashboardStats = async (req, res) => {
         dailyHistory: traffic.dailyHistory,
         totalUsers: usersCount.rows[0].count,
         totalStations: stationsCount.rows[0].count,
+        totalLocations: stationsCount.rows[0].count,
+        approvedStations: approvedStationsCount.rows[0].count,
         openStations: openStationsCount.rows[0].count,
         pendingStations: pendingStationsCount.rows[0].count,
+        rejectedStations: rejectedStationsCount.rows[0].count,
         totalFeedbacks: feedbacksCount.rows[0].count,
         newFeedbacks: newFeedbacksCount.rows[0].count,
         averageMetanPressure: parseFloat(metanAvg.rows[0]?.avgPressure) || 0,

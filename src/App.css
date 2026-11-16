@@ -5367,6 +5367,7 @@ body {
   border: 1.5px solid var(--theme-border, rgba(255, 255, 255, 0.08));
   transition: all 0.2s ease;
   width: 100%;
+  max-width: 100%;
   box-sizing: border-box;
   overflow: hidden;
   gap: 8px;
@@ -5385,8 +5386,8 @@ body {
 .service-card-left {
   display: flex;
   align-items: center;
-  gap: 9px;
-  flex: 1;
+  gap: 8px;
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
 }
@@ -5406,9 +5407,9 @@ body {
 }
 
 .service-card-icon-box.pay-icon-box {
-  width: 42px;
+  width: 40px;
   height: 28px;
-  min-width: 42px;
+  min-width: 40px;
   border-radius: 7px;
   padding: 0;
 }
@@ -5433,13 +5434,13 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
 }
 
 .service-card-title {
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   font-weight: 700;
   color: var(--theme-text, #ffffff);
   white-space: nowrap;
@@ -5467,6 +5468,7 @@ body {
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .service-toggle-btn {
@@ -5487,6 +5489,23 @@ body {
   box-sizing: border-box;
   flex-shrink: 0;
   line-height: 1;
+}
+
+@media (max-width: 380px) {
+  .service-toggle-btn {
+    padding: 4px 6px;
+    font-size: 0.70rem;
+    gap: 2px;
+  }
+  .service-card-icon-box {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+  }
+  .service-card-icon-box.pay-icon-box {
+    width: 36px;
+    min-width: 36px;
+  }
 }
 
 .service-toggle-btn:hover {

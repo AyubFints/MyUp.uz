@@ -1,6 +1,6 @@
 // MyUp.uz Markaziy API mijozi (Frontend -> Backend Express + PostgreSQL)
 
-export const PUBLIC_BACKEND_URL = 'https://shift-eggs-sugar-top.trycloudflare.com/api';
+export const PUBLIC_BACKEND_URL = 'https://desperate-availability-building-limousines.trycloudflare.com/api';
 
 export const getApiBaseUrl = () => {
   if (typeof window !== 'undefined') {
