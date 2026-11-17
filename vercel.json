@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://sometimes-trance-declaration-lit.trycloudflare.com/api/:path*"
+      "destination": "https://sleeping-grain-currencies-prayer.trycloudflare.com/api/:path*"
     },
     {
       "source": "/(.*)",
