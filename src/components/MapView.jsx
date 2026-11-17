@@ -876,14 +876,27 @@ export default function MapView({
 
   // Xarita konteyneri o'lchami o'zgarganda (balandlik oshirilganda) MapLibre'ni darhol qayta moslash
   useEffect(() => {
-    if (!mapContainerRef.current || !mapInstance) return;
+    if (!mapInstance) return;
+    if (typeof mapInstance.resize === 'function') {
+      mapInstance.resize();
+    }
     const ro = new ResizeObserver(() => {
       if (mapInstance && typeof mapInstance.resize === 'function') {
         mapInstance.resize();
       }
     });
-    ro.observe(mapContainerRef.current);
-    return () => ro.disconnect();
+    if (mapContainerRef.current) {
+      ro.observe(mapContainerRef.current);
+    }
+    const t = setTimeout(() => {
+      if (mapInstance && typeof mapInstance.resize === 'function') {
+        mapInstance.resize();
+      }
+    }, 150);
+    return () => {
+      ro.disconnect();
+      clearTimeout(t);
+    };
   }, [mapInstance]);
 
   // Xarita va barcha shahobchalar xaritaga to'liq tushguncha yarqirab turishi (Foydalanuvchi talabi)

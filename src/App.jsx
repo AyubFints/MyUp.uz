@@ -125,6 +125,39 @@ const StationReviewModal = lazyWithRetry(() => import("./components/StationRevie
 const PrivacyPolicyPage = lazyWithRetry(() => import("./components/PrivacyPolicyPage"));
 const AppDownloadPage = lazyWithRetry(() => import("./components/AppDownloadPage"));
 
+const DesktopHomeMapLoadingFallback = () => (
+  <div className="map-shimmer-fullscreen-overlay">
+    <div className="map-shimmer-grid-pattern" />
+    <div className="map-shimmer-laser-beam" />
+    <div className="map-shimmer-center-radar">
+      <div className="map-shimmer-radar-circle">
+        <div className="map-radar-pulse-ring ring-one" />
+        <div className="map-radar-pulse-ring ring-two" />
+        <div className="map-radar-pulse-ring ring-three" />
+        <div className="map-radar-compass-center">
+          <Navigation size={28} className="map-radar-compass-icon" />
+        </div>
+      </div>
+      <h3 className="map-shimmer-main-title">Xarita va Shahobchalar yuklanmoqda...</h3>
+      <p className="map-shimmer-sub-text">
+        GPS koordinatalar va barcha shahobchalar xaritaga tushirilmoqda
+      </p>
+      <div className="map-shimmer-progress-track">
+        <div className="map-shimmer-progress-fill" />
+      </div>
+    </div>
+    <div className="map-ghost-top-bar">
+      <div className="map-ghost-search-box" />
+      <div className="map-ghost-pills-row">
+        <div className="map-ghost-pill pill-accent" />
+        <div className="map-ghost-pill" />
+        <div className="map-ghost-pill" />
+        <div className="map-ghost-pill" />
+      </div>
+    </div>
+  </div>
+);
+
 const MapLoadingFallback = () => (
   <div className="map-shimmer-fullscreen-overlay">
     <div className="map-shimmer-grid-pattern" />
@@ -3174,17 +3207,7 @@ export default function App() {
     switch (target) {
       case "map":
         return (
-          <div
-            className="map-fullscreen-wrapper"
-            style={{
-              position: 'fixed',
-              top: '75px',
-              left: 0,
-              right: 0,
-              bottom: 0,
-              zIndex: 5,
-            }}
-          >
+          <div className="map-fullscreen-wrapper">
             <Suspense fallback={<MapLoadingFallback />}>
               <MapView
                 stations={combinedUniqueStations}
@@ -3853,7 +3876,7 @@ export default function App() {
             {/* RIGHT PANEL MAP & BOTTOM 70PX AD */}
             <div className="right-panel-map">
               <div className="home-map-container">
-                <Suspense fallback={<MapLoadingFallback />}>
+                <Suspense fallback={<DesktopHomeMapLoadingFallback />}>
                   <MapView
                     stations={combinedUniqueStations}
                     activeFuelFilter={fuelSubFilter}
@@ -5009,17 +5032,7 @@ export default function App() {
 
       {/* MAP - Full Screen (content-area tashqarisida) */}
       {activeTab === "map" && (
-        <div
-          className={`map-fullscreen-wrapper ${tabAnimClass}`}
-          style={{
-            position: 'fixed',
-            top: '75px',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 5,
-          }}
-        >
+        <div className={`map-fullscreen-wrapper ${tabAnimClass}`}>
           <Suspense fallback={<MapLoadingFallback />}>
             <MapView
               stations={combinedUniqueStations}

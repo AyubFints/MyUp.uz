@@ -8878,10 +8878,26 @@ body {
 
 
 
+.map-fullscreen-wrapper {
+  position: fixed;
+  top: 75px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: calc(100vh - 75px);
+  z-index: 5;
+}
+
 @media (max-width: 768px) {
   .map-fullscreen-wrapper {
+    position: fixed !important;
     top: 64px !important;
+    left: 0 !important;
+    right: 0 !important;
     bottom: 64px !important;
+    width: 100% !important;
+    height: calc(100dvh - 128px) !important;
   }
 }
 
@@ -17159,7 +17175,7 @@ body.light-theme .location-fallback-btn {
   color: #334155;
 }
 
-/* ===== MAP SHIMMER / SKELETON OVERLAY (HARITAGA KIRISHDA SKROMNI OQ VA KULRANG YALTIRAB TURUVCHI EKRAN) ===== */
+/* ===== MAP SHIMMER / SKELETON OVERLAY (TO'Q KO'K RADIAL FON VA FUTURISTIK RADAR) ===== */
 .map-shimmer-fullscreen-overlay {
   position: absolute;
   top: 0;
@@ -17169,7 +17185,7 @@ body.light-theme .location-fallback-btn {
   width: 100%;
   height: 100%;
   z-index: 50;
-  background: radial-gradient(circle at 50% 45%, #ffffff 0%, #f8fafc 55%, #edf2f7 100%);
+  background: radial-gradient(circle at 50% 45%, #0d1b2e 0%, #071120 55%, #030812 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -17185,19 +17201,19 @@ body.light-theme .location-fallback-btn {
   pointer-events: none;
 }
 
-/* Xarita to'r chiziqlari (Modest neutral grid) */
+/* Xarita to'r chiziqlari (High-tech map grid) */
 .map-shimmer-grid-pattern {
   position: absolute;
   inset: 0;
   background-image: 
-    linear-gradient(rgba(148, 163, 184, 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px);
-  background-size: 38px 38px;
+    linear-gradient(rgba(56, 189, 248, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.07) 1px, transparent 1px);
+  background-size: 40px 40px;
   background-position: center center;
   pointer-events: none;
 }
 
-/* Oq va kumush rang lazer/shimmer oqimi */
+/* Diagional yarqiroq lazer nuri */
 .map-shimmer-laser-beam {
   position: absolute;
   top: -50%;
@@ -17207,12 +17223,12 @@ body.light-theme .location-fallback-btn {
   background: linear-gradient(
     115deg,
     transparent 20%,
-    rgba(255, 255, 255, 0.45) 45%,
-    rgba(255, 255, 255, 0.95) 50%,
-    rgba(255, 255, 255, 0.45) 55%,
+    rgba(56, 189, 248, 0.08) 45%,
+    rgba(255, 255, 255, 0.18) 50%,
+    rgba(56, 189, 248, 0.08) 55%,
     transparent 80%
   );
-  animation: mapLaserSweep 2.4s ease-in-out infinite;
+  animation: mapLaserSweep 2.5s ease-in-out infinite;
   pointer-events: none;
 }
 
@@ -17221,7 +17237,7 @@ body.light-theme .location-fallback-btn {
   100% { transform: translate(30%, 30%); }
 }
 
-/* Markaziy radar kartasi (Sipo oq va kulrang dizayn) */
+/* Markaziy radar kartasi (To'q ko'k card) */
 .map-shimmer-center-radar {
   position: relative;
   z-index: 5;
@@ -17231,18 +17247,18 @@ body.light-theme .location-fallback-btn {
   text-align: center;
   padding: 24px 28px;
   margin: 0 16px;
-  max-width: 320px;
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  border-radius: 20px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08), 0 2px 8px rgba(15, 23, 42, 0.04);
+  max-width: 360px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 24px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6), 0 0 35px rgba(2, 132, 199, 0.22);
 }
 
 .map-shimmer-radar-circle {
   position: relative;
-  width: 72px;
-  height: 72px;
+  width: 76px;
+  height: 76px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -17250,14 +17266,14 @@ body.light-theme .location-fallback-btn {
 }
 
 .map-radar-compass-center {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 14px rgba(71, 85, 105, 0.25);
+  box-shadow: 0 0 24px rgba(56, 189, 248, 0.7);
   z-index: 3;
 }
 
@@ -17269,13 +17285,13 @@ body.light-theme .location-fallback-btn {
 
 @keyframes mapCompassPulse {
   0%, 100% { transform: rotate(45deg) scale(1); }
-  50% { transform: rotate(45deg) scale(1.1); }
+  50% { transform: rotate(45deg) scale(1.12); }
 }
 
 .map-radar-pulse-ring {
   position: absolute;
   border-radius: 50%;
-  border: 1.5px solid rgba(148, 163, 184, 0.45);
+  border: 1.5px solid rgba(56, 189, 248, 0.55);
   animation: mapRingExpand 2.2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
 }
 
@@ -17284,23 +17300,30 @@ body.light-theme .location-fallback-btn {
 .ring-three { width: 100%; height: 100%; animation-delay: 1.4s; }
 
 @keyframes mapRingExpand {
-  0% { transform: scale(0.6); opacity: 0.9; }
-  100% { transform: scale(2.2); opacity: 0; }
+  0% { transform: scale(0.6); opacity: 0.95; }
+  100% { transform: scale(2.3); opacity: 0; }
 }
 
 .map-shimmer-main-title {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 12px 0;
+  font-size: 1.12rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 8px 0;
   letter-spacing: -0.01em;
 }
 
+.map-shimmer-sub-text {
+  font-size: 0.84rem;
+  color: #94a3b8;
+  margin: 0 0 14px 0;
+  line-height: 1.4;
+}
+
 .map-shimmer-progress-track {
-  width: 140px;
-  height: 4px;
+  width: 150px;
+  height: 5px;
   border-radius: 9999px;
-  background: #e2e8f0;
+  background: rgba(255, 255, 255, 0.1);
   overflow: hidden;
   position: relative;
 }
@@ -17312,8 +17335,8 @@ body.light-theme .location-fallback-btn {
   bottom: 0;
   width: 40%;
   border-radius: 9999px;
-  background: linear-gradient(90deg, #cbd5e1, #64748b, #cbd5e1);
-  box-shadow: 0 0 8px rgba(100, 116, 139, 0.3);
+  background: linear-gradient(90deg, #0284c7, #38bdf8, #818cf8);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.9);
   animation: mapProgressBarLoop 1.6s ease-in-out infinite;
 }
 
@@ -17341,9 +17364,9 @@ body.light-theme .location-fallback-btn {
   max-width: 440px;
   height: 44px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   position: relative;
   overflow: hidden;
 }
@@ -17354,7 +17377,7 @@ body.light-theme .location-fallback-btn {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(241, 245, 249, 0.85), transparent);
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.22), transparent);
   animation: ghostShimmerSweep 1.8s ease-in-out infinite;
 }
 
@@ -17373,11 +17396,16 @@ body.light-theme .location-fallback-btn {
   width: 72px;
   height: 32px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
+}
+
+.map-ghost-pill.pill-accent {
+  background: rgba(56, 189, 248, 0.24);
+  border-color: rgba(56, 189, 248, 0.45);
 }
 
 /* O'ng tarafdagi boshqaruv tugmalari skeleti */
@@ -17395,9 +17423,9 @@ body.light-theme .location-fallback-btn {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
   position: relative;
   overflow: hidden;
 }
@@ -20361,8 +20389,16 @@ body.light-theme .location-fallback-btn {
 
 .swipe-tab-pane {
   width: 100%;
-  transform: translate3d(0, 0, 0);
-  will-change: transform;
+  min-height: calc(100vh - 75px);
+}
+
+@media (max-width: 768px) {
+  .swipe-tab-viewport {
+    min-height: calc(100dvh - 128px);
+  }
+  .swipe-tab-pane {
+    min-height: calc(100dvh - 128px);
+  }
 }
 
 .swipe-tab-pane.is-swiping {
@@ -20378,6 +20414,14 @@ body.light-theme .location-fallback-btn {
   z-index: 15 !important;
   background-color: var(--bg-primary, #0e0e10);
   box-shadow: 0 0 35px rgba(0, 0, 0, 0.45);
+}
+
+@media (max-width: 768px) {
+  .swipe-tab-pane.is-swiping {
+    top: 64px !important;
+    bottom: 64px !important;
+    height: calc(100dvh - 128px) !important;
+  }
 }
 
 .swipe-tab-pane.is-swiping.target-pane {
