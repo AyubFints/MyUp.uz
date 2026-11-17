@@ -66,6 +66,9 @@ html, body {
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
+  overscroll-behavior-x: none !important;
+  overscroll-behavior-y: auto;
+  touch-action: pan-y pinch-zoom;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 

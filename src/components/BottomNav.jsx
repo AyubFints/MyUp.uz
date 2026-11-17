@@ -22,13 +22,7 @@ export default function BottomNav({ activeTab, setActiveTab, onOpenSettings, onO
 
       <button
         className={`bottom-nav-item ${activeTab === "services" ? "active" : ""}`}
-        onClick={() => {
-          if (onOpenServices) {
-            onOpenServices();
-          } else {
-            setActiveTab("services");
-          }
-        }}
+        onClick={() => setActiveTab("services")}
       >
         <Menu size={20} className="nav-icon" />
         <span>Xizmatlar</span>
