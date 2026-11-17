@@ -4,19 +4,24 @@
 // & Preserved Notification Click Handler
 // ========================================================
 
-const CACHE_NAME = 'axmap-v3';
+const CACHE_NAME = 'axmap-v4';
 
 // Core shell assets to pre-cache on install for 0ms offline startup
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/favicon.ico',
   '/favicon.svg',
+  '/favicon-32x32.png',
+  '/favicon-16x16.png',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
   '/icons/icon-maskable-192x192.png',
   '/icons/icon-maskable-512x512.png',
   '/ax-logo.png',
+  '/ax-splash-logo.jpg',
+  '/ax-app-icon-3d.jpg',
 ];
 
 /**
