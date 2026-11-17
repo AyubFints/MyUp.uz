@@ -3473,20 +3473,17 @@ export default function MapView({
           {/* Diagional yarqiroq lazer nuri */}
           <div className="map-shimmer-laser-beam" />
 
-          {/* Markaziy futuristik Radar */}
+          {/* Markaziy sipo Radar */}
           <div className="map-shimmer-center-radar">
             <div className="map-shimmer-radar-circle">
               <div className="map-radar-pulse-ring ring-one" />
               <div className="map-radar-pulse-ring ring-two" />
               <div className="map-radar-pulse-ring ring-three" />
               <div className="map-radar-compass-center">
-                <Navigation size={28} className="map-radar-compass-icon" />
+                <Navigation size={26} className="map-radar-compass-icon" />
               </div>
             </div>
-            <h3 className="map-shimmer-main-title">Xarita va Shahobchalar yuklanmoqda...</h3>
-            <p className="map-shimmer-sub-text">
-              GPS koordinatalar va barcha shahobchalar xaritaga tushirilmoqda
-            </p>
+            <h3 className="map-shimmer-main-title">Xarita yuklanmoqda...</h3>
             <div className="map-shimmer-progress-track">
               <div className="map-shimmer-progress-fill" />
             </div>
@@ -3496,30 +3493,12 @@ export default function MapView({
           <div className="map-ghost-top-bar">
             <div className="map-ghost-search-box" />
             <div className="map-ghost-pills-row">
-              <div className="map-ghost-pill pill-accent" />
+              <div className="map-ghost-pill" />
               <div className="map-ghost-pill" />
               <div className="map-ghost-pill" />
               <div className="map-ghost-pill" />
               <div className="map-ghost-pill" />
             </div>
-          </div>
-
-          {/* Xarita ustida yarqirab miltillab turuvchi shahobcha pinlari */}
-          <div className="map-ghost-station-marker ghost-pin-1">
-            <div className="ghost-pin-dot" />
-            <div className="ghost-pin-wave" />
-          </div>
-          <div className="map-ghost-station-marker ghost-pin-2">
-            <div className="ghost-pin-dot" />
-            <div className="ghost-pin-wave" />
-          </div>
-          <div className="map-ghost-station-marker ghost-pin-3">
-            <div className="ghost-pin-dot" />
-            <div className="ghost-pin-wave" />
-          </div>
-          <div className="map-ghost-station-marker ghost-pin-4">
-            <div className="ghost-pin-dot" />
-            <div className="ghost-pin-wave" />
           </div>
 
           {/* O'ng tarafdagi boshqaruv tugmalari skeleti */}
