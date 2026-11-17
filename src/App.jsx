@@ -187,6 +187,43 @@ const SectionLoadingFallback = () => (
 // Har bir sahifa ochilganda yoki refresh bo'lganda faqat 1 marta kirish signali yuboriladi
 let hasSentVisitOnThisLoad = false;
 
+// Telefon rejimida gorizontal surishda (swipe) boshqa gorizontal skroll elementlariga xalaqit bermaslik
+const isHorizontallyScrollable = (el) => {
+  if (!el) return false;
+  let cur = el;
+  while (cur && cur !== document.body && cur !== document.documentElement) {
+    if (
+      cur.tagName === "INPUT" ||
+      cur.tagName === "TEXTAREA" ||
+      cur.tagName === "SELECT"
+    ) {
+      return true;
+    }
+    if (cur.classList) {
+      if (
+        cur.classList.contains("no-swipe") ||
+        cur.classList.contains("filter-chips-row") ||
+        cur.classList.contains("horizontal-scroll") ||
+        cur.classList.contains("admin-users-table-wrap")
+      ) {
+        return true;
+      }
+    }
+    try {
+      const style = window.getComputedStyle(cur);
+      if (
+        (style.overflowX === "auto" || style.overflowX === "scroll") &&
+        cur.scrollWidth > cur.clientWidth + 10
+      ) {
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+    cur = cur.parentElement;
+  }
+  return false;
+};
 
 export default function App() {
   // Foydalanuvchi mobil ilova ichida ekanligini yoki veb-saytda ekanligini aniqlash
@@ -287,8 +324,9 @@ export default function App() {
   }, []);
 
   const [prevTab, setPrevTab] = useState("home");
+  const [tabTransitionDirection, setTabTransitionDirection] = useState(null);
 
-  const handleTabChange = (newTab, customAuthMode = "register") => {
+  const handleTabChange = (newTab, customAuthMode = "register", forcedDir = null) => {
     setAuthInitialMode(customAuthMode);
     if ((newTab === "home" || newTab === "map") && !isGpsActive && !isLocating && !isGpsDismissed) {
       requestLocation();
@@ -297,6 +335,22 @@ export default function App() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
     if (newTab === activeTab) return;
+
+    // Silliq surilish animatsiyasi (Telegram / Instagram uslubida)
+    const MOBILE_TABS = ["home", "map", "guide", "settings", "my"];
+    const curIdx = MOBILE_TABS.indexOf(activeTab);
+    const newIdx = MOBILE_TABS.indexOf(newTab);
+    let dir = forcedDir;
+    if (!dir && curIdx !== -1 && newIdx !== -1) {
+      dir = newIdx > curIdx ? "next" : "prev";
+    }
+    if (dir) {
+      setTabTransitionDirection(dir);
+      setTimeout(() => {
+        setTabTransitionDirection(null);
+      }, 260);
+    }
+
     if (newTab === "advertising" || newTab === "privacy" || newTab === "apps" || newTab === "download") {
       setPrevTab(activeTab || "home");
     }
@@ -2821,6 +2875,185 @@ export default function App() {
     return filteredStations.slice(0, visibleStationCount);
   }, [filteredStations, visibleStationCount]);
 
+  // Telefon rejimi uchun Telegram / Instagram uslubida barmoq bilan gorizontal surish (Swipe Gesture)
+  useEffect(() => {
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+    let isHorizontalGesture = null;
+    let isSwipeCanceled = false;
+
+    const handleTouchStart = (e) => {
+      if (!e.touches || e.touches.length !== 1) {
+        isSwipeCanceled = true;
+        return;
+      }
+
+      // Har qanday modal, bottom-sheet yoki navigatsiya ochiq bo'lsa, surishni cheklash
+      if (
+        detailStation ||
+        showAddStation ||
+        showSettingsModal ||
+        showServicesModal ||
+        showLogoutConfirm ||
+        showCompleteUserProfileModal ||
+        showLocationRegisterModal ||
+        showEditLocationHeroModal ||
+        showGpsModal ||
+        showProfileDetail ||
+        navigationTarget ||
+        document.querySelector(
+          ".modal-overlay, .modal-backdrop, .station-detail-modal, .bottom-sheet-overlay, .fullscreen-modal, [role='dialog']"
+        )
+      ) {
+        isSwipeCanceled = true;
+        return;
+      }
+
+      const target = e.target;
+      if (isHorizontallyScrollable(target)) {
+        isSwipeCanceled = true;
+        return;
+      }
+
+      const startX = e.touches[0].clientX;
+      const startY = e.touches[0].clientY;
+
+      // Xarita (Map) bo'limida: Xarita o'rtasini surish xaritani aylantirish (pan) uchun xizmat qiladi.
+      // Bo'lim almashtirish faqat ekran chetlaridan (50px ichida) yoki xaritadan tashqarida amalga oshiriladi.
+      if (activeTab === "map") {
+        const isMapCanvas =
+          target &&
+          target.closest &&
+          (target.closest(".maplibregl-canvas") ||
+            target.closest(".maplibregl-map") ||
+            target.closest(".real-map-wrapper") ||
+            target.closest(".map-canvas-container"));
+        if (isMapCanvas) {
+          const screenW = window.innerWidth;
+          const isLeftEdge = startX <= 50;
+          const isRightEdge = startX >= screenW - 50;
+          if (!isLeftEdge && !isRightEdge) {
+            isSwipeCanceled = true;
+            return;
+          }
+        }
+      }
+
+      touchStartX = startX;
+      touchStartY = startY;
+      touchStartTime = Date.now();
+      isHorizontalGesture = null;
+      isSwipeCanceled = false;
+    };
+
+    const handleTouchMove = (e) => {
+      if (isSwipeCanceled || !e.touches || e.touches.length !== 1) return;
+
+      const currentX = e.touches[0].clientX;
+      const currentY = e.touches[0].clientY;
+      const diffX = currentX - touchStartX;
+      const diffY = currentY - touchStartY;
+      const absX = Math.abs(diffX);
+      const absY = Math.abs(diffY);
+
+      if (isHorizontalGesture === null) {
+        if (absX > 10 || absY > 10) {
+          if (absY >= absX) {
+            // Vertikal skroll (sahifani pastga-yuqoriga varaqlash) ga mutlaqo xalaqit bermaslik
+            isHorizontalGesture = false;
+            isSwipeCanceled = true;
+          } else {
+            isHorizontalGesture = true;
+          }
+        }
+      }
+    };
+
+    const handleTouchEnd = (e) => {
+      if (isSwipeCanceled || isHorizontalGesture !== true) return;
+      if (!e.changedTouches || e.changedTouches.length === 0) return;
+
+      const endX = e.changedTouches[0].clientX;
+      const endY = e.changedTouches[0].clientY;
+      const diffX = endX - touchStartX;
+      const diffY = endY - touchStartY;
+      const elapsed = Date.now() - touchStartTime;
+
+      const absX = Math.abs(diffX);
+      const absY = Math.abs(diffY);
+
+      // Kamida 50px gorizontal surilish, vertikal harakatdan sezilarli ko'p va tezkor surish (750ms ichida)
+      if (absX >= 50 && absX > absY * 1.3 && elapsed < 750) {
+        // Agar Profil ichidagi Bildirishnomalar yoki Boshqaruv ochilgan bo'lsa, o'ngga surish ularni yopadi
+        if (diffX > 0) {
+          if (showNotificationsPage) {
+            setShowNotificationsPage(false);
+            return;
+          }
+          if (selectedManageStationId) {
+            setSelectedManageStationId(null);
+            return;
+          }
+        }
+
+        const MOBILE_TABS = ["home", "map", "guide", "settings", "my"];
+        const curIdx = MOBILE_TABS.indexOf(activeTab);
+
+        if (diffX < 0) {
+          // O'ngdan chapga surish (Swipe left) -> Keyingi bo'limga o'tish (Next Tab)
+          if (curIdx !== -1 && curIdx < MOBILE_TABS.length - 1) {
+            const nextTab = MOBILE_TABS[curIdx + 1];
+            handleTabChange(nextTab, "register", "next");
+            if (typeof navigator !== "undefined" && navigator.vibrate) {
+              try { navigator.vibrate(8); } catch {}
+            }
+          }
+        } else if (diffX > 0) {
+          // Chapdan o'ngga surish (Swipe right) -> Oldingi bo'limga qaytish (Prev Tab)
+          if (curIdx > 0) {
+            const prevTabName = MOBILE_TABS[curIdx - 1];
+            handleTabChange(prevTabName, "register", "prev");
+            if (typeof navigator !== "undefined" && navigator.vibrate) {
+              try { navigator.vibrate(8); } catch {}
+            }
+          } else if (activeTab === "privacy" || activeTab === "apps" || activeTab === "advertising") {
+            handleTabChange(prevTab || "home", "register", "prev");
+            if (typeof navigator !== "undefined" && navigator.vibrate) {
+              try { navigator.vibrate(8); } catch {}
+            }
+          }
+        }
+      }
+    };
+
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [
+    activeTab,
+    detailStation,
+    showAddStation,
+    showSettingsModal,
+    showServicesModal,
+    showLogoutConfirm,
+    showCompleteUserProfileModal,
+    showLocationRegisterModal,
+    showEditLocationHeroModal,
+    showGpsModal,
+    showProfileDetail,
+    showNotificationsPage,
+    selectedManageStationId,
+    navigationTarget,
+    prevTab,
+  ]);
+
   if (navigationTarget) {
     return (
       <Suspense fallback={<SectionLoadingFallback />}>
@@ -2832,6 +3065,13 @@ export default function App() {
       </Suspense>
     );
   }
+
+  const tabAnimClass =
+    tabTransitionDirection === "next"
+      ? "tab-slide-in-next"
+      : tabTransitionDirection === "prev"
+      ? "tab-slide-in-prev"
+      : "";
 
   return (
     <div
@@ -3027,7 +3267,7 @@ export default function App() {
 
       {activeTab === "home" && (
         <div
-          className={`dark-theme-home ${isThemeLight ? "is-light" : ""}`}
+          className={`dark-theme-home ${isThemeLight ? "is-light" : ""} ${tabAnimClass}`}
           style={{
             '--bg-color': appTheme?.bg || '#0e0e10',
             '--panel-bg': appTheme?.panel || '#1a1a1c',
@@ -3374,7 +3614,7 @@ export default function App() {
       )}
 
       {activeTab === "my" && (
-        <main className={`content-area pb-20 profile-content-area`}>
+        <main className={`content-area pb-20 profile-content-area ${tabAnimClass}`}>
           {/* MY (PROFILE) */}
           {activeTab === "my" && !user && (
             <div
@@ -4420,7 +4660,7 @@ export default function App() {
       {/* MAP - Full Screen (content-area tashqarisida) */}
       {activeTab === "map" && (
         <div
-          className="map-fullscreen-wrapper"
+          className={`map-fullscreen-wrapper ${tabAnimClass}`}
           style={{
             position: 'fixed',
             top: '75px',
@@ -4455,7 +4695,7 @@ export default function App() {
       {/* SETTINGS - Dedicated Section */}
       {activeTab === "settings" && (
         <div
-          className={`settings-three-col-layout profile-three-col-layout ${isThemeLight ? "is-light" : ""}`}
+          className={`settings-three-col-layout profile-three-col-layout ${isThemeLight ? "is-light" : ""} ${tabAnimClass}`}
           style={{
             '--theme-accent': appTheme?.accent || '#38bdf8',
             '--theme-bg': appTheme?.bg || '#0e0e10',
@@ -4532,7 +4772,7 @@ export default function App() {
       {/* QO'LLANMA BO'LIMI (GUIDE SECTION) */}
       {activeTab === "guide" && (
         <div
-          className={`guide-three-col-layout profile-three-col-layout ${isThemeLight ? "is-light" : ""}`}
+          className={`guide-three-col-layout profile-three-col-layout ${isThemeLight ? "is-light" : ""} ${tabAnimClass}`}
           style={{
             '--theme-accent': appTheme?.accent || '#38bdf8',
             '--theme-bg': appTheme?.bg || '#0e0e10',
@@ -4580,7 +4820,7 @@ export default function App() {
       {/* REKLAMA BO'LIMI (Faqat reklama joylash tugmalari bosilganda ochiladi) */}
       {activeTab === "advertising" && (
         <div
-          className={`advertising-three-col-layout profile-three-col-layout ${isThemeLight ? "is-light" : ""}`}
+          className={`advertising-three-col-layout profile-three-col-layout ${isThemeLight ? "is-light" : ""} ${tabAnimClass}`}
           style={{
             '--theme-accent': appTheme?.accent || '#38bdf8',
             '--theme-bg': appTheme?.bg || '#0e0e10',
@@ -4639,19 +4879,21 @@ export default function App() {
 
       {/* MAXFIYLIK SIYOSATI (PRIVACY POLICY) BO'LIMI */}
       {activeTab === "privacy" && (
-        <Suspense fallback={<SectionLoadingFallback />}>
-          <PrivacyPolicyPage
-            onBack={() => handleTabChange("home")}
-            isThemeLight={isThemeLight}
-            appTheme={appTheme}
-          />
-        </Suspense>
+        <div className={tabAnimClass}>
+          <Suspense fallback={<SectionLoadingFallback />}>
+            <PrivacyPolicyPage
+              onBack={() => handleTabChange("home")}
+              isThemeLight={isThemeLight}
+              appTheme={appTheme}
+            />
+          </Suspense>
+        </div>
       )}
 
       {/* ILOVALAR (PLAY MARKET USLUBIDA ILOVA TAFSILOTLARI VA YUKLAB OLISH) */}
       {(activeTab === "apps" || activeTab === "download") && (
         <div
-          className={`apps-three-col-layout profile-three-col-layout ${isThemeLight ? "is-light" : ""}`}
+          className={`apps-three-col-layout profile-three-col-layout ${isThemeLight ? "is-light" : ""} ${tabAnimClass}`}
           style={{
             '--theme-accent': appTheme?.accent || '#38bdf8',
             '--theme-bg': appTheme?.bg || '#0e0e10',

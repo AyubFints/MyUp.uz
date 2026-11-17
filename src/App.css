@@ -20359,4 +20359,40 @@ body.light-theme .location-fallback-btn {
   color: #000000;
 }
 
+/* ==========================================================================
+   MOBILE SWIPE TAB TRANSITION ANIMATIONS (Telegram / Instagram style)
+   ========================================================================== */
+@keyframes tabSlideInNext {
+  0% {
+    opacity: 0.85;
+    transform: translate3d(40px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes tabSlideInPrev {
+  0% {
+    opacity: 0.85;
+    transform: translate3d(-40px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.tab-slide-in-next {
+  animation: tabSlideInNext 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+.tab-slide-in-prev {
+  animation: tabSlideInPrev 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+
 
