@@ -72,14 +72,11 @@ export default function SplashScreen({ onComplete }) {
 
       {/* 2. Asosiy Animatsion Brend Sahnasi */}
       <div className={`splash-brand-stage stage-${phase}`}>
-        {/* Metallik Uchburchak Emblem Logo */}
+        {/* Metallik Uchburchak Emblem Logo (faqat rasmning o'zi, orqa fonsiz va ramkasiz) */}
         <div className="splash-emblem-wrap">
           <div className="splash-emblem-glow-behind" />
-          <div className="splash-emblem-neon-ring" />
-          {/* Metall yuzasidagi yaltiroq yorug'lik to'lqini */}
-          <div className="splash-emblem-sheen" />
           <img
-            src="/ax-logo.png"
+            src="/ax-logo-transparent.png?v=20261118"
             alt="AX-Map Emblem"
             className="splash-emblem-img"
           />
