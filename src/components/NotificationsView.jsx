@@ -151,14 +151,38 @@ export default function NotificationsView({
     return () => clearInterval(interval);
   }, [showSuccessAnimationModal]);
 
+  // Foydalanuvchining o'z fikrlarini begona/eskirgan keshdan ajratib olish yordamchisi
+  const sanitizeMyFeedbacks = (list, currentUser) => {
+    if (!Array.isArray(list)) return [];
+    const cleanUserPhone = (currentUser?.phoneNumber || currentUser?.phone || "").replace(/\s+/g, "");
+    const currentUserId = currentUser?.id || null;
+
+    return list.filter((item) => {
+      const itemPhone = (item.phone || "").replace(/\s+/g, "");
+      // Agar tizimga kirgan bo'lsa va telefon raqami mos kelsa
+      if (cleanUserPhone && itemPhone && cleanUserPhone === itemPhone) return true;
+      // Agar userId mos kelsa
+      if (currentUserId && item.userId && currentUserId === item.userId) return true;
+      // Agar mehmon bo'lsa, faqat shu qurilmaning o'zida yozilgan lokal xabarlar
+      if (!cleanUserPhone && !currentUserId && typeof item.id === "string" && item.id.startsWith("fb_") && !itemPhone) {
+        return true;
+      }
+      return false;
+    });
+  };
+
   // 1. Foydalanuvchining O'ZI yuborgan bildirishnomalari (Fikr, taklif, shikoyatlar)
   const [myFeedbacks, setMyFeedbacks] = useState(() => {
     try {
       const saved = localStorage.getItem("myup_my_sent_feedbacks");
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return sanitizeMyFeedbacks(parsed, user);
+      }
     } catch {
       return [];
     }
+    return [];
   });
 
   // Bildirishnomalarning yaroqlilik muddatini tekshiruvchi yordamchi (location_guide 2 kun, boshqa o'qilganlar 1 kun)
@@ -236,11 +260,35 @@ export default function NotificationsView({
     const userPhone = user?.phoneNumber || user?.phone || "";
     const userId = user?.id || null;
 
+    // Begona foydalanuvchilarning eski keshdagi xabarlarini darhol tozalab tashlash
+    setMyFeedbacks((prev) => {
+      const sanitized = sanitizeMyFeedbacks(prev, user);
+      try {
+        localStorage.setItem("myup_my_sent_feedbacks", JSON.stringify(sanitized));
+      } catch (e) {}
+      return sanitized;
+    });
+
+    // Agar foydalanuvchi tizimga kirmagan bo'lsa (anonim/mehmon bo'lsa),
+    // serverdan begona fikrlarni so'ramaymiz va ko'rsatmaymiz!
+    if (!userPhone && !userId) {
+      return;
+    }
+
     api.feedbacks
       .getAll({ userId: userId || "", phone: userPhone })
       .then((res) => {
         if (isMounted && res.success && Array.isArray(res.feedbacks)) {
-          const formatted = res.feedbacks.map((f) => ({
+          const cleanUserPhone = userPhone.replace(/\s+/g, "");
+          // Qat'iy xavfsizlik: faqat haqiqatan ham ushbu foydalanuvchiga tegishli bo'lganlarini qabul qilamiz
+          const strictlyMyFeedbacks = res.feedbacks.filter(f => {
+            const fPhone = (f.phone || "").replace(/\s+/g, "");
+            if (cleanUserPhone && fPhone) return fPhone === cleanUserPhone;
+            if (userId && f.userId) return f.userId === userId;
+            return false;
+          });
+
+          const formatted = strictlyMyFeedbacks.map((f) => ({
             id: f.id,
             userId: f.userId,
             type: f.type,
@@ -248,7 +296,7 @@ export default function NotificationsView({
             author: f.author || `${user?.firstName || user?.first_name || ""} ${user?.lastName || user?.last_name || ""}`.trim() || "Siz",
             phone: f.phone || "",
             date: formatNotifDate(f.createdAt),
-            status: f.status === "yangi" ? "Yuborildi" : f.status,
+            status: f.status === "yangi" ? "Yuborildi" : (f.status === "hal_etildi" ? "Ko'rib chiqildi" : f.status),
             adminReply: f.adminReply,
           }));
 
@@ -271,13 +319,29 @@ export default function NotificationsView({
     const userPhone = user?.phoneNumber || user?.phone || "";
     const userId = user?.id || null;
 
-    if (!userPhone && !userId) return;
+    if (!userPhone && !userId) {
+      // Mehmon yoki anonim foydalanuvchilarga begona bildirishnomalarni ko'rsatmaslik
+      setIncomingNotifications([]);
+      try {
+        localStorage.removeItem("myup_incoming_notifications");
+      } catch (e) {}
+      return;
+    }
 
     api.notifications
       ?.getAll({ userId: userId || "", phone: userPhone })
       .then((res) => {
         if (isMounted && res.success && Array.isArray(res.notifications)) {
-          const apiNotifs = res.notifications
+          const cleanUserPhone = userPhone.replace(/\s+/g, "");
+          // Faqat joriy foydalanuvchiga tegishli bildirishnomalar
+          const myOnly = res.notifications.filter(n => {
+            const nPhone = (n.userPhone || n.phone || "").replace(/\s+/g, "");
+            if (cleanUserPhone && nPhone) return nPhone === cleanUserPhone;
+            if (userId && n.userId) return n.userId === userId;
+            return false;
+          });
+
+          const apiNotifs = myOnly
             .map((n) => ({
               id: n.id,
               title: n.title,

@@ -630,19 +630,33 @@ export default function App() {
   const [deleteReasonError, setDeleteReasonError] = useState("");
   const [isDeletingStation, setIsDeletingStation] = useState(false);
 
-  // Bildirishnomalar holati va avtomatik tekshiruv (faqat o'qilmagan xabar bo'lsagina kalakolchik tepasida 1 chiqadi)
+  // Bildirishnomalar holati va avtomatik tekshiruv (faqat haqiqiy o'qilmagan xabar bo'lsagina kalakolchik tepasida 1 chiqadi)
   useEffect(() => {
     const userPhone = user?.phoneNumber || user?.phone || "";
     const userId = user?.id || null;
-    if (!userPhone && !userId) return;
+    if (!userPhone && !userId) {
+      setUnreadNotifCount(0);
+      setHasUnreadNotification(false);
+      try {
+        localStorage.setItem("myup_notif_unread_count", "0");
+        localStorage.setItem("myup_notif_unread", "false");
+      } catch (e) {}
+      return;
+    }
 
     const checkUnread = () => {
       api.notifications
         ?.getAll({ userId: userId || "", phone: userPhone })
         .then((res) => {
           if (res.success && Array.isArray(res.notifications)) {
-            const unreadItems = res.notifications.filter((n) => !n.isRead && !n.readAt);
-            const count = unreadItems.length;
+            const cleanUserPhone = userPhone.replace(/\s+/g, "");
+            const myUnread = res.notifications.filter((n) => {
+              const nPhone = (n.userPhone || n.phone || "").replace(/\s+/g, "");
+              if (cleanUserPhone && nPhone) return nPhone === cleanUserPhone && !n.isRead && !n.readAt;
+              if (userId && n.userId) return n.userId === userId && !n.isRead && !n.readAt;
+              return false;
+            });
+            const count = myUnread.length;
             setUnreadNotifCount(count);
             setHasUnreadNotification(count > 0);
             try {
@@ -677,9 +691,9 @@ export default function App() {
       const savedCount = localStorage.getItem("myup_notif_unread_count");
       if (savedCount !== null) return parseInt(savedCount, 10) > 0;
       const saved = localStorage.getItem("myup_notif_unread");
-      return saved === null ? true : saved === "true";
+      return saved === "true";
     } catch {
-      return true;
+      return false;
     }
   });
 

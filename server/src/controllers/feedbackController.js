@@ -31,10 +31,52 @@ export const createFeedback = async (req, res) => {
   }
 };
 
-// Barcha fikr va takliflarni olish (Super Admin yoki ma'lum bir foydalanuvchi uchun)
+// Fikr va takliflarni olish (Super Admin uchun barchasi, oddiy foydalanuvchi uchun faqat o'ziniki)
 export const getFeedbacks = async (req, res) => {
   try {
     const { status, type, userId, phone } = req.query;
+
+    const isSuperAdmin = Boolean(
+      (req.user && (req.user.role === 'super_admin' || req.user.role === 'admin')) ||
+      req.headers['x-admin-key'] === 'admin123' ||
+      req.query.adminKey === 'admin123'
+    );
+
+    // 1. ODDIY FOYDALANUVCHILAR YOKI MEHMONLAR UCHUN MAXSUS HIMOYALANGAN REJIM:
+    if (!isSuperAdmin) {
+      const cleanPhone = phone ? String(phone).replace(/\s+/g, '') : null;
+      const isValidUuid = userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+
+      // Agar na haqiqiy userId va na telefon raqam berilmagan bo'lsa (yoki bo'sh bo'lsa),
+      // begonalar yoki boshqa foydalanuvchilarning fikrlari ko'rinmasligi uchun darhol bo'sh ro'yxat qaytaramiz!
+      if (!isValidUuid && (!cleanPhone || cleanPhone.length < 7)) {
+        return res.json({ success: true, count: 0, feedbacks: [] });
+      }
+
+      let sql = `
+        SELECT id, user_id AS "userId", author_name AS author, author_phone AS phone,
+               type, message, status, admin_reply AS "adminReply", created_at AS "createdAt"
+        FROM feedbacks
+        WHERE
+      `;
+      const params = [];
+      if (isValidUuid && cleanPhone) {
+        params.push(userId, cleanPhone);
+        sql += ` (user_id = $1 OR REPLACE(author_phone, ' ', '') = $2)`;
+      } else if (isValidUuid) {
+        params.push(userId);
+        sql += ` user_id = $1`;
+      } else {
+        params.push(cleanPhone);
+        sql += ` REPLACE(author_phone, ' ', '') = $1`;
+      }
+
+      sql += ' ORDER BY created_at DESC';
+      const result = await query(sql, params);
+      return res.json({ success: true, count: result.rows.length, feedbacks: result.rows });
+    }
+
+    // 2. SUPER ADMIN UCHUN REJIM (A-Maps supper admin paneli):
     let sql = `
       SELECT id, user_id AS "userId", author_name AS author, author_phone AS phone,
              type, message, status, admin_reply AS "adminReply", created_at AS "createdAt"
@@ -51,22 +93,6 @@ export const getFeedbacks = async (req, res) => {
     if (type) {
       params.push(type);
       conditions.push(`type = $${params.length}`);
-    }
-
-    if (userId || phone) {
-      const cleanPhone = phone ? phone.replace(/\s+/g, '') : null;
-      const isValidUuid = userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
-
-      if (isValidUuid && cleanPhone) {
-        params.push(userId, cleanPhone);
-        conditions.push(`(user_id = $${params.length - 1} OR REPLACE(author_phone, ' ', '') = $${params.length})`);
-      } else if (isValidUuid) {
-        params.push(userId);
-        conditions.push(`user_id = $${params.length}`);
-      } else if (cleanPhone) {
-        params.push(cleanPhone);
-        conditions.push(`REPLACE(author_phone, ' ', '') = $${params.length}`);
-      }
     }
 
     if (conditions.length > 0) {

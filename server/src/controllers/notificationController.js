@@ -14,7 +14,15 @@ export const getUserNotifications = async (req, res) => {
 
     const userId = req.user?.id || req.query.userId || null;
     const phone = req.query.phone || req.user?.phone || null;
-    const cleanPhone = phone ? phone.replace(/\s+/g, '') : null;
+    const cleanPhone = phone ? String(phone).replace(/\s+/g, '') : null;
+
+    const isUUID = userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+
+    // Xavfsizlik: Begona foydalanuvchilar (mehmonlar yoki ID/telefonsizlar)ga boshqa foydalanuvchilarning
+    // moderatsiya xabarlari yoki admin javoblari ko'rinmasligi uchun darhol bo'sh ro'yxat qaytaramiz!
+    if (!isUUID && (!cleanPhone || cleanPhone.length < 7)) {
+      return res.json({ success: true, count: 0, unreadCount: 0, notifications: [] });
+    }
 
     let sql = `
       SELECT id, user_id AS "userId", station_id AS "stationId",
@@ -28,15 +36,13 @@ export const getUserNotifications = async (req, res) => {
     `;
     const params = [];
 
-    const isUUID = userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
-
-    if (isUUID && phone) {
+    if (isUUID && cleanPhone) {
       params.push(userId, phone, cleanPhone);
       sql += ` AND (user_id = $1 OR user_phone = $2 OR REPLACE(user_phone, ' ', '') = $3)`;
     } else if (isUUID) {
       params.push(userId);
       sql += ` AND user_id = $1`;
-    } else if (phone) {
+    } else if (cleanPhone) {
       params.push(phone, cleanPhone);
       sql += ` AND (user_phone = $1 OR REPLACE(user_phone, ' ', '') = $2)`;
     }
