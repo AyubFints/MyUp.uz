@@ -4,7 +4,7 @@
 // & Preserved Notification Click Handler
 // ========================================================
 
-const CACHE_NAME = 'axmap-v4';
+const CACHE_NAME = 'axmap-v5';
 
 // Core shell assets to pre-cache on install for 0ms offline startup
 const PRECACHE_ASSETS = [

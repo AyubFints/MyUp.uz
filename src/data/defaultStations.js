@@ -1,47 +1,5 @@
 export const DEFAULT_APPROVED_STATIONS = [
   {
-    "id": "791dfb78-5cd9-48d3-9008-3ef74a272315",
-    "name": "sfat Metan Filial 1",
-    "lat": 41.3111,
-    "lng": 69.2405,
-    "address": "Chilonzor tumani, Bunyodkor shoh ko'chasi",
-    "city": "Toshkent",
-    "phone": "+998 93 9022183",
-    "isOpen": true,
-    "reopenTime": "",
-    "rating": "5.00",
-    "ratingCount": 1,
-    "ownerId": null,
-    "isApproved": true,
-    "status": "approved",
-    "rejectedAt": null,
-    "createdAt": "2026-11-09T04:31:00.023Z",
-    "description": "",
-    "images": [
-      "https://images.unsplash.com/photo-1545459720-aac8509eb02c?auto=format&fit=crop&w=600&q=80"
-    ],
-    "verificationImages": {
-      "exterior": "",
-      "interior": "",
-      "roadside": ""
-    },
-    "types": [
-      "metan"
-    ],
-    "gasPressure": 200,
-    "prices": {
-      "metan": 3800
-    },
-    "pressures": {
-      "metan": 200
-    },
-    "amenities": null,
-    "payments": null,
-    "type": [
-      "metan"
-    ]
-  },
-  {
     "id": "a4854e28-e5fc-4e88-8714-824f6f676e77",
     "name": "SHAFFOF",
     "lat": 41.3222573780846,
