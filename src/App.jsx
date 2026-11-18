@@ -1407,10 +1407,10 @@ export default function App() {
   };
 
   const [selectedCity] = useState(CITIES[0]);
-  // Dasturga kirishda koordinatalar avvaldan toshkent qilib qo'yilmaydi (faqat foydalanuvchi ruxsat bergach 80%+ aniqlikda olinadi)
+  // Dasturga kirishda koordinatalar avvaldan toshkent qilib qo'yilmaydi (agar avval aniqlangan bo'lsa darhol xotiradan olinadi)
   const [userCoords, setUserCoords] = useState(() => {
     try {
-      const saved = sessionStorage.getItem("axmap_user_coords");
+      const saved = sessionStorage.getItem("axmap_user_coords") || localStorage.getItem("axmap_last_known_coords");
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
@@ -1790,12 +1790,12 @@ export default function App() {
       return;
     }
 
-    const MIN_LOCATING_DURATION_MS = 1800; // Foydalanuvchi talabi: silliq radar animatsiyasi
+    const MIN_LOCATING_DURATION_MS = 600; // Foydalanuvchi talabi: tezkor va silliq radar animatsiyasi
     const startTimestamp = Date.now();
 
     setLocationStatus("locating");
     setIsLocating(true);
-    setLocationAccuracyPercent(25);
+    setLocationAccuracyPercent(45);
 
     let resolved = false;
     let smoothFinishTimer = null;
@@ -1803,25 +1803,35 @@ export default function App() {
     // GPS sun'iy yo'ldoshlarini qidirish va ulanish animatsiyasi
     const progressInterval = setInterval(() => {
       setLocationAccuracyPercent((prev) => {
-        if (prev < 78) return prev + Math.floor(Math.random() * 5 + 5);
+        if (prev < 85) return prev + Math.floor(Math.random() * 8 + 6);
         return prev;
       });
-    }, 200);
+    }, 120);
 
     const handleSuccessPosition = (pos) => {
       if (!pos || !pos.coords) return;
       const { latitude, longitude, accuracy } = pos.coords;
 
-      let percent = 88;
+      let percent = 92;
       if (typeof accuracy === "number") {
         if (accuracy <= 30) percent = 100;
         else if (accuracy <= 70) percent = 98;
         else if (accuracy <= 150) percent = 95;
-        else if (accuracy <= 400) percent = 90;
-        else if (accuracy <= 1000) percent = 85;
-        else if (accuracy <= 2500) percent = 82;
+        else if (accuracy <= 400) percent = 92;
+        else if (accuracy <= 1000) percent = 88;
+        else if (accuracy <= 2500) percent = 85;
         else percent = 80;
       }
+
+      // Foydalanuvchi turgan joyni DARHOL o'rnatish - masofalar va saralash 1-lahzada hisoblanadi
+      const newCoords = { lat: latitude, lng: longitude };
+      setUserCoords(newCoords);
+      setIsGpsActive(true);
+      setShowGpsModal(false);
+      try {
+        sessionStorage.setItem("axmap_user_coords", JSON.stringify(newCoords));
+        localStorage.setItem("axmap_last_known_coords", JSON.stringify(newCoords));
+      } catch (e) {}
 
       if (!resolved) {
         resolved = true;
@@ -1830,32 +1840,11 @@ export default function App() {
         const elapsed = Date.now() - startTimestamp;
         const remaining = Math.max(0, MIN_LOCATING_DURATION_MS - elapsed);
 
-        const steps = 6;
-        const stepDelay = Math.max(50, Math.floor(remaining / steps));
-        let stepCount = 0;
-
-        smoothFinishTimer = setInterval(() => {
-          stepCount++;
-          setLocationAccuracyPercent((prev) => Math.min(100, Math.max(prev + 4, 82)));
-
-          if (stepCount >= steps || (Date.now() - startTimestamp) >= MIN_LOCATING_DURATION_MS) {
-            clearInterval(smoothFinishTimer);
-            setLocationAccuracyPercent(Math.max(percent, 88));
-
-            const newCoords = { lat: latitude, lng: longitude };
-            setUserCoords(newCoords);
-            setIsGpsActive(true);
-            setShowGpsModal(false);
-            try {
-              sessionStorage.setItem("axmap_user_coords", JSON.stringify(newCoords));
-            } catch (e) {}
-
-            setLocationStatus("ready");
-            setTimeout(() => {
-              setIsLocating(false);
-            }, 300);
-          }
-        }, stepDelay);
+        smoothFinishTimer = setTimeout(() => {
+          setLocationAccuracyPercent(Math.max(percent, 92));
+          setLocationStatus("ready");
+          setIsLocating(false);
+        }, remaining);
       }
     };
 
@@ -1877,8 +1866,19 @@ export default function App() {
         errStatus = "disabled";
       }
 
+      // Agar avval saqlangan oxirgi ma'lum joylashuv bo'lsa, o'shani tiklaymiz
+      try {
+        const lastKnown = localStorage.getItem("axmap_last_known_coords");
+        if (lastKnown) {
+          const parsed = JSON.parse(lastKnown);
+          if (parsed && parsed.lat && parsed.lng) {
+            setUserCoords(parsed);
+          }
+        }
+      } catch (e) {}
+
       const elapsed = Date.now() - startTimestamp;
-      const remaining = Math.max(0, 1000 - elapsed);
+      const remaining = Math.max(0, 500 - elapsed);
       setTimeout(() => {
         setLocationStatus(errStatus);
         setIsLocating(false);
@@ -1886,29 +1886,29 @@ export default function App() {
       }, remaining);
     };
 
-    // 1. Darhol brauzer dialogini chaqirish va birinchi koordinatani olish (getCurrentPosition)
+    // 1. Tezkor birinchi koordinata olish (keshdan yoki tarmoqdan darhol 1 martada olish)
     navigator.geolocation.getCurrentPosition(
       handleSuccessPosition,
       handleErrorPosition,
       {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
+        timeout: 8000,
+        maximumAge: 30000,
       }
     );
 
-    // 2. watchPosition orqali yuqori aniqlikda kuzatib borish
+    // 2. watchPosition orqali yuqori aniqlikda doimiy kuzatib borish
     const watchId = navigator.geolocation.watchPosition(
       handleSuccessPosition,
       handleErrorPosition,
       {
         enableHighAccuracy: true,
-        timeout: 15000,
+        timeout: 12000,
         maximumAge: 3000,
       }
     );
 
-    // Agar 12 soniyada javob kelmasa
+    // Agar 8 soniyada javob kelmasa
     const timeoutTimer = setTimeout(() => {
       if (!resolved) {
         clearInterval(progressInterval);
@@ -1918,7 +1918,7 @@ export default function App() {
         setIsLocating(false);
         setUserCoords((prev) => prev || { lat: 41.311081, lng: 69.240562 });
       }
-    }, 12000);
+    }, 8000);
 
     return () => {
       clearInterval(progressInterval);
@@ -2896,12 +2896,12 @@ export default function App() {
     userCoords,
   ]);
 
-  // Telefon va kompyuterda dastlab faqat 5 ta manzil ko'rsatish
-  const [visibleStationCount, setVisibleStationCount] = useState(5);
+  // Telefon va kompyuterda dastlab barcha asosiy yaqin manzillarni to'liq ko'rsatish
+  const [visibleStationCount, setVisibleStationCount] = useState(20);
 
-  // Filtrlash (Metan, Benzin...) yoki saralash (Eng Yaqin...) o'zgarganda yana 5 tadan boshlash
+  // Filtrlash (Metan, Benzin...) yoki saralash (Eng Yaqin...) o'zgarganda yana 20 tadan boshlash
   useEffect(() => {
-    setVisibleStationCount(5);
+    setVisibleStationCount(20);
   }, [fuelSubFilter, fuelSortBy, activeCategory, searchQuery]);
 
   const displayedStations = useMemo(() => {
