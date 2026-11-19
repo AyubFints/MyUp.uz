@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   ArrowLeft,
   Download,
@@ -74,6 +74,19 @@ export default function AppDownloadPage({
 
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadedMB, setDownloadedMB] = useState("0.0");
+  const [totalMB, setTotalMB] = useState("4.3");
+  const xhrRef = useRef(null);
+
+  // Sahifadan chiqib ketilganda XHR yuklanishini xavfsiz to'xtatish
+  useEffect(() => {
+    return () => {
+      if (xhrRef.current) {
+        try { xhrRef.current.abort(); } catch (e) {}
+      }
+    };
+  }, []);
 
   // Sharh qoldirish modal holati
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -90,9 +103,32 @@ export default function AppDownloadPage({
     setTimeout(() => setToastMessage(""), 3000);
   };
 
-  // APK yuklab olish funksiyasi (Avtomatik 1, 2... qilib oshiradi)
+  const fallbackDirectDownload = () => {
+    setIsDownloading(false);
+    try {
+      const link = document.createElement("a");
+      link.href = "/ax-map.apk";
+      link.download = "uz.axmap.app-v1.0.0-release.apk";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (e) {
+      window.location.href = "/ax-map.apk";
+    }
+    setDownloadSuccess(true);
+    showToast("AX-Map APK ilovasi yuklab olinmoqda!");
+    setTimeout(() => setDownloadSuccess(false), 4000);
+  };
+
+  // APK yuklab olish funksiyasi: real vaqtda foiz (%) va MB hisoblaydi
   const handleDownload = () => {
+    if (isDownloading) return; // Yuklanayotganda qayta bosishni cheklash
+
     setIsDownloading(true);
+    setDownloadSuccess(false);
+    setDownloadProgress(0);
+    setDownloadedMB("0.0");
+    setTotalMB("4.3");
 
     const nextCount = downloadCount + 1;
     setDownloadCount(nextCount);
@@ -100,24 +136,74 @@ export default function AppDownloadPage({
       localStorage.setItem("axmap_live_downloads", nextCount.toString());
     } catch (e) {}
 
-    // Haqiqiy APK faylni yuklab olish
-    setTimeout(() => {
-      try {
-        const link = document.createElement("a");
-        link.href = "/ax-map.apk";
-        link.download = "uz.axmap.app-v1.0.0-release.apk";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } catch (err) {
-        window.location.href = "/ax-map.apk";
-      }
+    try {
+      const xhr = new XMLHttpRequest();
+      xhrRef.current = xhr;
+      xhr.open("GET", "/ax-map.apk", true);
+      xhr.responseType = "blob";
 
-      setIsDownloading(false);
-      setDownloadSuccess(true);
-      showToast("AX-Map APK ilovasi yuklab olinmoqda!");
-      setTimeout(() => setDownloadSuccess(false), 4000);
-    }, 600);
+      xhr.onprogress = (event) => {
+        if (event.lengthComputable && event.total > 0) {
+          const percent = Math.min(100, Math.round((event.loaded / event.total) * 100));
+          const loaded = (event.loaded / (1024 * 1024)).toFixed(1);
+          const total = (event.total / (1024 * 1024)).toFixed(1);
+          setDownloadProgress(percent);
+          setDownloadedMB(loaded);
+          setTotalMB(total);
+        } else {
+          const loaded = (event.loaded / (1024 * 1024)).toFixed(1);
+          const percent = Math.min(99, Math.round((event.loaded / (4.3 * 1024 * 1024)) * 100));
+          setDownloadProgress(percent);
+          setDownloadedMB(loaded);
+          setTotalMB("4.3");
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          setDownloadProgress(100);
+          setDownloadedMB("4.3");
+          setTotalMB("4.3");
+
+          try {
+            const blob = xhr.response;
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = blobUrl;
+            link.download = "uz.axmap.app-v1.0.0-release.apk";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => {
+              try {
+                window.URL.revokeObjectURL(blobUrl);
+              } catch (e) {}
+            }, 15000);
+          } catch (err) {
+            fallbackDirectDownload();
+            return;
+          }
+
+          setIsDownloading(false);
+          setDownloadSuccess(true);
+          showToast("AX-Map APK ilovasi to'liq yuklandi!");
+          setTimeout(() => {
+            setDownloadSuccess(false);
+            setDownloadProgress(0);
+          }, 5000);
+        } else {
+          fallbackDirectDownload();
+        }
+      };
+
+      xhr.onerror = () => {
+        fallbackDirectDownload();
+      };
+
+      xhr.send();
+    } catch (err) {
+      fallbackDirectDownload();
+    }
   };
 
   // Ulashish (Share)
@@ -260,13 +346,31 @@ export default function AppDownloadPage({
               onClick={handleDownload}
               disabled={isDownloading}
             >
-              <Download size={20} className={isDownloading ? "animate-bounce" : ""} />
-              <span>
-                {isDownloading
-                  ? "Yuklanmoqda..."
-                  : downloadSuccess
-                  ? "Yuklab olindi! (4.5 MB)"
-                  : "Yuklab olish (4.5 MB)"}
+              {isDownloading && (
+                <span
+                  className="app-download-progress-bar"
+                  style={{ width: `${downloadProgress}%` }}
+                />
+              )}
+              <span className="app-download-btn-content">
+                {isDownloading ? (
+                  <>
+                    <Download size={20} className="animate-bounce" />
+                    <span>
+                      Yuklanmoqda: {downloadProgress}% ({downloadedMB} / {totalMB} MB)
+                    </span>
+                  </>
+                ) : downloadSuccess ? (
+                  <>
+                    <CheckCircle2 size={20} />
+                    <span>Yuklab olindi! (O'rnatish boshlandi)</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={20} />
+                    <span>Yuklab olish (4.5 MB)</span>
+                  </>
+                )}
               </span>
             </button>
           </div>

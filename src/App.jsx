@@ -218,44 +218,6 @@ const SectionLoadingFallback = () => (
 // Har bir sahifa ochilganda yoki refresh bo'lganda faqat 1 marta kirish signali yuboriladi
 let hasSentVisitOnThisLoad = false;
 
-// Telefon rejimida gorizontal surishda (swipe) boshqa gorizontal skroll elementlariga xalaqit bermaslik
-const isHorizontallyScrollable = (el) => {
-  if (!el) return false;
-  let cur = el;
-  while (cur && cur !== document.body && cur !== document.documentElement) {
-    if (
-      cur.tagName === "INPUT" ||
-      cur.tagName === "TEXTAREA" ||
-      cur.tagName === "SELECT"
-    ) {
-      return true;
-    }
-    if (cur.classList) {
-      if (
-        cur.classList.contains("no-swipe") ||
-        cur.classList.contains("filter-chips-row") ||
-        cur.classList.contains("horizontal-scroll") ||
-        cur.classList.contains("admin-users-table-wrap")
-      ) {
-        return true;
-      }
-    }
-    try {
-      const style = window.getComputedStyle(cur);
-      if (
-        (style.overflowX === "auto" || style.overflowX === "scroll") &&
-        cur.scrollWidth > cur.clientWidth + 10
-      ) {
-        return true;
-      }
-    } catch {
-      // ignore
-    }
-    cur = cur.parentElement;
-  }
-  return false;
-};
-
 export default function App() {
   // Foydalanuvchi mobil ilova ichida ekanligini yoki veb-saytda ekanligini aniqlash
   const isInstalledApp = useIsInstalledApp();
@@ -333,20 +295,41 @@ export default function App() {
     localStorage.setItem("myup_theme_palette", JSON.stringify(newTheme));
   };
 
-  // Telefon ortga tugmasi va URL routing boshqaruvi (/privacy va boshqalar)
+  const hasSubHistoryRef = useRef(false);
+  const closeAllModalsRef = useRef(null);
+
+  // Telefon ortga tugmasi va URL routing boshqaruvi (/privacy, /apps va boshqalar)
+  // Talab: Qaysidir bo'limda bo'linganda va orqaga qaytish tugmasi bosilganda asosiy bo'limga (home) o'tsin,
+  // va asosiy bo'limda yana bosilganda dasturdan chiqib ketsin (Google ga qaytsin).
   useEffect(() => {
     const isPrivacy = window.location.pathname === "/privacy";
-    const initialTab = isPrivacy ? "privacy" : "home";
+    const isApps = window.location.pathname === "/apps";
+    const initialTab = isPrivacy ? "privacy" : isApps ? "apps" : "home";
     const searchStr = (typeof window !== "undefined" && window.location.search) ? window.location.search : "";
-    window.history.replaceState({ tab: initialTab }, "", (isPrivacy ? "/privacy" : "/") + searchStr);
+    const isSub = initialTab !== "home";
+
+    window.history.replaceState({ tab: initialTab, isSub }, "", (isPrivacy ? "/privacy" : isApps ? "/apps" : "/") + searchStr);
+    hasSubHistoryRef.current = isSub;
 
     const handlePopState = (e) => {
       setAuthInitialMode("register");
+      if (closeAllModalsRef.current) {
+        try {
+          closeAllModalsRef.current();
+        } catch (err) {}
+      }
+
       if (e.state && e.state.tab) {
+        hasSubHistoryRef.current = !!e.state.isSub;
         setActiveTab(e.state.tab);
       } else if (window.location.pathname === "/privacy") {
+        hasSubHistoryRef.current = true;
         setActiveTab("privacy");
+      } else if (window.location.pathname === "/apps") {
+        hasSubHistoryRef.current = true;
+        setActiveTab("apps");
       } else {
+        hasSubHistoryRef.current = false;
         setActiveTab("home");
       }
     };
@@ -370,7 +353,7 @@ export default function App() {
     }
     if (newTab === activeTab) return;
 
-    // Silliq surilish animatsiyasi (Telegram / Instagram uslubida)
+    // Silliq o'tish animatsiyasi
     const curIdx = MAIN_TABS.indexOf(activeTab);
     const newIdx = MAIN_TABS.indexOf(newTab);
     let dir = forcedDir;
@@ -389,7 +372,32 @@ export default function App() {
     }
     const targetPath = newTab === "privacy" ? "/privacy" : (newTab === "apps" || newTab === "download") ? "/apps" : "/";
     const searchStr = (typeof window !== "undefined" && window.location.search) ? window.location.search : "";
-    window.history.pushState({ tab: newTab }, "", targetPath + searchStr);
+
+    // Talab: Har qanday bo'limdan orqaga qaytganda bittada 'home' ga qaytish,
+    // va yana orqaga bosilganda Google ga chiqib ketish.
+    if (newTab === "home") {
+      if (hasSubHistoryRef.current) {
+        hasSubHistoryRef.current = false;
+        window.history.back();
+        setActiveTab("home");
+        if (closeAllModalsRef.current) {
+          try { closeAllModalsRef.current(); } catch (err) {}
+        }
+        return;
+      } else {
+        window.history.replaceState({ tab: "home", isSub: false }, "", "/" + searchStr);
+      }
+    } else {
+      if (!hasSubHistoryRef.current) {
+        // Asosiy bo'limdan birinchi marta boshqa bo'limga o'tish: tarixga 1 ta element qo'shamiz
+        window.history.pushState({ tab: newTab, isSub: true }, "", targetPath + searchStr);
+        hasSubHistoryRef.current = true;
+      } else {
+        // Bo'limlar o'rtasida o'tish: tarixni almashtiramiz (replaceState), shunda orqaga bosilganda to'g'ri 'home' ga qaytadi
+        window.history.replaceState({ tab: newTab, isSub: true }, "", targetPath + searchStr);
+      }
+    }
+
     setActiveTab(newTab);
     if (newTab !== "my") {
       setShowNotificationsPage(false);
@@ -1784,6 +1792,23 @@ export default function App() {
   const [showProfileDetail, setShowProfileDetail] = useState(false);
 
   useEffect(() => {
+    closeAllModalsRef.current = () => {
+      setDetailStation(null);
+      setShowProfileDetail(false);
+      setShowNotificationsPage(false);
+      setSelectedManageStationId(null);
+      setShowAddStation(false);
+      setShowSettingsModal(false);
+      setShowLogoutConfirm(false);
+      setShowCompleteUserProfileModal(false);
+      setShowLocationRegisterModal(false);
+      setShowEditLocationHeroModal(false);
+      setShowGpsModal(false);
+      setNavigationTarget(null);
+    };
+  }, []);
+
+  useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("myup_theme", theme);
   }, [theme]);
@@ -3101,281 +3126,6 @@ export default function App() {
     return filteredStations.slice(0, visibleStationCount);
   }, [filteredStations, visibleStationCount]);
 
-  const [swipeTargetTab, setSwipeTargetTab] = useState(null);
-  const activePaneRef = useRef(null);
-  const targetPaneRef = useRef(null);
-  const currentDragTargetRef = useRef(null);
-  const isSwipingActiveRef = useRef(false);
-  const swipeViewportRef = useRef(null);
-
-  // Telefon rejimi uchun Telegram / Instagram uslubida real vaqtda barmoqqa ergashuvchi surish (Swipe Navigation)
-  useEffect(() => {
-    let startX = 0;
-    let startY = 0;
-    let startTime = 0;
-    let gestureDetermined = false;
-    let isHorizontal = false;
-    let isIgnored = false;
-
-    const handleTouchStart = (e) => {
-      // Faqat bitta barmoq bilan ishlash (ko'p barmoqli pinch/zoom ga tegmaslik)
-      if (!e.touches || e.touches.length !== 1) {
-        isIgnored = true;
-        return;
-      }
-
-      // Har qanday modal, dialog yoki jonli navigatsiya ochiq bo'lsa, surishni butunlay to'xtatish
-      if (
-        detailStation ||
-        showAddStation ||
-        showSettingsModal ||
-        showLogoutConfirm ||
-        showCompleteUserProfileModal ||
-        showLocationRegisterModal ||
-        showEditLocationHeroModal ||
-        showGpsModal ||
-        showProfileDetail ||
-        navigationTarget ||
-        document.querySelector(
-          ".modal-overlay, .modal-backdrop, .station-detail-modal, .bottom-sheet-overlay, .fullscreen-modal, [role='dialog']"
-        )
-      ) {
-        isIgnored = true;
-        return;
-      }
-
-      const targetEl = e.target;
-      if (isHorizontallyScrollable(targetEl)) {
-        isIgnored = true;
-        return;
-      }
-
-      const touch = e.touches[0];
-      const clientX = touch.clientX;
-      const clientY = touch.clientY;
-      const screenW = window.innerWidth;
-
-      // XARITA BO'LIMI CHEKLOVI (Map Conflict Resolution):
-      // Xarita ustida barmoq bilan siljitish (pan) va masshtablash (pinch zoom) MapLibre GL ga tegishli.
-      // Harita bo'limidan boshqa bo'limga o'tish ekranning chetki 50px sohasidan (edge swipe)
-      // yoki xaritadan tashqari boshqaruv hududlaridan boshlangandagina ishlaydi.
-      if (activeTab === "map") {
-        const isMapCanvas =
-          targetEl &&
-          targetEl.closest &&
-          (targetEl.closest(".maplibregl-canvas") ||
-            targetEl.closest(".maplibregl-map") ||
-            targetEl.closest(".real-map-wrapper") ||
-            targetEl.closest(".map-canvas-container"));
-
-        if (isMapCanvas) {
-          const isLeftEdge = clientX <= 50;
-          const isRightEdge = clientX >= screenW - 50;
-          if (!isLeftEdge && !isRightEdge) {
-            isIgnored = true;
-            return;
-          }
-        }
-      }
-
-      startX = clientX;
-      startY = clientY;
-      startTime = Date.now();
-      gestureDetermined = false;
-      isHorizontal = false;
-      isIgnored = false;
-      isSwipingActiveRef.current = false;
-    };
-
-    const handleTouchMove = (e) => {
-      if (isIgnored || !e.touches || e.touches.length !== 1) return;
-
-      const touch = e.touches[0];
-      const dx = touch.clientX - startX;
-      const dy = touch.clientY - startY;
-      const absX = Math.abs(dx);
-      const absY = Math.abs(dy);
-
-      // Harakat yo'nalishini aniqlash (vertikal vs gorizontal)
-      if (!gestureDetermined) {
-        if (absX > 8 || absY > 8) {
-          gestureDetermined = true;
-          if (absY >= absX) {
-            // Foydalanuvchi sahifani pastga/tepaga skroll qilmoqda!
-            // e.preventDefault() chaqirilmaydi, brauzer tabiiy 120 FPS skroll qiladi.
-            isHorizontal = false;
-            isIgnored = true;
-            return;
-          } else {
-            // Gorizontal surish aniqlandi!
-            isHorizontal = true;
-            isSwipingActiveRef.current = true;
-
-            // MUAMMONI HAL QILISH: Brauzerning orqaga/oldinga navigatsiya strelkasini butunlay to'xtatish
-            if (e.cancelable) e.preventDefault();
-
-            // Qaysi bo'limga o'tishni aniqlash
-            const curIdx = MAIN_TABS.indexOf(activeTab);
-            let nextTarget = null;
-
-            if (dx < 0) {
-              // O'ngdan chapga surish -> Keyingi bo'lim
-              if (curIdx !== -1 && curIdx < MAIN_TABS.length - 1) {
-                nextTarget = MAIN_TABS[curIdx + 1];
-              }
-            } else if (dx > 0) {
-              // Chapdan o'ngga surish -> Oldingi bo'lim
-              if (curIdx > 0) {
-                nextTarget = MAIN_TABS[curIdx - 1];
-              } else if (activeTab === "privacy" || activeTab === "apps" || activeTab === "advertising") {
-                nextTarget = prevTab || "home";
-              }
-            }
-
-            if (!nextTarget) {
-              // Chekka holat: birinchi bo'limda o'ngga yoki oxirgi bo'limda chapga surilganda qimirlatmaslik
-              isIgnored = true;
-              return;
-            }
-
-            currentDragTargetRef.current = nextTarget;
-            setSwipeTargetTab(nextTarget);
-          }
-        }
-      }
-
-      // Real vaqtda barmoqqa ergashish (1:1 Direct GPU translate3d)
-      if (isHorizontal && currentDragTargetRef.current) {
-        if (e.cancelable) e.preventDefault();
-
-        const screenW = window.innerWidth;
-        const curIdx = MAIN_TABS.indexOf(activeTab);
-        const targetIdx = MAIN_TABS.indexOf(currentDragTargetRef.current);
-        const isNext = targetIdx > curIdx || (curIdx === -1 && currentDragTargetRef.current === "home");
-
-        // Joriy bo'lim barmoqqa ergashib suriladi
-        if (activePaneRef.current) {
-          activePaneRef.current.style.transition = "none";
-          activePaneRef.current.style.transform = `translate3d(${dx}px, 0, 0)`;
-        }
-
-        // Keyingi/oldingi bo'lim chetdan barmoqqa ergashib kirib keladi
-        if (targetPaneRef.current) {
-          targetPaneRef.current.style.transition = "none";
-          const baseOffset = isNext ? screenW : -screenW;
-          targetPaneRef.current.style.transform = `translate3d(${baseOffset + dx}px, 0, 0)`;
-        }
-      }
-    };
-
-    const handleTouchEnd = (e) => {
-      if (isIgnored || !isHorizontal || !currentDragTargetRef.current) {
-        isSwipingActiveRef.current = false;
-        return;
-      }
-
-      const endX = e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientX : startX;
-      const dx = endX - startX;
-      const absDx = Math.abs(dx);
-      const elapsed = Math.max(1, Date.now() - startTime);
-      const velocity = absDx / elapsed;
-      const screenW = window.innerWidth;
-
-      const target = currentDragTargetRef.current;
-      const curIdx = MAIN_TABS.indexOf(activeTab);
-      const targetIdx = MAIN_TABS.indexOf(target);
-      const isNext = targetIdx > curIdx || (curIdx === -1 && target === "home");
-
-      // Talab: Agar bo'lim ekran kengligining taxminan yarmidan ko'proq (yoki tez swipe/flick bo'lsa) surilgan bo'lsa
-      const isDirectionCorrect = isNext ? dx < -20 : dx > 20;
-      const isCommitted = isDirectionCorrect && (absDx > screenW * 0.38 || velocity > 0.35);
-
-      if (isCommitted) {
-        // Yangi bo'limga to'liq o'tish silliq animatsiyasi (oxirigacha yakunlash)
-        if (activePaneRef.current) {
-          activePaneRef.current.style.transition = "transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)";
-          activePaneRef.current.style.transform = `translate3d(${isNext ? -screenW : screenW}px, 0, 0)`;
-        }
-        if (targetPaneRef.current) {
-          targetPaneRef.current.style.transition = "transform 0.25s cubic-bezier(0.25, 1, 0.5, 1)";
-          targetPaneRef.current.style.transform = "translate3d(0, 0, 0)";
-        }
-
-        setTimeout(() => {
-          handleTabChange(target);
-          currentDragTargetRef.current = null;
-          setSwipeTargetTab(null);
-          isSwipingActiveRef.current = false;
-
-          if (activePaneRef.current) {
-            activePaneRef.current.style.transition = "";
-            activePaneRef.current.style.transform = "";
-          }
-          if (targetPaneRef.current) {
-            targetPaneRef.current.style.transition = "";
-            targetPaneRef.current.style.transform = "";
-          }
-
-          if (typeof navigator !== "undefined" && navigator.vibrate) {
-            try { navigator.vibrate(10); } catch {}
-          }
-        }, 250);
-      } else {
-        // Yarmigacha yetmagan bo'lsa yoki orqaga qaytarilgan bo'lsa: orqaga qaytish silliq animatsiyasi
-        if (activePaneRef.current) {
-          activePaneRef.current.style.transition = "transform 0.22s cubic-bezier(0.25, 1, 0.5, 1)";
-          activePaneRef.current.style.transform = "translate3d(0, 0, 0)";
-        }
-        if (targetPaneRef.current) {
-          targetPaneRef.current.style.transition = "transform 0.22s cubic-bezier(0.25, 1, 0.5, 1)";
-          targetPaneRef.current.style.transform = `translate3d(${isNext ? screenW : -screenW}px, 0, 0)`;
-        }
-
-        setTimeout(() => {
-          currentDragTargetRef.current = null;
-          setSwipeTargetTab(null);
-          isSwipingActiveRef.current = false;
-
-          if (activePaneRef.current) {
-            activePaneRef.current.style.transition = "";
-            activePaneRef.current.style.transform = "";
-          }
-          if (targetPaneRef.current) {
-            targetPaneRef.current.style.transition = "";
-            targetPaneRef.current.style.transform = "";
-          }
-        }, 220);
-      }
-    };
-
-    window.addEventListener("touchstart", handleTouchStart, { passive: true });
-    window.addEventListener("touchmove", handleTouchMove, { passive: false });
-    window.addEventListener("touchend", handleTouchEnd, { passive: true });
-    window.addEventListener("touchcancel", handleTouchEnd, { passive: true });
-
-    return () => {
-      window.removeEventListener("touchstart", handleTouchStart);
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("touchend", handleTouchEnd);
-      window.removeEventListener("touchcancel", handleTouchEnd);
-    };
-  }, [
-    activeTab,
-    detailStation,
-    showAddStation,
-    showSettingsModal,
-    showLogoutConfirm,
-    showCompleteUserProfileModal,
-    showLocationRegisterModal,
-    showEditLocationHeroModal,
-    showGpsModal,
-    showProfileDetail,
-    navigationTarget,
-    prevTab,
-    MAIN_TABS,
-    handleTabChange,
-  ]);
-
   if (navigationTarget) {
     return (
       <Suspense fallback={<SectionLoadingFallback />}>
@@ -3394,246 +3144,6 @@ export default function App() {
       : tabTransitionDirection === "prev"
       ? "tab-slide-in-prev"
       : "";
-
-  // Real vaqtda barmoqqa ergashuvchi surish (Swipe) uchun yon bo'limni tayyorlab ko'rsatish
-  const renderStagedTab = (target) => {
-    switch (target) {
-      case "map":
-        return (
-          <div className="map-fullscreen-wrapper">
-            <Suspense fallback={<MapLoadingFallback />}>
-              <MapView
-                stations={combinedUniqueStations}
-                activeFuelFilter={fuelSubFilter}
-                onFuelFilterChange={(newFilter) => {
-                  setFuelSubFilter(newFilter);
-                  setActiveCategory(newFilter === "all" ? "all" : "fuel");
-                  if (newFilter !== "benzin") setSelectedBenzinGrade("all");
-                }}
-                selectedBenzinGrade={selectedBenzinGrade}
-                onSelectBenzinGrade={setSelectedBenzinGrade}
-                onSelectStation={setDetailStation}
-                onNavigate={handleNavigate}
-                searchQuery={searchQuery}
-                showSidebar={true}
-                userCoords={userCoords}
-                ads={activeAds}
-                onOpenAdvertising={() => handleTabChange("advertising")}
-                onOpenProfile={() => handleTabChange("my")}
-                isDarkTheme={!isThemeLight}
-              />
-            </Suspense>
-          </div>
-        );
-      case "services":
-        return (
-          <div
-            className={`services-three-col-layout profile-three-col-layout ${isThemeLight ? "is-light" : ""}`}
-            style={{
-              '--theme-accent': appTheme?.accent || '#38bdf8',
-              '--theme-bg': appTheme?.bg || '#0e0e10',
-              '--theme-card': appTheme?.card || '#1c1c1e',
-              '--theme-border': appTheme?.border || 'rgba(255, 255, 255, 0.08)',
-              '--theme-panel': appTheme?.panel || '#161618',
-              '--theme-text': appTheme?.text || (isThemeLight ? '#0f172a' : '#ffffff'),
-              '--theme-muted': appTheme?.textMuted || (isThemeLight ? '#64748b' : '#94a3b8'),
-              minHeight: "100vh",
-              backgroundColor: appTheme?.bg || "var(--bg-primary, #0e0e10)",
-              color: appTheme?.text || (isThemeLight ? "#0f172a" : "#ffffff"),
-            }}
-          >
-            <DesktopSideBanner ads={leftAds} ad={leftAd} side="left" customClass="settings-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
-            <div className="services-center-col profile-center-main-col">
-              <Suspense fallback={<SectionLoadingFallback />}>
-                <ServicesSection
-                  isThemeLight={isThemeLight}
-                  appTheme={appTheme}
-                  onGoToProfile={() => handleTabChange("my")}
-                />
-              </Suspense>
-            </div>
-            <DesktopSideBanner ads={rightAds} ad={rightAd} side="right" customClass="settings-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
-          </div>
-        );
-      case "guide":
-        return (
-          <div
-            className={`guide-three-col-layout profile-three-col-layout ${isThemeLight ? "is-light" : ""}`}
-            style={{
-              '--theme-accent': appTheme?.accent || '#38bdf8',
-              '--theme-bg': appTheme?.bg || '#0e0e10',
-              '--theme-card': appTheme?.card || '#1c1c1e',
-              '--theme-border': appTheme?.border || 'rgba(255, 255, 255, 0.08)',
-              '--theme-panel': appTheme?.panel || '#161618',
-              '--theme-text': appTheme?.text || (isThemeLight ? '#0f172a' : '#ffffff'),
-              '--theme-muted': appTheme?.textMuted || (isThemeLight ? '#64748b' : '#94a3b8'),
-              minHeight: "100vh",
-              backgroundColor: appTheme?.bg || "var(--bg-primary, #0e0e10)",
-              color: appTheme?.text || (isThemeLight ? "#0f172a" : "#ffffff"),
-            }}
-          >
-            <DesktopSideBanner ads={leftAds} ad={leftAd} side="left" customClass="settings-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
-            <div className="guide-center-col profile-center-main-col">
-              <Suspense fallback={<SectionLoadingFallback />}>
-                <GuideSection
-                  user={user}
-                  onGoToRegister={() => handleTabChange("my", "register")}
-                  onGoToAddLocation={() => {
-                    if (!user) {
-                      handleTabChange("my", "register");
-                    } else {
-                      handleTabChange("my");
-                      setEditingStation(null);
-                      setShowAddStation(true);
-                    }
-                  }}
-                  onOpenDownload={() => handleTabChange("apps")}
-                  isInstalledApp={isInstalledApp}
-                  isThemeLight={isThemeLight}
-                  appTheme={appTheme}
-                />
-              </Suspense>
-            </div>
-            <DesktopSideBanner ads={rightAds} ad={rightAd} side="right" customClass="settings-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
-          </div>
-        );
-      case "settings":
-        return (
-          <div
-            className={`settings-three-col-layout profile-three-col-layout ${isThemeLight ? "is-light" : ""}`}
-            style={{
-              '--theme-accent': appTheme?.accent || '#38bdf8',
-              '--theme-bg': appTheme?.bg || '#0e0e10',
-              '--theme-card': appTheme?.card || '#1c1c1e',
-              '--theme-border': appTheme?.border || 'rgba(255, 255, 255, 0.08)',
-              '--theme-panel': appTheme?.panel || '#161618',
-              '--theme-text': appTheme?.text || (isThemeLight ? '#0f172a' : '#ffffff'),
-              '--theme-muted': appTheme?.textMuted || (isThemeLight ? '#64748b' : '#94a3b8'),
-              minHeight: "100vh",
-              backgroundColor: appTheme?.bg || "var(--bg-primary, #0e0e10)",
-              color: appTheme?.text || (isThemeLight ? "#0f172a" : "#ffffff"),
-            }}
-          >
-            <DesktopSideBanner ads={leftAds} ad={leftAd} side="left" customClass="settings-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
-            <div className="settings-center-col profile-center-main-col">
-              <Suspense fallback={<SectionLoadingFallback />}>
-                {showNotificationsPage ? (
-                  <NotificationsView
-                    user={user}
-                    onBack={() => setShowNotificationsPage(false)}
-                    isLight={isThemeLight}
-                    appTheme={appTheme}
-                  />
-                ) : (
-                  <SettingsSection
-                    currentTheme={appTheme}
-                    onSaveTheme={handleSaveTheme}
-                    onResetTheme={handleResetTheme}
-                    isThemeLight={isThemeLight}
-                    onToggleThemeLight={toggleThemeLight}
-                    onOpenPrivacy={() => handleTabChange("privacy")}
-                    onOpenDownload={() => handleTabChange("apps")}
-                    onOpenServices={() => handleTabChange("services")}
-                    onOpenAdvertising={() => handleTabChange("advertising")}
-                    onOpenHelp={() => handleTabChange("guide")}
-                    onOpenAuth={(mode) => handleTabChange("my", mode || "register")}
-                    user={user}
-                    onLogout={handleLogout}
-                    isInstalledApp={isInstalledApp}
-                  />
-                )}
-              </Suspense>
-            </div>
-            <DesktopSideBanner ads={rightAds} ad={rightAd} side="right" customClass="settings-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
-          </div>
-        );
-      case "my":
-        return (
-          <main className={`content-area pb-20 profile-content-area`}>
-            {!user ? (
-              <div
-                className={`auth-three-col-layout profile-three-col-layout ${isThemeLight ? "is-light" : ""}`}
-                style={{
-                  '--theme-accent': appTheme?.accent || '#38bdf8',
-                  '--theme-bg': appTheme?.bg || '#0e0e10',
-                  '--theme-card': appTheme?.card || '#1c1c1e',
-                  minHeight: "100vh",
-                  backgroundColor: appTheme?.bg || "var(--bg-primary, #0b0f19)",
-                  color: appTheme?.text || (isThemeLight ? "#0f172a" : "#ffffff"),
-                }}
-              >
-                <DesktopSideBanner ads={leftAds} ad={leftAd} side="left" customClass="auth-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
-                <div className="auth-center-col profile-center-main-col">
-                  <AuthScreen 
-                    key={authInitialMode}
-                    onLoginSuccess={handleAuthSuccess} 
-                    isLight={isThemeLight} 
-                    initialMode={authInitialMode} 
-                  />
-                </div>
-                <DesktopSideBanner ads={rightAds} ad={rightAd} side="right" customClass="auth-desktop-side-banner" onOpenAdvertising={() => handleTabChange("advertising")} />
-              </div>
-            ) : (
-              <div
-                className={`profile-three-col-layout ${isThemeLight ? "is-light" : ""}`}
-                style={{
-                  '--theme-accent': appTheme?.accent || '#38bdf8',
-                  '--theme-bg': appTheme?.bg || '#0e0e10',
-                  minHeight: "100vh",
-                  backgroundColor: appTheme?.bg || "var(--bg-primary, #0b0f19)",
-                }}
-              >
-                <DesktopSideBanner ads={leftAds} ad={leftAd} side="left" onOpenAdvertising={() => handleTabChange("advertising")} />
-                <div className="profile-center-main-col">
-                  <div className="profile-hero-card-compact">
-                    <div className="profile-user-info-row">
-                      <div className="profile-avatar-circle">
-                        <User size={28} color="#38bdf8" />
-                      </div>
-                      <div className="profile-names-wrap">
-                        <h3 className="profile-user-fullname">{user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : "Foydalanuvchi"}</h3>
-                        <span className="profile-user-phone">{user?.phoneNumber || "+998 90 123 45 67"}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <DesktopSideBanner ads={rightAds} ad={rightAd} side="right" onOpenAdvertising={() => handleTabChange("advertising")} />
-              </div>
-            )}
-          </main>
-        );
-      case "home":
-      default:
-        return (
-          <div
-            className={`dark-theme-home ${isThemeLight ? "is-light" : ""}`}
-            style={{
-              '--bg-color': appTheme?.bg || '#0e0e10',
-              '--panel-bg': appTheme?.panel || '#1a1a1c',
-              '--card-bg': appTheme?.card || '#222225',
-              backgroundColor: appTheme?.bg || '#0e0e10',
-              color: appTheme?.text || (isThemeLight ? '#0f172a' : '#ffffff'),
-            }}
-          >
-            <div className="app-content">
-              <div className="left-panel">
-                <div className="fuel-filter-grid">
-                  <button className="fuel-btn active"><Fuel className="fuel-icon" size={24} /> <span>Metan Gaz</span></button>
-                  <button className="fuel-btn"><Fuel className="fuel-icon" size={24} /> <span>Benzin</span></button>
-                  <button className="fuel-btn"><Fuel className="fuel-icon" size={24} /> <span>Propan</span></button>
-                  <button className="fuel-btn"><Plug className="fuel-icon" size={24} /> <span>Elektr</span></button>
-                </div>
-                <div className="stations-cards-list">
-                  {(displayedStations || []).slice(0, 3).map((st) => (
-                    <StationCard key={st.id} station={st} isLight={isThemeLight} />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-    }
-  };
 
   return (
     <div
@@ -3827,13 +3337,8 @@ export default function App() {
         </div>
       )}
 
-      {/* SWIPE NAVIGATION VIEWPORT */}
-      <div className="swipe-tab-viewport" ref={swipeViewportRef}>
-        {/* Active Tab Pane */}
-        <div
-          ref={activePaneRef}
-          className="swipe-tab-pane active-pane"
-        >
+      {/* ASOSIY BO'LIMLAR HUDUDI */}
+      <div className="app-main-content-view">
           {activeTab === "home" && (
         <div
           className={`dark-theme-home ${isThemeLight ? "is-light" : ""} ${tabAnimClass}`}
@@ -5790,30 +5295,6 @@ export default function App() {
         </div>
       )}
 
-        </div>
-
-        {/* Real-time Target Staging Pane (Mounted during swipe gesture) */}
-        {swipeTargetTab && (
-          <div
-            ref={targetPaneRef}
-            className="swipe-tab-pane is-swiping target-pane"
-            style={{
-              position: "fixed",
-              top: "75px",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              width: "100vw",
-              height: "calc(100vh - 75px)",
-              overflow: "hidden",
-              zIndex: 15,
-              pointerEvents: "none",
-              backgroundColor: appTheme?.bg || (isThemeLight ? "#f8fafc" : "#0e0e10"),
-            }}
-          >
-            {renderStagedTab(swipeTargetTab)}
-          </div>
-        )}
       </div>
 
       {/* FAQAT KOMPYUTER HOLATIDA FOOTER (Faqat xarita to'liq ekranida emas) */}
