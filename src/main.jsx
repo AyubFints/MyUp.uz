@@ -3,6 +3,23 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
+// Vite yangi versiya chiqqanda asset/CSS preload xatolarini avtomatik tutish va sahifani muammosiz yangilash
+if (typeof window !== 'undefined') {
+  window.addEventListener('vite:preloadError', (event) => {
+    event.preventDefault();
+    console.warn('Yangi reliz sababli kesh tozalanmoqda va sahifa yangilanmoqda...');
+    try {
+      if ('caches' in window) {
+        caches.keys().then((names) => Promise.all(names.map((n) => caches.delete(n)))).finally(() => {
+          window.location.reload();
+        });
+        return;
+      }
+    } catch (e) {}
+    window.location.reload();
+  });
+}
+
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -11,14 +28,23 @@ class ErrorBoundary extends React.Component {
 
   static getDerivedStateFromError(error) {
     const msg = error?.message || String(error || '');
-    if (
+    const isChunkOrPreloadError =
       msg.includes('Failed to fetch dynamically imported module') ||
       msg.includes('dynamically imported module') ||
-      msg.includes('Loading chunk')
-    ) {
-      const reloadLock = sessionStorage.getItem('chunk_reload_lock');
-      if (!reloadLock) {
-        sessionStorage.setItem('chunk_reload_lock', 'true');
+      msg.includes('Loading chunk') ||
+      msg.includes('Unable to preload CSS') ||
+      msg.includes('preload CSS') ||
+      msg.includes('Unable to preload') ||
+      msg.includes('Failed to load resource') ||
+      msg.includes('Loading CSS chunk') ||
+      msg.includes('mime type');
+
+    if (isChunkOrPreloadError) {
+      const lastReload = parseInt(sessionStorage.getItem('chunk_reload_ts') || '0', 10);
+      const now = Date.now();
+      // Oxirgi 12 soniya ichida yangilanmagan bo'lsa, xatolik ko'rsatmasdan jimjit yangilaymiz
+      if (now - lastReload > 12000) {
+        sessionStorage.setItem('chunk_reload_ts', String(now));
         try {
           if ('caches' in window) {
             caches.keys().then((names) => Promise.all(names.map((n) => caches.delete(n)))).finally(() => {

@@ -4,7 +4,7 @@
 // & Preserved Notification Click Handler
 // ========================================================
 
-const CACHE_NAME = 'axmap-v8';
+const CACHE_NAME = 'axmap-v9';
 
 // Core shell assets to pre-cache on install for 0ms offline startup
 const PRECACHE_ASSETS = [
@@ -173,7 +173,7 @@ self.addEventListener('fetch', (event) => {
   // Strategy A: Navigation requests (request.mode === 'navigate') -> Network-First with /index.html fallback
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: 'no-cache' })
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const responseClone = networkResponse.clone();
@@ -201,7 +201,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Strategy B: Hashed Vite bundles (/assets/*) -> Cache-First
+  // Strategy B: Hashed Vite bundles (/assets/*) -> Cache-First with 404 auto-purge
   if (url.origin === self.location.origin && url.pathname.startsWith('/assets/')) {
     event.respondWith(
       caches.match(request).then((cachedResponse) => {
@@ -210,6 +210,10 @@ self.addEventListener('fetch', (event) => {
         }
         return fetch(request).then((networkResponse) => {
           if (!networkResponse || networkResponse.status !== 200) {
+            // Yangi reliz chiqqanida eski index.html keshda qolmasligi uchun uni tozalaymiz
+            if (networkResponse && networkResponse.status === 404) {
+              caches.open(CACHE_NAME).then((cache) => cache.delete('/index.html'));
+            }
             return networkResponse;
           }
           const responseClone = networkResponse.clone();
