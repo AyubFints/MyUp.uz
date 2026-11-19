@@ -16,7 +16,7 @@ import AuthScreen from "./components/AuthScreen";
 import StationDetailModal from "./components/StationDetailModal";
 import DesktopFooter from "./components/DesktopFooter";
 import { CITIES, INITIAL_STATIONS, MOCK_NEWS, DEFAULT_DEMO_STATIONS, DEFAULT_THEME } from "./data/mockData";
-import { stationMatchesFuel, getBenzinSummaryPrices, getStationBenzinPrices } from "./utils/fuel";
+import { stationMatchesFuel, getBenzinSummaryPrices, getStationBenzinPrices, normalizeBenzinKey, formatBenzinLabel } from "./utils/fuel";
 
 import { calculateDistance } from "./utils/distance";
 import { playReopenAlertSound } from "./utils/audio";
@@ -1367,6 +1367,10 @@ export default function App() {
   const [showAddFuelRow, setShowAddFuelRow] = useState(false);
   const [newFuelType, setNewFuelType] = useState("benzin");
   const [newFuelPrice, setNewFuelPrice] = useState("9500");
+  const [isBenzinManageOpen, setIsBenzinManageOpen] = useState(false);
+  const [showAddBenzinGrade, setShowAddBenzinGrade] = useState(false);
+  const [newBenzinGradeName, setNewBenzinGradeName] = useState("");
+  const [newBenzinGradePrice, setNewBenzinGradePrice] = useState("");
 
   const currentManageStation = useMemo(() => {
     return myStations.find((s) => s.id === selectedManageStationId) || null;
@@ -2444,6 +2448,11 @@ export default function App() {
     []
   );
 
+  const currentManageBenzinGrades = useMemo(() => {
+    if (!currentManageStation) return [];
+    return getStationBenzinPrices(currentManageStation);
+  }, [currentManageStation]);
+
   const activeFuelsList = useMemo(() => {
     if (!currentManageStation) return [];
     const types = Array.isArray(currentManageStation.types) && currentManageStation.types.length > 0
@@ -2452,7 +2461,14 @@ export default function App() {
         ? currentManageStation.type
         : Object.keys(currentManageStation.prices || {}));
 
-    return allAvailableFuels.filter((f) => types.includes(f.id));
+    const cleanTypes = types.map((t) => String(t).toLowerCase());
+
+    return allAvailableFuels.filter((f) => {
+      if (f.id === 'benzin') {
+        return stationMatchesFuel(currentManageStation, 'benzin');
+      }
+      return cleanTypes.includes(f.id);
+    });
   }, [currentManageStation, allAvailableFuels]);
 
   const availableFuelsToAdd = useMemo(() => {
@@ -2591,18 +2607,38 @@ export default function App() {
 
   const handleUpdatePrice = async (stationId, fuelKey, priceVal) => {
     let num = parseInt(priceVal, 10);
+    const normKey = normalizeBenzinKey(fuelKey);
+    const isBenzin =
+      fuelKey === "benzin" ||
+      normKey.startsWith("ai") ||
+      /^a(?:i)?[-_]?[0-9]+/i.test(fuelKey);
+
     const updateFn = (s) => {
       if (s.id !== stationId) return s;
       const newPrices = { ...(s.prices || {}) };
-      if (isNaN(num) || num <= 0) delete newPrices[fuelKey];
-      else newPrices[fuelKey] = num;
+      if (isNaN(num) || num <= 0) {
+        delete newPrices[fuelKey];
+        if (normKey !== fuelKey) delete newPrices[normKey];
+      } else {
+        newPrices[fuelKey] = num;
+        if (isBenzin && fuelKey !== normKey) {
+          newPrices[normKey] = num;
+        }
+      }
+
+      if (isBenzin && !isNaN(num) && num > 0) {
+        if (!newPrices.benzin || fuelKey === "ai92" || fuelKey === "benzin") {
+          newPrices.benzin = num;
+        }
+      }
 
       const curTypes = Array.isArray(s.types)
         ? s.types
         : Array.isArray(s.type)
         ? s.type
         : Object.keys(s.prices || {});
-      const newTypes = Array.from(new Set([...curTypes, fuelKey]));
+      const extra = isBenzin ? [fuelKey, normKey, "benzin"] : [fuelKey];
+      const newTypes = Array.from(new Set([...curTypes, ...extra]));
 
       return { ...s, prices: newPrices, type: newTypes, types: newTypes };
     };
@@ -2628,6 +2664,81 @@ export default function App() {
     }
   };
 
+  const handleAddBenzinGrade = async (stationId) => {
+    if (!newBenzinGradeName.trim()) {
+      alert("Iltimos, benzin markasi nomini kiriting (masalan: A-89, A-80, A-98)");
+      return;
+    }
+    const priceNum = parseInt(newBenzinGradePrice, 10);
+    if (isNaN(priceNum) || priceNum <= 0) {
+      alert("Iltimos, to'g'ri narx kiriting");
+      return;
+    }
+    const gradeKey = normalizeBenzinKey(newBenzinGradeName);
+    await handleUpdatePrice(stationId, gradeKey, priceNum);
+    setShowAddBenzinGrade(false);
+    setNewBenzinGradeName("");
+    setNewBenzinGradePrice("");
+  };
+
+  const handleDeleteBenzinGrade = async (stationId, gradeId, gradeLabel) => {
+    const confirmDel = window.confirm(
+      `Haqiqatan ham "${gradeLabel}" benzin markasini o'chirmoqchimisiz?`
+    );
+    if (!confirmDel) return;
+
+    const normId = normalizeBenzinKey(gradeId);
+    const updateFn = (s) => {
+      if (s.id !== stationId) return s;
+      const curTypes = Array.isArray(s.types)
+        ? s.types
+        : Array.isArray(s.type)
+        ? s.type
+        : Object.keys(s.prices || {});
+
+      const newPrices = { ...(s.prices || {}) };
+      delete newPrices[gradeId];
+      delete newPrices[normId];
+
+      const remainingBenzin = Object.keys(newPrices).some((k) => {
+        const norm = normalizeBenzinKey(k);
+        return (
+          norm.startsWith("ai") ||
+          /^a(?:i)?[-_]?[0-9]+/i.test(k) ||
+          k === "benzin"
+        ) && Number(newPrices[k]) > 0;
+      });
+
+      let newTypes = curTypes.filter((t) => t !== gradeId && t !== normId);
+      if (!remainingBenzin) {
+        newTypes = newTypes.filter((t) => t !== "benzin");
+        delete newPrices.benzin;
+      }
+
+      return {
+        ...s,
+        type: newTypes,
+        types: newTypes,
+        prices: newPrices,
+      };
+    };
+
+    setMyStations((prev) => {
+      const updated = prev.map(updateFn);
+      try {
+        localStorage.setItem("myup_my_stations", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+    setStations((prev) => prev.map(updateFn));
+
+    try {
+      await api.stations.deleteFuel(stationId, gradeId);
+    } catch (err) {
+      console.warn("Delete benzin grade warning:", err.message);
+    }
+  };
+
   const handleDeleteFuel = async (stationId, fuelKey) => {
     const fuelObj = allAvailableFuels.find((f) => f.id === fuelKey);
     const fuelName = fuelObj ? fuelObj.label : fuelKey;
@@ -2643,10 +2754,34 @@ export default function App() {
         : Array.isArray(s.type)
         ? s.type
         : Object.keys(s.prices || {});
-      const newTypes = curTypes.filter((t) => t !== fuelKey);
 
       const newPrices = { ...(s.prices || {}) };
-      delete newPrices[fuelKey];
+      if (fuelKey === "benzin") {
+        Object.keys(newPrices).forEach((k) => {
+          const norm = normalizeBenzinKey(k);
+          if (
+            k === "benzin" ||
+            norm.startsWith("ai") ||
+            /^a(?:i)?[-_]?[0-9]+/i.test(k)
+          ) {
+            delete newPrices[k];
+          }
+        });
+      } else {
+        delete newPrices[fuelKey];
+      }
+
+      const newTypes = curTypes.filter((t) => {
+        if (fuelKey === "benzin") {
+          const norm = normalizeBenzinKey(t);
+          return (
+            t !== "benzin" &&
+            !norm.startsWith("ai") &&
+            !/^a(?:i)?[-_]?[0-9]+/i.test(t)
+          );
+        }
+        return t !== fuelKey;
+      });
 
       const newPressures = { ...(s.pressures || {}) };
       delete newPressures[fuelKey];
@@ -4325,9 +4460,230 @@ export default function App() {
 
                       <div className="fuel-prices-vertical-stack">
                         {activeFuelsList.map((fuel) => {
-                          const currentPrice =
-                            currentManageStation.prices?.[fuel.id];
+                          const isBenzin = fuel.id === "benzin";
+                          const currentPrice = currentManageStation.prices?.[fuel.id];
                           const isEditing = editingPriceKey === fuel.id;
+
+                          if (isBenzin) {
+                            return (
+                              <div key="benzin" className="fuel-benzin-wrapper">
+                                <div
+                                  className="fuel-price-row-card fuel-benzin-main-card"
+                                  onClick={() => setIsBenzinManageOpen((prev) => !prev)}
+                                  role="button"
+                                  tabIndex={0}
+                                  title="Benzin markalari va narxlarini boshqarish uchun bosing"
+                                >
+                                  <div className="fuel-row-left">
+                                    <div
+                                      className="fuel-type-icon-halo"
+                                      style={{
+                                        backgroundColor: `${fuel.color}22`,
+                                        color: fuel.color,
+                                      }}
+                                    >
+                                      <fuel.icon size={16} />
+                                    </div>
+                                    <div className="fuel-row-title-block">
+                                      <span className="fuel-row-name">{fuel.label}</span>
+                                      <span className="fuel-row-unit">1 litr uchun</span>
+                                    </div>
+                                  </div>
+
+                                  <div className="fuel-row-right">
+                                    {/* Bitta umumiy narx o'rniga markalar ko'rinadi (A-92, A-90, A-95...) */}
+                                    <div
+                                      className="fuel-benzin-marks-pill"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setIsBenzinManageOpen((prev) => !prev);
+                                      }}
+                                      title="Markalar va narxlarni boshqarish"
+                                    >
+                                      <span className="fuel-benzin-marks-txt">
+                                        {currentManageBenzinGrades.map((g) => g.label).join(", ") || "A-92, A-90, A-95"}
+                                      </span>
+                                      <ChevronDown
+                                        size={14}
+                                        className={`fuel-benzin-chevron ${isBenzinManageOpen ? "open" : ""}`}
+                                      />
+                                    </div>
+
+                                    {/* O'chirish tugmasi */}
+                                    <button
+                                      type="button"
+                                      className="fuel-row-delete-btn"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteFuel(currentManageStation.id, "benzin");
+                                      }}
+                                      title="Benzin yoqilg'i turini o'chirish"
+                                      aria-label="Benzin yoqilg'i turini o'chirish"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Benzin ichiga kirganda (ochilganda): A-92, A-90, A-95 va A-89 kabi markalarni tahrirlash/qo'shish */}
+                                {isBenzinManageOpen && (
+                                  <div className="manage-benzin-subpanel">
+                                    <div className="manage-benzin-subpanel-header">
+                                      <div className="manage-benzin-subpanel-title">
+                                        <Fuel size={14} color="#f59e0b" />
+                                        <span>Benzin markalari va narxlari</span>
+                                      </div>
+                                      <span className="manage-benzin-subpanel-hint">
+                                        Narxni o'zgartirish uchun ustiga bosing yoki yangi marka qo'shing
+                                      </span>
+                                    </div>
+
+                                    <div className="manage-benzin-grades-list">
+                                      {currentManageBenzinGrades.map((grade) => {
+                                        const isEditingGrade = editingPriceKey === grade.id;
+                                        return (
+                                          <div key={grade.id} className="manage-benzin-grade-row">
+                                            <div className="manage-benzin-grade-label-wrap">
+                                              <span className="manage-benzin-grade-badge">
+                                                {grade.label}
+                                              </span>
+                                              <span className="manage-benzin-per-liter">1 litr uchun</span>
+                                            </div>
+
+                                            <div className="manage-benzin-grade-right">
+                                              {isEditingGrade ? (
+                                                <div className="fuel-price-inline-edit">
+                                                  <input
+                                                    type="number"
+                                                    value={tempPriceVal}
+                                                    onChange={(e) => setTempPriceVal(e.target.value)}
+                                                    placeholder="Narx"
+                                                    className="fuel-price-input"
+                                                    autoFocus
+                                                  />
+                                                  <button
+                                                    type="button"
+                                                    className="manage-save-btn-small"
+                                                    onClick={() => {
+                                                      handleUpdatePrice(
+                                                        currentManageStation.id,
+                                                        grade.id,
+                                                        tempPriceVal
+                                                      );
+                                                      setEditingPriceKey(null);
+                                                    }}
+                                                    title="Saqlash"
+                                                  >
+                                                    <Check size={14} />
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    className="manage-cancel-btn-small"
+                                                    onClick={() => setEditingPriceKey(null)}
+                                                    title="Bekor qilish"
+                                                  >
+                                                    <X size={14} />
+                                                  </button>
+                                                </div>
+                                              ) : (
+                                                <div
+                                                  className="fuel-price-display-pill"
+                                                  onClick={() => {
+                                                    setEditingPriceKey(grade.id);
+                                                    setTempPriceVal(grade.price || "");
+                                                  }}
+                                                  title="Narxni o'zgartirish uchun bosing"
+                                                >
+                                                  <strong className="fuel-price-val">
+                                                    {grade.price
+                                                      ? `${Number(grade.price).toLocaleString("ru-RU").replace(",", " ")} so'm`
+                                                      : "Narx belgilanmagan"}
+                                                  </strong>
+                                                  <Edit3 size={12} className="fuel-price-edit-icon" />
+                                                </div>
+                                              )}
+
+                                              {/* Markani o'chirish (masalan A-90 ni o'chirib o'rniga A-89 qo'shish) */}
+                                              <button
+                                                type="button"
+                                                className="fuel-row-delete-btn-mini"
+                                                onClick={() =>
+                                                  handleDeleteBenzinGrade(
+                                                    currentManageStation.id,
+                                                    grade.id,
+                                                    grade.label
+                                                  )
+                                                }
+                                                title={`${grade.label} markasini o'chirish`}
+                                              >
+                                                <Trash2 size={13} />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+
+                                    {/* Yangi benzin markasi qo'shish (Masalan: A-89, A-80, A-91...) */}
+                                    {showAddBenzinGrade ? (
+                                      <div className="add-benzin-grade-form">
+                                        <div className="add-benzin-form-title">
+                                          Yangi benzin markasi qo'shish:
+                                        </div>
+                                        <div className="add-benzin-form-inputs">
+                                          <input
+                                            type="text"
+                                            value={newBenzinGradeName}
+                                            onChange={(e) => setNewBenzinGradeName(e.target.value)}
+                                            placeholder="Marka (masalan: A-89, A-80, A-98)"
+                                            className="add-benzin-name-input"
+                                            autoFocus
+                                          />
+                                          <input
+                                            type="number"
+                                            value={newBenzinGradePrice}
+                                            onChange={(e) => setNewBenzinGradePrice(e.target.value)}
+                                            placeholder="Narxi (so'm)"
+                                            className="add-benzin-price-input"
+                                          />
+                                        </div>
+                                        <div className="add-benzin-form-actions">
+                                          <button
+                                            type="button"
+                                            className="add-benzin-submit-btn"
+                                            onClick={() => handleAddBenzinGrade(currentManageStation.id)}
+                                          >
+                                            <Check size={14} />
+                                            <span>Qo'shish</span>
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="add-benzin-cancel-btn"
+                                            onClick={() => {
+                                              setShowAddBenzinGrade(false);
+                                              setNewBenzinGradeName("");
+                                              setNewBenzinGradePrice("");
+                                            }}
+                                          >
+                                            <span>Bekor qilish</span>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        className="add-benzin-grade-btn"
+                                        onClick={() => setShowAddBenzinGrade(true)}
+                                      >
+                                        <Plus size={14} />
+                                        <span>Yangi benzin markasi qo'shish (masalan: A-89, A-80...)</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
 
                           return (
                             <div key={fuel.id} className="fuel-price-row-card">
