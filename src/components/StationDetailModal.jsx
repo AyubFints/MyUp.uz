@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  ChevronLeft, ChevronRight, MapPin, Phone, Info, Navigation, X, Maximize2
+  ChevronLeft, ChevronRight, MapPin, Phone, Info, Navigation, X, Maximize2, Fuel
 } from 'lucide-react';
 import { formatDistance } from '../utils/distance';
+import { getStationBenzinPrices, stationMatchesFuel } from '../utils/fuel';
 
 // 1. Maxsus SVG ikonlar
 const RestroomIcon = () => (
@@ -115,6 +116,11 @@ export default function StationDetailModal({
 
   const stationFuelTypes = Array.from(new Set(rawTypes));
   const hasGas = stationFuelTypes.some((t) => t === 'metan' || t === 'propan');
+  const hasBenzin = stationMatchesFuel(station, 'benzin');
+  const benzinGrades = hasBenzin ? getStationBenzinPrices(station) : [];
+  const otherFuelTypes = stationFuelTypes.filter(
+    (t) => !['benzin', 'ai92', 'ai90', 'ai95', 'ai80', 'ai98'].includes(String(t).toLowerCase())
+  );
   const gasPressureVal = station.gasPressure || station.pressure || (station.pressures?.metan) || null;
 
   // Qulayliklar va to'lov turlarining mavjudligi
@@ -269,49 +275,87 @@ export default function StationDetailModal({
           )}
 
           {/* ========================================================
-              3. YOQILG'I NARXLARI (Haqiqiy faol yoqilg'ilar)
+              BENZIN TURLARI VA NARXLARI (FAQAT BENZIN SOTADIGAN JOYDA CHIQADI)
               ======================================================== */}
-          <div className="sd-section-block">
-            <div className="sd-sec-title-row">
-              <h3 className="sd-sec-heading">Yoqilg'i narxlari</h3>
-              <Info size={16} className="sd-info-circle-icon" />
-            </div>
+          {hasBenzin && (
+            <div className="sd-section-block sd-benzin-special-block">
+              <div className="sd-sec-title-row">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div className="sd-benzin-title-icon-wrap">
+                    <Fuel size={19} color="#f59e0b" />
+                  </div>
+                  <h3 className="sd-sec-heading sd-benzin-heading" style={{ margin: 0 }}>
+                    Benzin turlari va narxlari
+                  </h3>
+                </div>
+                <span className="sd-benzin-badge">Litr narxi</span>
+              </div>
 
-            {stationFuelTypes.length > 0 ? (
-              <div className="sd-fuel-grid">
-                {stationFuelTypes.map((fuelKey) => {
-                  const meta = FUEL_META[fuelKey] || { label: fuelKey.toUpperCase(), unit: 'litr' };
-                  const pVal = station.prices?.[fuelKey];
-                  const formatted = formatPrice(pVal);
-                  return (
-                    <div key={fuelKey} className="sd-fuel-card">
-                      <span className="sd-fuel-card-title">{meta.label}</span>
-                      <span className="sd-fuel-card-price">
-                        {formatted ? formatted : "Belgilanmagan"}
-                      </span>
+              <div className="sd-benzin-cards-grid">
+                {benzinGrades.map((g) => (
+                  <div key={g.id} className="sd-benzin-grade-card">
+                    <div className="sd-benzin-card-top-row">
+                      <span className="sd-benzin-grade-pill">{g.label}</span>
+                      <span className="sd-benzin-avail-dot">Mavjud</span>
                     </div>
-                  );
-                })}
+                    <div className="sd-benzin-card-body">
+                      <div className="sd-benzin-price-val">
+                        {Number(g.price).toLocaleString('ru-RU').replace(',', ' ')} <span className="sd-benzin-price-currency">so'm</span>
+                      </div>
+                      <span className="sd-benzin-price-unit">1 litr uchun</span>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ) : (
-              <p style={{ color: 'var(--theme-muted, #94a3b8)', fontSize: '0.88rem', margin: '4px 0 10px' }}>
-                Yoqilg'i turlari kiritilmagan
-              </p>
-            )}
+            </div>
+          )}
 
-            {/* Gaz bosimi (Faqat Metan yoki Propan sotilsa va bosim mavjud bo'lsa) */}
-            {hasGas && gasPressureVal && Number(gasPressureVal) > 0 && (
-              <div className="sd-pressure-card">
-                <div className="sd-pressure-meter-halo">
-                  <GaugeMeterIcon />
-                </div>
-                <div className="sd-pressure-text-wrap">
-                  <span className="sd-pressure-label">Gaz bosimi:</span>
-                  <strong className="sd-pressure-val">{gasPressureVal} atm</strong>
-                </div>
+          {/* ========================================================
+              3. BOSHQA YOQILG'I NARXLARI (Metan, Propan, Elektr)
+              ======================================================== */}
+          {(!hasBenzin || otherFuelTypes.length > 0) && (
+            <div className="sd-section-block">
+              <div className="sd-sec-title-row">
+                <h3 className="sd-sec-heading">Yoqilg'i narxlari</h3>
+                <Info size={16} className="sd-info-circle-icon" />
               </div>
-            )}
-          </div>
+
+              {(otherFuelTypes.length > 0 ? otherFuelTypes : stationFuelTypes).length > 0 ? (
+                <div className="sd-fuel-grid">
+                  {(otherFuelTypes.length > 0 ? otherFuelTypes : stationFuelTypes).map((fuelKey) => {
+                    const meta = FUEL_META[fuelKey] || { label: fuelKey.toUpperCase(), unit: 'litr' };
+                    const pVal = station.prices?.[fuelKey];
+                    const formatted = formatPrice(pVal);
+                    return (
+                      <div key={fuelKey} className="sd-fuel-card">
+                        <span className="sd-fuel-card-title">{meta.label}</span>
+                        <span className="sd-fuel-card-price">
+                          {formatted ? formatted : "Belgilanmagan"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p style={{ color: 'var(--theme-muted, #94a3b8)', fontSize: '0.88rem', margin: '4px 0 10px' }}>
+                  Yoqilg'i turlari kiritilmagan
+                </p>
+              )}
+
+              {/* Gaz bosimi (Faqat Metan yoki Propan sotilsa va bosim mavjud bo'lsa) */}
+              {hasGas && gasPressureVal && Number(gasPressureVal) > 0 && (
+                <div className="sd-pressure-card">
+                  <div className="sd-pressure-meter-halo">
+                    <GaugeMeterIcon />
+                  </div>
+                  <div className="sd-pressure-text-wrap">
+                    <span className="sd-pressure-label">Gaz bosimi:</span>
+                    <strong className="sd-pressure-val">{gasPressureVal} atm</strong>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ========================================================
               4. QULAYLIKLAR (Qahva, Hojatxona, Do'kon)

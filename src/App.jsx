@@ -16,7 +16,7 @@ import AuthScreen from "./components/AuthScreen";
 import StationDetailModal from "./components/StationDetailModal";
 import DesktopFooter from "./components/DesktopFooter";
 import { CITIES, INITIAL_STATIONS, MOCK_NEWS, DEFAULT_DEMO_STATIONS, DEFAULT_THEME } from "./data/mockData";
-import { stationMatchesFuel } from "./utils/fuel";
+import { stationMatchesFuel, getBenzinSummaryPrices, getStationBenzinPrices } from "./utils/fuel";
 
 import { calculateDistance } from "./utils/distance";
 import { playReopenAlertSound } from "./utils/audio";
@@ -1475,6 +1475,7 @@ export default function App() {
     } catch {}
     return "all";
   });
+  const [selectedBenzinGrade, setSelectedBenzinGrade] = useState("all"); // 'all' | 'ai92' | 'ai90' | 'ai95'
   const [fuelSortBy, setFuelSortBy] = useState("nearest"); // nearest, nearest_cheap, cheapest, nearest_best
 
   // Jonli video reklamalar (A-Maps Super Admin orqali boshqariladi, Vercel va offline uchun DEFAULT_ACTIVE_ADS)
@@ -2809,6 +2810,10 @@ export default function App() {
     }));
   }, [combinedUniqueStations, userCoords]);
 
+  const benzinGradesSummary = useMemo(() => {
+    return getBenzinSummaryPrices(combinedUniqueStations);
+  }, [combinedUniqueStations]);
+
   const filteredStations = useMemo(() => {
     const allStations =
       combinedUniqueStations.length > 0
@@ -2828,11 +2833,36 @@ export default function App() {
       }))
       .filter((st) => {
         if (searchQuery && typeof searchQuery === "string" && searchQuery.trim()) {
-          const q = searchQuery.toLowerCase();
-          const matches =
+          const q = searchQuery.toLowerCase().trim();
+          let matches =
             (st.name || "").toLowerCase().includes(q) ||
             (st.brand || "").toLowerCase().includes(q) ||
             (st.address || "").toLowerCase().includes(q);
+
+          // Agar benzin, A-92, A-90, A-95 yoki boshqa yoqilg'i so'z qidirilsa
+          if (!matches) {
+            if (
+              q.includes("benzin") ||
+              q.includes("a92") ||
+              q.includes("ai92") ||
+              q.includes("a90") ||
+              q.includes("ai90") ||
+              q.includes("a95") ||
+              q.includes("ai95") ||
+              q.includes("a80") ||
+              q.includes("ai80")
+            ) {
+              matches = stationMatchesFuel(st, "benzin");
+            } else if (q.includes("metan")) {
+              matches = stationMatchesFuel(st, "metan");
+            } else if (q.includes("propan")) {
+              matches = stationMatchesFuel(st, "propan");
+            } else if (q.includes("gaz")) {
+              matches = stationMatchesFuel(st, "gaz");
+            } else if (q.includes("elektr") || q.includes("tok") || q.includes("ev")) {
+              matches = stationMatchesFuel(st, "elektr");
+            }
+          }
           if (!matches) return false;
         }
         if (
@@ -2843,12 +2873,26 @@ export default function App() {
             return false;
           }
         }
+        if (fuelSubFilter === "benzin" && selectedBenzinGrade !== "all") {
+          if (!stationMatchesFuel(st, selectedBenzinGrade)) {
+            return false;
+          }
+        }
         return true;
       });
 
     if (activeCategory === "fuel") {
       const getPrice = (st) => {
         if (!st || !st.prices || typeof st.prices !== "object") return Infinity;
+        if (fuelSubFilter === "benzin") {
+          const bPrices = getStationBenzinPrices(st);
+          if (selectedBenzinGrade !== "all") {
+            const matched = bPrices.find((g) => g.id === selectedBenzinGrade);
+            if (matched && matched.price > 0) return matched.price;
+          }
+          const defaultGrade = bPrices.find((g) => g.id === "ai92");
+          return defaultGrade?.price || Number(st.prices.benzin) || 10500;
+        }
         if (fuelSubFilter === "all") {
           const vals = Object.values(st.prices)
             .map(Number)
@@ -3229,7 +3273,10 @@ export default function App() {
                 onFuelFilterChange={(newFilter) => {
                   setFuelSubFilter(newFilter);
                   setActiveCategory(newFilter === "all" ? "all" : "fuel");
+                  if (newFilter !== "benzin") setSelectedBenzinGrade("all");
                 }}
+                selectedBenzinGrade={selectedBenzinGrade}
+                onSelectBenzinGrade={setSelectedBenzinGrade}
                 onSelectStation={setDetailStation}
                 onNavigate={handleNavigate}
                 searchQuery={searchQuery}
@@ -3679,23 +3726,65 @@ export default function App() {
                 </button>
                 <button
                   className={`fuel-btn ${fuelSubFilter === "benzin" ? "active" : ""}`}
-                  onClick={() => { setFuelSubFilter(fuelSubFilter === "benzin" ? "all" : "benzin"); setActiveCategory("fuel"); }}
+                  onClick={() => {
+                    const next = fuelSubFilter === "benzin" ? "all" : "benzin";
+                    setFuelSubFilter(next);
+                    if (next === "all") setSelectedBenzinGrade("all");
+                    setActiveCategory("fuel");
+                  }}
                 >
                   <Fuel className="fuel-icon" size={24} /> <span>Benzin</span>
                 </button>
                 <button
                   className={`fuel-btn ${fuelSubFilter === "propan" ? "active" : ""}`}
-                  onClick={() => { setFuelSubFilter(fuelSubFilter === "propan" ? "all" : "propan"); setActiveCategory("fuel"); }}
+                  onClick={() => {
+                    setFuelSubFilter(fuelSubFilter === "propan" ? "all" : "propan");
+                    setSelectedBenzinGrade("all");
+                    setActiveCategory("fuel");
+                  }}
                 >
                   <Fuel className="fuel-icon" size={24} /> <span>Propan</span>
                 </button>
                 <button
                   className={`fuel-btn ${fuelSubFilter === "elektr" ? "active" : ""}`}
-                  onClick={() => { setFuelSubFilter(fuelSubFilter === "elektr" ? "all" : "elektr"); setActiveCategory("fuel"); }}
+                  onClick={() => {
+                    setFuelSubFilter(fuelSubFilter === "elektr" ? "all" : "elektr");
+                    setSelectedBenzinGrade("all");
+                    setActiveCategory("fuel");
+                  }}
                 >
                   <Plug className="fuel-icon" size={24} /> <span>Elektr Zaryadlash</span>
                 </button>
               </div>
+
+              {/* Benzin markalari (A-92, A-90, A-95) va narxlari - Agar benzin tanlansa yoki qidirilsa */}
+              {(fuelSubFilter === "benzin" || (searchQuery && searchQuery.toLowerCase().includes("benzin")) || selectedBenzinGrade !== "all") && (
+                <div className={`benzin-subbar-container ${isThemeLight ? "is-light" : ""}`}>
+                  <div className="benzin-subbar-header">
+                    <span className="benzin-subbar-title">Benzin turlari va eng yaxshi narxlar:</span>
+                  </div>
+                  <div className="benzin-subbar-pills">
+                    <button
+                      type="button"
+                      className={`benzin-subpill ${selectedBenzinGrade === "all" ? "active" : ""}`}
+                      onClick={() => setSelectedBenzinGrade("all")}
+                    >
+                      <span className="benzin-subpill-name">Barchasi</span>
+                    </button>
+                    {benzinGradesSummary.map((grade) => (
+                      <button
+                        key={grade.id}
+                        type="button"
+                        className={`benzin-subpill ${selectedBenzinGrade === grade.id ? "active" : ""}`}
+                        onClick={() => setSelectedBenzinGrade(selectedBenzinGrade === grade.id ? "all" : grade.id)}
+                      >
+                        <span className="benzin-subpill-name">{grade.label}</span>
+                        <span className="benzin-subpill-price">{grade.formattedPrice}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className={`custom-sort-row ${isThemeLight ? "is-light" : ""}`}>
                 <button
@@ -3897,7 +3986,10 @@ export default function App() {
                     onFuelFilterChange={(newFilter) => {
                       setFuelSubFilter(newFilter);
                       setActiveCategory(newFilter === "all" ? "all" : "fuel");
+                      if (newFilter !== "benzin") setSelectedBenzinGrade("all");
                     }}
+                    selectedBenzinGrade={selectedBenzinGrade}
+                    onSelectBenzinGrade={setSelectedBenzinGrade}
                     onSelectStation={setDetailStation}
                     onNavigate={handleNavigate}
                     searchQuery={searchQuery}
@@ -5054,7 +5146,10 @@ export default function App() {
               onFuelFilterChange={(newFilter) => {
                 setFuelSubFilter(newFilter);
                 setActiveCategory(newFilter === "all" ? "all" : "fuel");
+                if (newFilter !== "benzin") setSelectedBenzinGrade("all");
               }}
+              selectedBenzinGrade={selectedBenzinGrade}
+              onSelectBenzinGrade={setSelectedBenzinGrade}
               onSelectStation={setDetailStation}
               onNavigate={handleNavigate}
               searchQuery={searchQuery}

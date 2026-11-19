@@ -1,6 +1,7 @@
 import React from 'react';
 import { Map } from 'lucide-react';
 import { formatDistance } from '../utils/distance';
+import { getStationBenzinPrices, stationMatchesFuel } from '../utils/fuel';
 
 export default function StationCard({
   station,
@@ -9,14 +10,19 @@ export default function StationCard({
   onNavigate
 }) {
   const isCurrentlyOpen = station.isOpen !== false;
+  const hasBenzin = stationMatchesFuel(station, 'benzin');
   
   let detailsText = '';
   if (station.prices && Object.keys(station.prices).length > 0) {
     const prices = [];
-    if (station.prices.metan) prices.push(`Metan ${station.prices.metan} so'm/kg`);
-    if (station.prices.benzin) prices.push(`Al-92 ${station.prices.benzin} so'm/l`);
-    if (station.prices.elektr) prices.push(`Elektr ${station.prices.elektr} so'm/kVt`);
+    if (station.prices.metan) prices.push(`Metan ${station.prices.metan} so'm/m³`);
     if (station.prices.propan) prices.push(`Propan ${station.prices.propan} so'm/l`);
+    if (hasBenzin) {
+      const bGrades = getStationBenzinPrices(station);
+      const bStr = bGrades.map((g) => `${g.label}: ${Number(g.price).toLocaleString('ru-RU').replace(',', ' ')} so'm`).join(' • ');
+      prices.push(`Benzin (${bStr})`);
+    }
+    if (station.prices.elektr) prices.push(`Elektr ${station.prices.elektr} so'm/kVt`);
     if (prices.length > 0) {
       detailsText += `Narx: ${prices.join(', ')}\n`;
     }

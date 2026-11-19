@@ -31,7 +31,7 @@ import {
   Star,
 } from 'lucide-react';
 import { calculateDistance, formatDistance } from '../utils/distance';
-import { stationMatchesFuel } from '../utils/fuel';
+import { stationMatchesFuel, getBenzinSummaryPrices, getStationBenzinPrices } from '../utils/fuel';
 import { getAppMapStyle } from '../utils/mapStyle';
 
 // Vite muhitida MapLibre web workerini to'g'ri ulash
@@ -149,8 +149,9 @@ function renderStationPopupContent(station, onSelectStation, onNavigate, popup) 
 
   const fuelList = [];
   if (hasBenzin) {
-    fuelList.push({ name: 'AI-92', active: true });
-    fuelList.push({ name: 'AI-95', active: true });
+    fuelList.push({ name: 'A-92', active: true });
+    fuelList.push({ name: 'A-90', active: true });
+    fuelList.push({ name: 'A-95', active: true });
   }
   if (hasMetan) {
     fuelList.push({ name: 'Metan', active: true });
@@ -330,6 +331,8 @@ export default function MapView({
   stations = [],
   activeFuelFilter = 'all',
   onFuelFilterChange,
+  selectedBenzinGrade = 'all',
+  onSelectBenzinGrade,
   onSelectStation,
   onNavigate,
   searchQuery = '',
@@ -608,6 +611,14 @@ export default function MapView({
     if (typeof window !== 'undefined' && window.innerWidth <= 768) return 'metan';
     return 'all';
   });
+  const [internalBenzinGrade, setInternalBenzinGrade] = useState('all');
+  const effectiveBenzinGrade = onSelectBenzinGrade ? selectedBenzinGrade : internalBenzinGrade;
+  const handleSelectBenzinGrade = (grade) => {
+    setInternalBenzinGrade(grade);
+    if (typeof onSelectBenzinGrade === 'function') {
+      onSelectBenzinGrade(grade);
+    }
+  };
   const [highlightedStationId, setHighlightedStationId] = useState(null);
   const [isBottomBannerClosed, setIsBottomBannerClosed] = useState(false);
 
@@ -671,22 +682,53 @@ export default function MapView({
     }));
   }, [stations, userPos]);
 
+  const benzinGradesSummary = useMemo(() => {
+    return getBenzinSummaryPrices(effectiveStations);
+  }, [effectiveStations]);
+
   // Saralangan va filtrlangan shahobchalar ro'yxati
   const filteredStationList = useMemo(() => {
     let list = [...effectiveStations];
 
     const q = (sidebarSearch || searchQuery || '').trim().toLowerCase();
     if (q) {
-      list = list.filter(
-        (st) =>
+      list = list.filter((st) => {
+        let matches =
           st.name?.toLowerCase().includes(q) ||
           st.brand?.toLowerCase().includes(q) ||
-          st.address?.toLowerCase().includes(q)
-      );
+          st.address?.toLowerCase().includes(q);
+        if (!matches) {
+          if (
+            q.includes('benzin') ||
+            q.includes('a92') ||
+            q.includes('ai92') ||
+            q.includes('a90') ||
+            q.includes('ai90') ||
+            q.includes('a95') ||
+            q.includes('ai95') ||
+            q.includes('a80') ||
+            q.includes('ai80')
+          ) {
+            matches = stationMatchesFuel(st, 'benzin');
+          } else if (q.includes('metan')) {
+            matches = stationMatchesFuel(st, 'metan');
+          } else if (q.includes('propan')) {
+            matches = stationMatchesFuel(st, 'propan');
+          } else if (q.includes('gaz')) {
+            matches = stationMatchesFuel(st, 'gaz');
+          } else if (q.includes('elektr') || q.includes('tok') || q.includes('ev')) {
+            matches = stationMatchesFuel(st, 'elektr');
+          }
+        }
+        return matches;
+      });
     }
 
     if (selectedFuelType && selectedFuelType !== 'all') {
       list = list.filter((st) => stationMatchesFuel(st, selectedFuelType));
+      if (selectedFuelType === 'benzin' && effectiveBenzinGrade !== 'all') {
+        list = list.filter((st) => stationMatchesFuel(st, effectiveBenzinGrade));
+      }
     }
 
     const currentSort = isMobile ? mobileSortMode : quickSortMode;
@@ -694,6 +736,15 @@ export default function MapView({
       list.sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
     } else if (currentSort === 'cheapest') {
       const getPrice = (st) => {
+        if (selectedFuelType === 'benzin') {
+          const bPrices = getStationBenzinPrices(st);
+          if (effectiveBenzinGrade !== 'all') {
+            const m = bPrices.find((g) => g.id === effectiveBenzinGrade);
+            if (m && m.price > 0) return m.price;
+          }
+          const def = bPrices.find((g) => g.id === 'ai92');
+          return def?.price || Number(st.prices?.benzin) || 10500;
+        }
         if (selectedFuelType !== 'all' && st.prices?.[selectedFuelType]) {
           return Number(st.prices[selectedFuelType]);
         }
@@ -1117,6 +1168,9 @@ export default function MapView({
     let list = [...effectiveStations];
     if (selectedFuelType !== 'all') {
       list = list.filter((st) => stationMatchesFuel(st, selectedFuelType));
+      if (selectedFuelType === 'benzin' && effectiveBenzinGrade !== 'all') {
+        list = list.filter((st) => stationMatchesFuel(st, effectiveBenzinGrade));
+      }
     }
     list.sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
 
@@ -1132,8 +1186,20 @@ export default function MapView({
     let list = [...effectiveStations];
     if (selectedFuelType !== 'all') {
       list = list.filter((st) => stationMatchesFuel(st, selectedFuelType));
+      if (selectedFuelType === 'benzin' && effectiveBenzinGrade !== 'all') {
+        list = list.filter((st) => stationMatchesFuel(st, effectiveBenzinGrade));
+      }
     }
     const getPrice = (st) => {
+      if (selectedFuelType === 'benzin') {
+        const bPrices = getStationBenzinPrices(st);
+        if (effectiveBenzinGrade !== 'all') {
+          const m = bPrices.find((g) => g.id === effectiveBenzinGrade);
+          if (m && m.price > 0) return m.price;
+        }
+        const def = bPrices.find((g) => g.id === 'ai92');
+        return def?.price || Number(st.prices?.benzin) || 10500;
+      }
       if (selectedFuelType !== 'all' && st.prices?.[selectedFuelType]) {
         return st.prices[selectedFuelType];
       }
@@ -1669,6 +1735,58 @@ export default function MapView({
           background: #ef4444;
           color: #ffffff;
           border-color: #ef4444;
+        }
+
+        /* Benzin markalari (A-92, A-90, A-95) va narxlari subbar */
+        .yandex-benzin-subbar {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          overflow-x: auto;
+          scrollbar-width: none;
+          margin-top: 4px;
+          padding: 2px 0;
+        }
+
+        .yandex-benzin-subbar::-webkit-scrollbar {
+          display: none;
+        }
+
+        .yandex-benzin-subpill {
+          padding: 5px 11px;
+          border-radius: 9999px;
+          border: 1px solid rgba(245, 158, 11, 0.4);
+          background: #fffbeb;
+          color: #92400e;
+          font-size: 0.72rem;
+          font-weight: 700;
+          cursor: pointer;
+          white-space: nowrap;
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          transition: all 0.15s ease-in-out;
+        }
+
+        .yandex-benzin-subpill:hover {
+          background: #fef3c7;
+          border-color: #f59e0b;
+        }
+
+        .yandex-benzin-subpill.active {
+          background: #f59e0b !important;
+          color: #ffffff !important;
+          border-color: #d97706 !important;
+          box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+        }
+
+        .yandex-benzin-subpill .yandex-b-name {
+          font-weight: 800;
+        }
+
+        .yandex-benzin-subpill .yandex-b-price {
+          font-weight: 600;
+          opacity: 0.95;
         }
 
         /* Modern Highlight Card (Faol tanlangan zapravka) */
@@ -3250,6 +3368,9 @@ export default function MapView({
                   className={`yandex-pill-chip ${selectedFuelType === pill.id ? 'active' : ''}`}
                   onClick={() => {
                     setSelectedFuelType(pill.id);
+                    if (pill.id !== 'benzin') {
+                      handleSelectBenzinGrade('all');
+                    }
                     if (typeof onFuelFilterChange === 'function') {
                       onFuelFilterChange(pill.id);
                     }
@@ -3260,6 +3381,30 @@ export default function MapView({
                 </button>
               ))}
             </div>
+
+            {/* Benzin markalari (A-92, A-90, A-95) va narxlari - xaritada */}
+            {selectedFuelType === 'benzin' && (
+              <div className="yandex-benzin-subbar">
+                <button
+                  type="button"
+                  className={`yandex-benzin-subpill ${effectiveBenzinGrade === 'all' ? 'active' : ''}`}
+                  onClick={() => handleSelectBenzinGrade('all')}
+                >
+                  Barchasi
+                </button>
+                {benzinGradesSummary.map((grade) => (
+                  <button
+                    key={grade.id}
+                    type="button"
+                    className={`yandex-benzin-subpill ${effectiveBenzinGrade === grade.id ? 'active' : ''}`}
+                    onClick={() => handleSelectBenzinGrade(effectiveBenzinGrade === grade.id ? 'all' : grade.id)}
+                  >
+                    <span className="yandex-b-name">{grade.label}</span>
+                    <span className="yandex-b-price">{grade.formattedPrice}</span>
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Faol tanlangan shahobcha ko'rinishi (Highlight Banner) */}
             {highlightedStation && (
