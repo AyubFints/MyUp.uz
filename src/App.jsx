@@ -2971,10 +2971,7 @@ export default function App() {
   }, [stations, myStations]);
 
   const allStationsList = useMemo(() => {
-    const sourceList =
-      combinedUniqueStations.length > 0
-        ? combinedUniqueStations
-        : (Array.isArray(DEFAULT_DEMO_STATIONS) ? DEFAULT_DEMO_STATIONS : []);
+    const sourceList = Array.isArray(combinedUniqueStations) ? combinedUniqueStations : [];
     return sourceList.map((st) => ({
       ...st,
       calculatedDistance: calculateDistance(
@@ -2991,12 +2988,9 @@ export default function App() {
   }, [combinedUniqueStations]);
 
   const filteredStations = useMemo(() => {
-    const allStations =
-      combinedUniqueStations.length > 0
-        ? combinedUniqueStations
-        : (Array.isArray(DEFAULT_DEMO_STATIONS) ? DEFAULT_DEMO_STATIONS : []);
+    const allStations = Array.isArray(combinedUniqueStations) ? combinedUniqueStations : [];
 
-    let result = (Array.isArray(allStations) ? allStations : [])
+    let result = allStations
       .filter((st) => st && typeof st === "object" && st.id)
       .map((st) => ({
         ...st,
