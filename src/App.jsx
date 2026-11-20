@@ -15,7 +15,7 @@ import GpsPromptModal from "./components/GpsPromptModal";
 import AuthScreen from "./components/AuthScreen";
 import StationDetailModal from "./components/StationDetailModal";
 import DesktopFooter from "./components/DesktopFooter";
-import { CITIES, INITIAL_STATIONS, MOCK_NEWS, DEFAULT_DEMO_STATIONS, DEFAULT_THEME } from "./data/mockData";
+import { CITIES, MOCK_NEWS, DEFAULT_THEME } from "./data/mockData";
 import { stationMatchesFuel, getBenzinSummaryPrices, getStationBenzinPrices, normalizeBenzinKey, formatBenzinLabel } from "./utils/fuel";
 
 import { calculateDistance } from "./utils/distance";
@@ -409,10 +409,11 @@ export default function App() {
   const [stations, setStations] = useState(() => {
     try {
       const cached = localStorage.getItem("myup_cached_stations");
-      const baseStations = cached ? JSON.parse(cached) : INITIAL_STATIONS;
+      const baseStations = cached ? JSON.parse(cached) : [];
+      if (!Array.isArray(baseStations)) return [];
       const storedRatings = JSON.parse(localStorage.getItem("myup_custom_ratings") || "{}");
-      return (Array.isArray(baseStations) && baseStations.length > 0 ? baseStations : INITIAL_STATIONS).map((s) => {
-        if (storedRatings[s.id]) {
+      return baseStations.map((s) => {
+        if (s && storedRatings[s.id]) {
           return {
             ...s,
             rating: storedRatings[s.id].rating,
@@ -422,7 +423,7 @@ export default function App() {
         return s;
       });
     } catch (e) {
-      return INITIAL_STATIONS;
+      return [];
     }
   });
   const [favorites, setFavorites] = useState(() => {
@@ -439,15 +440,7 @@ export default function App() {
     try {
       const saved = localStorage.getItem("myup_my_stations");
       const parsed = saved ? JSON.parse(saved) : [];
-      if (!Array.isArray(parsed)) return [];
-      // Avvalgi ro'yxatdan o'tishda xato avtomatik yaratilib qolgan soxta joylashuvlarni tozalash
-      const cleaned = parsed.filter(
-        (s) => !(s.lat === 41.311081 && s.lng === 69.240562 && (!s.address || s.address === "Toshkent" || s.address === "Asosiy filial"))
-      );
-      if (cleaned.length !== parsed.length) {
-        localStorage.setItem("myup_my_stations", JSON.stringify(cleaned));
-      }
-      return cleaned;
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
       return [];
     }
@@ -515,10 +508,10 @@ export default function App() {
       .then((res) => {
         if (res.success && Array.isArray(res.stations)) {
           setMyStations((prev) => {
-            const stMap = new Map();
-            (prev || []).forEach((s) => stMap.set(s.id, s));
-            res.stations.forEach((s) => stMap.set(s.id, { ...(stMap.get(s.id) || {}), ...s }));
-            const merged = Array.from(stMap.values());
+            // Super admin tomonidan bazadan o'chirilgan shahobchalar butunlay tozalanadi
+            // Faqat bazada rostdan mavjud bo'lganlar va hali serverga yuklanmagan lokal arizalar (st_user_) qoladi
+            const unuploadedLocal = (prev || []).filter((s) => s && s.id && String(s.id).startsWith("st_user_"));
+            const merged = [...res.stations, ...unuploadedLocal];
             try {
               localStorage.setItem("myup_my_stations", JSON.stringify(merged));
             } catch (e) {}
@@ -1621,9 +1614,29 @@ export default function App() {
           localStorage.setItem("myup_cached_stations", JSON.stringify(mergedStations));
         } catch (e) {}
 
+        const dbStationIds = new Set(res.stations.map((s) => s.id));
+        const dbStationNames = new Set(res.stations.map((s) => s.name));
+
+        // Sevimlilar ro'yxatidan bazadan o'chirilgan shahobchalarni tozalash
+        setFavorites((prevFavs) => {
+          if (!Array.isArray(prevFavs)) return [];
+          const validFavs = prevFavs.filter((id) => dbStationIds.has(id));
+          if (validFavs.length !== prevFavs.length) {
+            try {
+              localStorage.setItem("myup_favorites", JSON.stringify(validFavs));
+            } catch (e) {}
+          }
+          return validFavs;
+        });
+
         // myStations ro'yxatini bazadagi jonli tasdiqlangan shahobchalar bilan sinxronlashtirish
         setMyStations((prev) => {
-          return prev.map((mySt) => {
+          // Super admin bazadan o'chirgan eski shahobchalarni tozalash (faqat hali yuklanmagan st_user_ qoladi)
+          const filtered = (prev || []).filter((mySt) => {
+            if (!mySt || !mySt.id) return false;
+            if (String(mySt.id).startsWith("st_user_")) return true;
+            return dbStationIds.has(mySt.id) || dbStationNames.has(mySt.name);
+          }).map((mySt) => {
             const dbSt = res.stations.find((s) => s.id === mySt.id || s.name === mySt.name);
             if (dbSt) {
               return {
@@ -1636,22 +1649,25 @@ export default function App() {
             }
             return mySt;
           });
-        });
 
-        if (user?.id) {
-          const userSts = res.stations.filter(
-            (s) => s.ownerId === user.id || s.owner_id === user.id || s.createdBy === user.id
-          );
-          if (userSts.length > 0) {
-            setMyStations((prev) => {
-              const dict = {};
-              [...prev, ...userSts].forEach((item) => {
-                if (item && item.id) dict[item.id] = { ...dict[item.id], ...item };
-              });
-              return Object.values(dict);
+          // Foydalanuvchiga tegishli bazadagi yangi shahobchalarni qo'shish
+          if (user?.id) {
+            const userSts = res.stations.filter(
+              (s) => s.ownerId === user.id || s.owner_id === user.id || s.createdBy === user.id
+            );
+            userSts.forEach((uSt) => {
+              if (!filtered.some((f) => f.id === uSt.id)) {
+                filtered.push(uSt);
+              }
             });
           }
-        }
+
+          try {
+            localStorage.setItem("myup_my_stations", JSON.stringify(filtered));
+          } catch (e) {}
+
+          return filtered;
+        });
       }
     } catch (err) {
       console.warn("Shahobchalarni bazadan yuklashda xato:", err.message);
@@ -1659,7 +1675,7 @@ export default function App() {
         const cached = localStorage.getItem("myup_cached_stations");
         if (cached) {
           const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed)) {
             setStations(parsed);
           }
         }

@@ -180,12 +180,19 @@ export const getMyStations = async (req, res) => {
       };
     });
 
-    // Agar foydalanuvchining shahobchalari bo'lsa, profilida has_location va can_add_station ni yoqib qo'yamiz
-    if (validUuid && stations.length > 0) {
-      await query(
-        `UPDATE users SET has_location = true, can_add_station = true WHERE id = $1 AND (has_location = false OR can_add_station = false)`,
-        [validUuid]
-      ).catch(() => {});
+    // Foydalanuvchi hisobidagi has_location holatini bazadagi haqiqiy shahobchalar soniga moslash
+    if (validUuid) {
+      if (stations.length > 0) {
+        await query(
+          `UPDATE users SET has_location = true, can_add_station = true WHERE id = $1 AND (has_location = false OR can_add_station = false)`,
+          [validUuid]
+        ).catch(() => {});
+      } else {
+        await query(
+          `UPDATE users SET has_location = false, location_name = NULL WHERE id = $1 AND role != 'super_admin' AND has_location = true`,
+          [validUuid]
+        ).catch(() => {});
+      }
     }
 
     res.json({ success: true, count: stations.length, stations });
@@ -538,13 +545,16 @@ export const deleteStation = async (req, res) => {
     const stationName = stRes.rows[0]?.name || 'Noma\'lum shahobcha';
     const stationAddress = stRes.rows[0]?.address || '';
 
-    // 2. Shahobchani bazadan butunlay o'chiramiz
+    // 2. user_notifications dagi bog'lanishlarni tozalaymiz
+    await query('UPDATE user_notifications SET station_id = NULL WHERE station_id = $1', [id]).catch(() => {});
+
+    // 3. Shahobchani bazadan butunlay o'chiramiz
     await query('DELETE FROM stations WHERE id = $1', [id]);
 
-    // 3. Agar foydalanuvchi sababini kiritgan bo'lsa, Super Adminga bildirishnoma (feedbacks) sifatida saqlaymiz
+    // 4. Agar foydalanuvchi sababini kiritgan bo'lsa, Super Adminga bildirishnoma (feedbacks) sifatida saqlaymiz
     if (reason && String(reason).trim()) {
       const msg = `[O'chirilgan manzil]: ${stationName}${stationAddress ? ` (${stationAddress})` : ''}\n[O'chirish sababi]: ${String(reason).trim()}`;
-      const uid = userId || req.user?.id || (isUuid(stRes.rows[0]?.owner_id) ? stRes.rows[0]?.owner_id : null);
+      const uid = (userId && isUuid(userId)) ? userId : ((req.user?.id && isUuid(req.user.id)) ? req.user.id : (isUuid(stRes.rows[0]?.owner_id) ? stRes.rows[0]?.owner_id : null));
       await query(
         `INSERT INTO feedbacks (user_id, author_name, author_phone, type, message, status)
          VALUES ($1, $2, $3, 'shikoyat', $4, 'yangi')`,

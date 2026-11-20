@@ -82,9 +82,9 @@ export default function StationDetailModal({
   };
 
   // Manzil ma'lumotlari
-  const stationName = station.name || "Shaffof";
-  const stationAddress = station.address || station.city || "Besh-Yog`och mahallasi, Chilonzor Tumani, Toshkent, 100000";
-  const stationPhone = station.phone || "+998 77 278 18 08";
+  const stationName = station.name || "Yoqilg'i shahobchasi";
+  const stationAddress = station.address || station.city || "Manzil ko'rsatilmagan";
+  const stationPhone = station.phone || "";
 
   // Yoqilg'i turlari ma'lumotlari
   const FUEL_META = {

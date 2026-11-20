@@ -2,6 +2,7 @@ import express from 'express';
 import {
   getDashboardStats,
   approveStation,
+  deleteStationAdmin,
   getAllUsers,
   getAllStationsAdmin,
   deleteUser,
@@ -22,6 +23,7 @@ router.use(requireAdmin);
 
 router.get('/stats', getDashboardStats);
 router.get('/stations', getAllStationsAdmin);
+router.delete('/stations/:id', deleteStationAdmin);
 router.get('/users', getAllUsers);
 router.delete('/users/:id', deleteUser);
 router.patch('/stations/:id/approve', approveStation);

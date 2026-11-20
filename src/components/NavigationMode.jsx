@@ -222,7 +222,7 @@ export default function NavigationMode({ targetStation, userCoords, onClose }) {
             <div class="nav-dest-pin-modern">
               <div class="nav-dest-pin-dot"></div>
             </div>
-            <div class="nav-dest-label-modern">${targetStation.name || 'Shaffof'}</div>
+            <div class="nav-dest-label-modern">${targetStation.name || "Yo'nalish manzili"}</div>
           `;
 
           destMarkerRef.current = new maplibregl.Marker({ element: destEl, anchor: 'bottom' })
@@ -585,7 +585,7 @@ export default function NavigationMode({ targetStation, userCoords, onClose }) {
 
   // Keyingi qadam (Subbar)
   const nextStep = steps[currentStepIndex + 1];
-  const nextStepName = nextStep?.name ? nextStep.name : (targetStation?.name || "Shaffof");
+  const nextStepName = nextStep?.name ? nextStep.name : (targetStation?.name || "Yo'nalish manzili");
   const nextStepDist = nextStep && nextStep.distance 
     ? (nextStep.distance < 1000 ? `${Math.round(nextStep.distance)} m` : `${(nextStep.distance / 1000).toFixed(1).replace('.', ',')} km`)
     : "900 m";
@@ -679,7 +679,7 @@ export default function NavigationMode({ targetStation, userCoords, onClose }) {
             </div>
             <div className="nav-inst-details">
               <div className="nav-arrived-title">Yetib keldingiz</div>
-              <div className="nav-arrived-sub">{targetStation?.name || 'Shaffof'} yoqilg'i shahobchasi o'ngda</div>
+              <div className="nav-arrived-sub">{targetStation?.name || "Shahobcha"} yoqilg'i shahobchasi o'ngda</div>
             </div>
           </div>
         </div>
@@ -733,7 +733,7 @@ export default function NavigationMode({ targetStation, userCoords, onClose }) {
               <Fuel size={20} color="#2563eb" strokeWidth={2.4} />
             </div>
             <div className="nav-station-header-info">
-              <div className="nav-station-name">{targetStation?.name || "Shaffof"}</div>
+              <div className="nav-station-name">{targetStation?.name || "Yoqilg'i shahobchasi"}</div>
               <div className="nav-station-status-line">
                 <span className="nav-status-dot green"></span>
                 <span className="nav-status-open">{targetStation?.isOpen !== false ? 'Ochiq' : 'Yopiq'}</span>
@@ -790,9 +790,9 @@ export default function NavigationMode({ targetStation, userCoords, onClose }) {
               <Fuel size={20} color="#2563eb" strokeWidth={2.4} />
             </div>
             <div className="nav-station-header-info" style={{ flex: 1 }}>
-              <div className="nav-station-name">{targetStation?.name || "Shaffof"}</div>
+              <div className="nav-station-name">{targetStation?.name || "Yoqilg'i shahobchasi"}</div>
               <div className="nav-station-address">
-                {targetStation?.address || targetStation?.city || "104, Qoratosh ko'chasi, Shayxontohur tumani"}
+                {targetStation?.address || targetStation?.city || "Manzil ko'rsatilmagan"}
               </div>
             </div>
             <div className="nav-badge-pill-open">
