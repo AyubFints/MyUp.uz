@@ -111,7 +111,7 @@ function renderStationPopupContent(station, onSelectStation, onNavigate, popup) 
   }
 
   // Gaz bosimi hisoblash
-  const rawPressure = station.gasPressure || station.pressure;
+  const rawPressure = station.gasPressure || station.gas_pressure || station.pressures?.metan || station.pressures?.propan || station.pressure;
   const pressureNum = Number(rawPressure);
   let pressureLabel = 'Yaxshi';
   let activeBars = 3;
@@ -142,10 +142,10 @@ function renderStationPopupContent(station, onSelectStation, onNavigate, popup) 
     station.type === 'elektr' ||
     (Array.isArray(station.type) && station.type.length === 1 && station.type[0] === 'elektr');
 
-  const hasMetan = stationMatchesFuel(station, 'metan') || Number(station.prices?.metan) > 0;
-  const hasBenzin = stationMatchesFuel(station, 'benzin') || stationMatchesFuel(station, 'ai92') || stationMatchesFuel(station, 'ai95') || Number(station.prices?.benzin) > 0;
-  const hasPropan = stationMatchesFuel(station, 'propan') || Number(station.prices?.propan) > 0;
-  const hasElektr = stationMatchesFuel(station, 'elektr') || Number(station.prices?.elektr) > 0;
+  const hasMetan = stationMatchesFuel(station, 'metan') || Number(station.prices?.metan) > 0 || (Array.isArray(station.types) && station.types.includes('metan')) || (Array.isArray(station.type) && station.type.includes('metan'));
+  const hasBenzin = stationMatchesFuel(station, 'benzin') || stationMatchesFuel(station, 'ai92') || stationMatchesFuel(station, 'ai95') || Number(station.prices?.benzin) > 0 || (Array.isArray(station.types) && station.types.includes('benzin')) || (Array.isArray(station.type) && station.type.includes('benzin'));
+  const hasPropan = stationMatchesFuel(station, 'propan') || Number(station.prices?.propan) > 0 || (Array.isArray(station.types) && station.types.includes('propan')) || (Array.isArray(station.type) && station.type.includes('propan'));
+  const hasElektr = stationMatchesFuel(station, 'elektr') || Number(station.prices?.elektr) > 0 || (Array.isArray(station.types) && station.types.includes('elektr')) || (Array.isArray(station.type) && station.type.includes('elektr'));
 
   const fuelList = [];
   if (hasBenzin) {
@@ -224,10 +224,10 @@ function renderStationPopupContent(station, onSelectStation, onNavigate, popup) 
     </div>
 
     <!-- GAZ BOSIMI QUTISI (Faqat metan yoki propan sotilsa va bosim mavjud bo'lsa) -->
-    ${(hasMetan || hasPropan) && Number(rawPressure) > 0 ? `
+    ${(hasMetan || hasPropan || Number(rawPressure) > 0) ? `
     <div class="myup-popup-pressure-box">
       <div class="myup-popup-pressure-header">
-        <span class="myup-popup-pressure-title">Gaz bosimi</span>
+        <span class="myup-popup-pressure-title">Gaz bosimi: <strong style="color: #0f172a; font-weight: 800;">${(!isNaN(pressureNum) && pressureNum > 0) ? `${pressureNum} atm` : '200 atm'}</strong></span>
         <span class="myup-popup-pressure-status">${pressureLabel}</span>
       </div>
       <div class="myup-popup-pressure-bars">
@@ -258,13 +258,13 @@ function renderStationPopupContent(station, onSelectStation, onNavigate, popup) 
 
     <!-- TUGMALAR -->
     <div class="myup-popup-actions-row">
-      <button type="button" id="btn-nav-${station.id}" class="myup-popup-btn-nav">
+      <button type="button" id="btn-nav-${station.id}" class="myup-popup-btn-nav" title="Ushbu manzilga marshrut tuzish">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="3 11 22 2 13 21 11 13 3 11"/>
         </svg>
-        <span>Yo'nalish</span>
+        <span>Borish</span>
       </button>
-      <button type="button" id="btn-detail-${station.id}" class="myup-popup-btn-detail">
+      <button type="button" id="btn-detail-${station.id}" class="myup-popup-btn-detail" title="Batafsil ma'lumotlar">
         <span>Batafsil</span>
       </button>
     </div>
@@ -1099,11 +1099,6 @@ export default function MapView({
         <span class="ym-name-label ${isCurrentActive ? 'label-pulse' : ''}">${station.name || 'Zapravka'}</span>
       `;
 
-      el.addEventListener('click', (e) => {
-        setMobileActiveStationId(station.id);
-        triggerStationHighlight(station, 'Tanlangan', 'selected');
-      });
-
       // Popup kontenti
       const popup = new maplibregl.Popup({
         offset: 25,
@@ -1124,14 +1119,37 @@ export default function MapView({
         .setPopup(popup)
         .addTo(map);
 
-      // Popap faqat marker bosilganda ochiladi
+      // Popap marker bosilganda ochiladi
       marker.station = station;
       markersRef.current.push(marker);
+
+      el.addEventListener('click', (e) => {
+        setMobileActiveStationId(station.id);
+        triggerStationHighlight(station, 'Tanlangan', 'selected');
+      });
     });
-  }, [filteredStationList, onSelectStation, onNavigate, mapInstance, highlightedStationId, highlightBadgeText, isMobile, selectedFuelType, activeMobileStation?.id]);
+  }, [filteredStationList, onSelectStation, onNavigate, mapInstance, isMobile, selectedFuelType]);
+
+  // Faol tanlangan markerning vizual pulsatsiyasini boshqarish (markerlarni qayta chizmasdan)
+  useEffect(() => {
+    markersRef.current.forEach((marker) => {
+      const st = marker.station;
+      if (!st) return;
+      const isCurrentActive = (activeMobileStation?.id === st.id) || (highlightedStationId === st.id);
+      const el = marker.getElement();
+      if (el) {
+        el.classList.toggle('station-highlight-pulse', isCurrentActive);
+        const pin = el.querySelector('.ym-icon-pin');
+        if (pin) pin.classList.toggle('pin-pulse', isCurrentActive);
+        const lbl = el.querySelector('.ym-name-label');
+        if (lbl) lbl.classList.toggle('label-pulse', isCurrentActive);
+      }
+    });
+  }, [highlightedStationId, activeMobileStation?.id]);
 
   // Shahobchani tanlash va unga sal yaqinlashtirib yonib-yonib ko'rsatish
   const triggerStationHighlight = (station, badgeText, badgeType = 'selected') => {
+    if (!station) return;
     setHighlightedStationId(station.id);
     setHighlightBadgeText(badgeText);
     setHighlightBadgeType(badgeType);
@@ -1147,17 +1165,25 @@ export default function MapView({
         essential: true,
       });
 
+      // Boshqa barcha popuplarni yopish
+      markersRef.current.forEach((m) => {
+        if (m.station?.id !== station.id && m.getPopup && m.getPopup()?.isOpen()) {
+          m.getPopup().remove();
+        }
+      });
+
       // Tanlangan shahobcha markerining popupini ochish
       const targetMarker = markersRef.current.find((m) => m.station && m.station.id === station.id);
       if (targetMarker && targetMarker.getPopup) {
         const p = targetMarker.getPopup();
         if (p && !p.isOpen()) {
-          targetMarker.togglePopup();
+          p.addTo(map);
         }
       }
 
       if (window.innerWidth <= 768) {
         setIsSidebarOpen(false);
+        setSheetMode('peek');
       }
     }
   };
@@ -3825,6 +3851,12 @@ export default function MapView({
                           <span className="mobile-card-rank-badge">
                             <Star size={11} strokeWidth={2.2} fill="none" />
                             <span>{rankTag}</span>
+                          </span>
+                        )}
+                        {(station.gasPressure || station.gas_pressure || station.pressures?.metan) && (
+                          <span className="mobile-card-pressure-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '2px 7px', borderRadius: '6px', background: '#e0f2fe', color: '#0369a1', fontSize: '11px', fontWeight: '700' }}>
+                            <Gauge size={11} strokeWidth={2.2} />
+                            <span>{station.gasPressure || station.gas_pressure || station.pressures?.metan} atm</span>
                           </span>
                         )}
                       </div>
