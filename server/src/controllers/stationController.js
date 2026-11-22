@@ -36,7 +36,7 @@ export const getAllStations = async (req, res) => {
 
     const params = [];
     if (!includeAll) {
-      baseQuery += ` AND s.is_approved = true`;
+      baseQuery += ` AND s.is_approved = true AND (s.status = 'approved' OR s.status IS NULL)`;
     } else {
       baseQuery += ` AND (s.rejected_at IS NULL OR s.rejected_at >= NOW() - INTERVAL '1 day')`;
     }
@@ -102,6 +102,14 @@ export const getAllStations = async (req, res) => {
 // Foydalanuvchining o'z shahobchalarini olish (Tasdiqlangan va tasdiqlanmagan barchasi)
 export const getMyStations = async (req, res) => {
   try {
+    // 1 kundan oshgan rad etilgan shahobchalarni avtomatik tozalash (bazadan butunlay o'chirish)
+    await query(`
+      DELETE FROM stations 
+      WHERE status = 'rejected' 
+        AND rejected_at IS NOT NULL 
+        AND rejected_at < NOW() - INTERVAL '1 day'
+    `).catch(() => {});
+
     const userId = req.user?.id || req.query.userId || null;
     let phone = req.user?.phone || req.query.phone || null;
 
@@ -109,55 +117,27 @@ export const getMyStations = async (req, res) => {
       return res.json({ success: true, count: 0, stations: [] });
     }
 
-    const cleanPhone = phone ? phone.replace(/\s+/g, '') : '';
     const phoneDigits = phone ? phone.replace(/\D/g, '') : '';
-    const validUuid = isUuid(userId) ? userId : null;
+    let targetOwnerId = isUuid(userId) ? userId : null;
 
-    let whereConditions = [];
-    let params = [];
-
-    if (validUuid) {
-      params.push(validUuid);
-      whereConditions.push(`s.owner_id = $${params.length}`);
-    }
-    if (phoneDigits) {
-      params.push(phoneDigits);
-      whereConditions.push(`REGEXP_REPLACE(s.phone, '\\D', '', 'g') = $${params.length}`);
-    } else if (cleanPhone) {
-      params.push(cleanPhone, phone);
-      whereConditions.push(`(REPLACE(s.phone, ' ', '') = $${params.length - 1} OR s.phone = $${params.length})`);
-    }
-
-    // Agar validUuid bor, lekin telefon berilmagan bo'lsa - users jadvalidan telefonini topib qo'shamiz
-    if (validUuid && !phoneDigits) {
-      const uRes = await query(`SELECT phone FROM users WHERE id = $1 LIMIT 1`, [validUuid]).catch(() => ({ rows: [] }));
-      if (uRes.rows.length > 0 && uRes.rows[0].phone) {
-        const uPhoneDigits = uRes.rows[0].phone.replace(/\D/g, '');
-        if (uPhoneDigits) {
-          params.push(uPhoneDigits);
-          whereConditions.push(`REGEXP_REPLACE(s.phone, '\\D', '', 'g') = $${params.length}`);
-        }
-      }
-    }
-
-    // Agar telefon bor, lekin validUuid berilmagan bo'lsa - users jadvalidan id sini topib qo'shamiz
-    if (phoneDigits && !validUuid) {
+    // Agar targetOwnerId bo'lmasa, lekin telefon raqami berilgan bo'lsa - users jadvalidan foydalanuvchi UUID sini aniqlaymiz
+    if (!targetOwnerId && phoneDigits) {
       const uRes = await query(`SELECT id FROM users WHERE REGEXP_REPLACE(phone, '\\D', '', 'g') = $1 LIMIT 1`, [phoneDigits]).catch(() => ({ rows: [] }));
       if (uRes.rows.length > 0 && uRes.rows[0].id) {
-        params.push(uRes.rows[0].id);
-        whereConditions.push(`s.owner_id = $${params.length}`);
+        targetOwnerId = uRes.rows[0].id;
       }
     }
 
-    if (whereConditions.length === 0) {
+    // Agar foydalanuvchi hisobi topilmasa - boshqa odamning manzillarini aslo aralashtirmaymiz
+    if (!targetOwnerId) {
       return res.json({ success: true, count: 0, stations: [] });
     }
 
-    // Egasi bo'lmagan yoki yangilanishi kerak bo'lgan, telefoni mos keladigan shahobchalarni biriktirish
-    if (validUuid && phoneDigits) {
+    // Egasi bo'lmagan (owner_id IS NULL) eski shahobchalar bo'lsa va telefoni mos kelsa - xavfsiz biriktirib qo'yish (boshqa odamning stantsiyasiga tegmaydi!)
+    if (phoneDigits) {
       await query(
-        `UPDATE stations SET owner_id = $1 WHERE (owner_id IS NULL OR owner_id != $1) AND REGEXP_REPLACE(phone, '\\D', '', 'g') = $2`,
-        [validUuid, phoneDigits]
+        `UPDATE stations SET owner_id = $1 WHERE owner_id IS NULL AND REGEXP_REPLACE(phone, '\\D', '', 'g') = $2`,
+        [targetOwnerId, phoneDigits]
       ).catch(() => {});
     }
 
@@ -184,12 +164,13 @@ export const getMyStations = async (req, res) => {
       LEFT JOIN fuel_prices fp ON s.id = fp.station_id
       LEFT JOIN station_amenities sa ON s.id = sa.station_id
       LEFT JOIN station_payments sp ON s.id = sp.station_id
-      WHERE ${whereConditions.join(' OR ')}
+      WHERE s.owner_id = $1
+        AND (s.rejected_at IS NULL OR s.rejected_at >= NOW() - INTERVAL '1 day')
       GROUP BY s.id, sa.station_id, sp.station_id
       ORDER BY s.created_at DESC
     `;
 
-    const result = await query(baseQuery, params);
+    const result = await query(baseQuery, [targetOwnerId]);
     const stations = result.rows.map((st) => {
       const typeList = Array.isArray(st.types) && st.types.length > 0 
         ? st.types 
@@ -205,19 +186,18 @@ export const getMyStations = async (req, res) => {
       };
     });
 
-    // Foydalanuvchi hisobidagi has_location holatini bazadagi haqiqiy shahobchalar soniga moslash
-    if (validUuid) {
-      if (stations.length > 0) {
-        await query(
-          `UPDATE users SET has_location = true, can_add_station = true WHERE id = $1 AND (has_location = false OR can_add_station = false)`,
-          [validUuid]
-        ).catch(() => {});
-      } else {
-        await query(
-          `UPDATE users SET has_location = false, location_name = NULL WHERE id = $1 AND role != 'super_admin' AND has_location = true`,
-          [validUuid]
-        ).catch(() => {});
-      }
+    // Foydalanuvchi hisobidagi has_location holatini bazadagi haqiqiy shahobchalar soniga moslash (rad etilganlarni hisobga olmaslik)
+    const activeStations = stations.filter(s => s.status !== 'rejected');
+    if (activeStations.length > 0) {
+      await query(
+        `UPDATE users SET has_location = true, can_add_station = true WHERE id = $1 AND (has_location = false OR can_add_station = false)`,
+        [targetOwnerId]
+      ).catch(() => {});
+    } else {
+      await query(
+        `UPDATE users SET has_location = false, location_name = NULL WHERE id = $1 AND role != 'super_admin' AND has_location = true`,
+        [targetOwnerId]
+      ).catch(() => {});
     }
 
     res.json({ success: true, count: stations.length, stations });
@@ -258,10 +238,7 @@ export const createStation = async (req, res) => {
     const requestedOwnerId = req.body.userId || req.body.ownerId || req.body.createdBy;
     const requestedOwnerPhone = req.body.ownerPhone || req.body.userPhone || '';
     const cleanOwnerPhone = requestedOwnerPhone ? requestedOwnerPhone.replace(/\s+/g, '') : '';
-    const cleanStationPhone = phone ? phone.replace(/\s+/g, '') : '';
-
     const ownerDigits = (requestedOwnerPhone || '').replace(/\D/g, '');
-    const stationDigits = (phone || '').replace(/\D/g, '');
 
     if (!ownerId && requestedOwnerId && isUuid(requestedOwnerId)) {
       const uRes = await query(`SELECT id FROM users WHERE id = $1 LIMIT 1`, [requestedOwnerId]);
@@ -272,13 +249,6 @@ export const createStation = async (req, res) => {
 
     if (!ownerId && ownerDigits) {
       const uRes = await query(`SELECT id FROM users WHERE REGEXP_REPLACE(phone, '\\D', '', 'g') = $1 LIMIT 1`, [ownerDigits]);
-      if (uRes.rows.length > 0) {
-        ownerId = uRes.rows[0].id;
-      }
-    }
-
-    if (!ownerId && stationDigits) {
-      const uRes = await query(`SELECT id FROM users WHERE REGEXP_REPLACE(phone, '\\D', '', 'g') = $1 LIMIT 1`, [stationDigits]);
       if (uRes.rows.length > 0) {
         ownerId = uRes.rows[0].id;
       }
@@ -301,31 +271,31 @@ export const createStation = async (req, res) => {
 
     const finalGasPressure = Number(gasPressure || pressures?.metan || 200);
 
-    // Deduplication check: agar so'nggi 2 daqiqa ichida xuddi shu foydalanuvchi/telefon tomonidan
+    // Deduplication check: agar so'nggi 3 daqiqa ichida xuddi shu foydalanuvchi tomonidan
     // bir xil nom va yaqin koordinataga ega shahobcha yuborilgan bo'lsa, qayta yaratilmasdan mavjudini qaytarish
     const trimmedName = name.trim();
     const parsedLat = parseFloat(lat);
     const parsedLng = parseFloat(lng);
 
-    const dupCheck = await query(
-      `SELECT s.id, s.name, s.lat, s.lng, s.address, s.city, s.phone,
-              s.is_open AS "isOpen", s.reopen_time AS "reopenTime",
-              s.rating, s.rating_count AS "ratingCount", s.owner_id AS "ownerId",
-              s.is_approved AS "isApproved", s.status, s.rejected_at AS "rejectedAt", s.created_at AS "createdAt",
-              s.description, s.images, s.verification_images AS "verificationImages", s.types, s.gas_pressure AS "gasPressure"
-       FROM stations s
-       WHERE (
-         (s.owner_id IS NOT NULL AND s.owner_id = $1)
-         OR (REGEXP_REPLACE(s.phone, '\\D', '', 'g') = $2 AND $2 != '')
-       )
-       AND LOWER(TRIM(s.name)) = LOWER($3)
-       AND ABS(s.lat - $4) < 0.0005
-       AND ABS(s.lng - $5) < 0.0005
-       AND s.created_at >= NOW() - INTERVAL '3 minutes'
-       ORDER BY s.created_at DESC
-       LIMIT 1`,
-      [ownerId, stationDigits || ownerDigits, trimmedName, parsedLat, parsedLng]
-    );
+    let dupCheck = { rows: [] };
+    if (ownerId) {
+      dupCheck = await query(
+        `SELECT s.id, s.name, s.lat, s.lng, s.address, s.city, s.phone,
+                s.is_open AS "isOpen", s.reopen_time AS "reopenTime",
+                s.rating, s.rating_count AS "ratingCount", s.owner_id AS "ownerId",
+                s.is_approved AS "isApproved", s.status, s.rejected_at AS "rejectedAt", s.created_at AS "createdAt",
+                s.description, s.images, s.verification_images AS "verificationImages", s.types, s.gas_pressure AS "gasPressure"
+         FROM stations s
+         WHERE s.owner_id = $1
+           AND LOWER(TRIM(s.name)) = LOWER($2)
+           AND ABS(s.lat - $3) < 0.0005
+           AND ABS(s.lng - $4) < 0.0005
+           AND s.created_at >= NOW() - INTERVAL '3 minutes'
+         ORDER BY s.created_at DESC
+         LIMIT 1`,
+        [ownerId, trimmedName, parsedLat, parsedLng]
+      );
+    }
 
     if (dupCheck.rows.length > 0) {
       const existingSt = dupCheck.rows[0];

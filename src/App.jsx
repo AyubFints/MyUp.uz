@@ -67,6 +67,7 @@ import {
   SkipForward,
   CheckCircle2,
   AlertCircle,
+  XCircle,
   Eye,
   EyeOff,
   UserPlus,
@@ -437,10 +438,13 @@ export default function App() {
     }
   });
 
-  // Foydalanuvchi yaratgan shahobchalar
+  // Foydalanuvchi yaratgan shahobchalar (Hisoblar bo'yicha qat'iy ajratilgan)
   const [myStations, setMyStations] = useState(() => {
     try {
-      const saved = localStorage.getItem("myup_my_stations");
+      const uStr = localStorage.getItem("myup_user");
+      const u = uStr ? JSON.parse(uStr) : null;
+      if (!u || !u.id) return [];
+      const saved = localStorage.getItem(`myup_my_stations_${u.id}`) || localStorage.getItem("myup_my_stations");
       const parsed = saved ? JSON.parse(saved) : [];
       return Array.isArray(parsed) ? parsed : [];
     } catch {
@@ -449,8 +453,26 @@ export default function App() {
   });
   const [isMyStationsLoading, setIsMyStationsLoading] = useState(false);
 
-  // Foydalanuvchiga tegishli shahobchalarni PostgreSQL bazasidan har doim yangilab turish (Multi-device sync)
-  const syncMyStations = useCallback(async () => {
+  // Foydalanuvchi hisobi o'zgarganda (login, hisob almashtirish, logout) shahobchalarni faqat ushbu hisobga moslash
+  useEffect(() => {
+    if (!user?.id) {
+      setMyStations([]);
+      return;
+    }
+    try {
+      const userSaved = localStorage.getItem(`myup_my_stations_${user.id}`);
+      if (userSaved) {
+        setMyStations(JSON.parse(userSaved));
+      } else {
+        setMyStations([]);
+      }
+    } catch {
+      setMyStations([]);
+    }
+  }, [user?.id]);
+
+  // Foydalanuvchiga tegishli shahobchalarni PostgreSQL bazasidan yangilash (isInitial=false bo'lsa fonda jim ishlaydi)
+  const syncMyStations = useCallback(async (isInitial = false) => {
     const storedUser = user || (() => {
       try {
         const s = localStorage.getItem("myup_user");
@@ -460,43 +482,40 @@ export default function App() {
       }
     })();
 
-    if (!storedUser) {
+    if (!storedUser || !storedUser.id) {
       setIsMyStationsLoading(false);
+      setMyStations([]);
       return;
     }
 
-    const myStParams = {};
-    if (storedUser.id) myStParams.userId = storedUser.id;
+    const myStParams = { userId: storedUser.id };
     const phoneVal = storedUser.phoneNumber || storedUser.phone;
     if (phoneVal) myStParams.phone = phoneVal;
 
-    try {
+    // Faqat dastlabki yuklanishda va ro'yxat bo'sh bo'lgandagina loading spinnerini yoqish!
+    // Har 5 yoki 10 soniyalik avtomatik tekshiruvlarda SPINNER O'YINCHOQ BO'LIB MILTILLAMAYDI!
+    if (isInitial && myStations.length === 0) {
       setIsMyStationsLoading(true);
+    }
+
+    try {
       const res = await api.stations.getMyStations(myStParams);
       if (res && res.success && Array.isArray(res.stations)) {
-        setMyStations((prev) => {
-          const backendStations = res.stations || [];
-          const localOnly = (prev || []).filter((s) =>
-            s && s.id && String(s.id).startsWith("st_user_") &&
-            !backendStations.some((bs) => bs.id === s.id || (bs.name === s.name && Math.abs(bs.lat - s.lat) < 0.0005))
-          );
-
-          const seen = new Set();
-          const cleanMerged = [];
-          for (const st of [...backendStations, ...localOnly]) {
-            if (st && st.id && !seen.has(st.id)) {
-              seen.add(st.id);
-              cleanMerged.push(st);
-            }
+        // 24 soatdan oshgan rad etilgan shahobchalarni xavfsiz filtrlash
+        const validStations = res.stations.filter(st => {
+          if (st.status === 'rejected' && (st.rejectedAt || st.rejected_at)) {
+            const age = Date.now() - new Date(st.rejectedAt || st.rejected_at).getTime();
+            if (age > 24 * 3600 * 1000) return false;
           }
-
-          try {
-            localStorage.setItem("myup_my_stations", JSON.stringify(cleanMerged));
-          } catch (e) {}
-          return cleanMerged;
+          return true;
         });
 
-        if (res.stations.length > 0) {
+        setMyStations(validStations);
+        try {
+          localStorage.setItem(`myup_my_stations_${storedUser.id}`, JSON.stringify(validStations));
+        } catch (e) {}
+
+        if (validStations.length > 0) {
           setUser((prev) => {
             if (prev && (!prev.hasLocation || !prev.has_location)) {
               const updated = {
@@ -505,7 +524,7 @@ export default function App() {
                 has_location: true,
                 canAddStation: true,
                 can_add_station: true,
-                locationName: prev.locationName || res.stations[0]?.name || "",
+                locationName: prev.locationName || validStations[0]?.name || "",
               };
               try {
                 localStorage.setItem("myup_user", JSON.stringify(updated));
@@ -521,14 +540,14 @@ export default function App() {
     } finally {
       setIsMyStationsLoading(false);
     }
-  }, [user]);
+  }, [user, myStations.length]);
 
-  // Profilga kirilganda avtomatik barcha shahobchalarni qayta yangilash
+  // Profilga kirilganda barcha shahobchalarni yangilash (shahobcha bo'lmasa 1 marta spinner bilan, bor bo'lsa jimgina)
   useEffect(() => {
     if (activeTab === "my") {
-      syncMyStations();
+      syncMyStations(myStations.length === 0);
     }
-  }, [activeTab, syncMyStations]);
+  }, [activeTab, syncMyStations, myStations.length]);
 
   // Foydalanuvchi hisobi va profilini PostgreSQL bazasidan sinxronlash
   useEffect(() => {
@@ -741,11 +760,12 @@ export default function App() {
               localStorage.setItem("myup_notif_unread", count > 0 ? "true" : "false");
             } catch (e) {}
 
-            // Agar yangi tasdiqlash yoki moderator xabari bo'lsa, ekranda SMS kabi popup banner ko'rsatish
+            // Agar yangi tasdiqlash yoki rad etish xabari bo'lsa, ekranda SMS kabi popup banner ko'rsatish
             const newToastItem = myUnread.find((n) => 
               n.type === 'station_approved' || 
-              (n.badge && n.badge.includes('Tasdiqlandi')) ||
-              (n.title && n.title.toLowerCase().includes('tasdiqlandi'))
+              n.type === 'station_rejected' ||
+              (n.badge && (n.badge.includes('Tasdiqlandi') || n.badge.includes('Rad'))) ||
+              (n.title && (n.title.toLowerCase().includes('tasdiqlandi') || n.title.toLowerCase().includes('rad')))
             );
             if (newToastItem && !shownApprovedNotifIdsRef.current.has(newToastItem.id)) {
               shownApprovedNotifIdsRef.current.add(newToastItem.id);
@@ -1783,30 +1803,33 @@ export default function App() {
 
   useEffect(() => {
     loadStationsFromDb();
-    syncMyStations();
+    syncMyStations(false);
     const handleFocus = () => {
       loadStationsFromDb();
-      syncMyStations();
+      syncMyStations(false);
     };
     window.addEventListener("focus", handleFocus);
     const pollInterval = setInterval(() => {
       loadStationsFromDb();
-      syncMyStations();
-    }, 5000);
+      syncMyStations(false);
+    }, 10000);
     return () => {
       window.removeEventListener("focus", handleFocus);
       clearInterval(pollInterval);
     };
   }, [loadStationsFromDb, syncMyStations]);
 
-  // myStations o'zgarganda localStorage ga saqlash
+  // myStations o'zgarganda foydalanuvchi hisobi bo'yicha localStorage ga saqlash
   useEffect(() => {
     try {
+      if (user?.id) {
+        localStorage.setItem(`myup_my_stations_${user.id}`, JSON.stringify(myStations));
+      }
       localStorage.setItem("myup_my_stations", JSON.stringify(myStations));
     } catch (e) {
       console.error(e);
     }
-  }, [myStations]);
+  }, [myStations, user?.id]);
 
   // Super Admin reklamalarini tartiblash (1-joylangan reklama, 2-joylangan va h.k. tartibida):
   const sortedAds = useMemo(() => {
@@ -2304,6 +2327,9 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    if (user?.id) {
+      localStorage.removeItem(`myup_my_stations_${user.id}`);
+    }
     localStorage.removeItem("myup_user");
     localStorage.removeItem("myup_token");
     localStorage.removeItem("myup_my_stations");
@@ -3366,88 +3392,102 @@ export default function App() {
     >
       {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
 
-      {/* JONLI SMS-USLUBIDAGI BILDIRISHNOMA (Super Admin Tasdiqlaganda Tushadi) */}
-      {liveApprovedToast && (
-        <div
-          className="live-sms-approved-toast"
-          onClick={() => {
-            setLiveApprovedToast(null);
-            handleOpenNotifications();
-          }}
-          style={{
-            position: "fixed",
-            top: "16px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: "calc(100% - 32px)",
-            maxWidth: "460px",
-            backgroundColor: isThemeLight ? "rgba(255, 255, 255, 0.98)" : "rgba(15, 23, 42, 0.98)",
-            color: isThemeLight ? "#0f172a" : "#ffffff",
-            borderRadius: "16px",
-            padding: "14px 16px",
-            display: "flex",
-            alignItems: "flex-start",
-            gap: "12px",
-            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(16, 185, 129, 0.4)",
-            border: "1px solid rgba(16, 185, 129, 0.4)",
-            zIndex: 999999,
-            cursor: "pointer",
-            animation: "slideDown 0.35s ease-out",
-            backdropFilter: "blur(12px)",
-          }}
-        >
-          <div style={{
-            width: "38px",
-            height: "38px",
-            borderRadius: "12px",
-            backgroundColor: "rgba(16, 185, 129, 0.15)",
-            border: "1px solid rgba(16, 185, 129, 0.35)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}>
-            <CheckCircle2 size={22} color="#10b981" />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2px" }}>
-              <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "#10b981", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                AX-Map • SMS Xabar
-              </span>
-              <span style={{ fontSize: "0.68rem", color: "var(--theme-muted, #94a3b8)" }}>
-                Hozir
-              </span>
-            </div>
-            <h5 style={{ margin: "0 0 3px", fontSize: "0.92rem", fontWeight: 700, color: isThemeLight ? "#0f172a" : "#f1f5f9" }}>
-              {liveApprovedToast.title || "Joylashuv tasdiqlandi!"}
-            </h5>
-            <p style={{ margin: 0, fontSize: "0.78rem", color: isThemeLight ? "#475569" : "#cbd5e1", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-              {liveApprovedToast.message}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
+      {/* JONLI SMS-USLUBIDAGI BILDIRISHNOMA (Super Admin Tasdiqlaganda yoki Rad etganda Tushadi) */}
+      {liveApprovedToast && (() => {
+        const isRejectedToast = liveApprovedToast.type === 'station_rejected' || 
+          (liveApprovedToast.badge && liveApprovedToast.badge.toLowerCase().includes('rad')) ||
+          (liveApprovedToast.title && liveApprovedToast.title.toLowerCase().includes('rad'));
+        const toastColor = isRejectedToast ? "#ef4444" : "#10b981";
+        const toastBg = isRejectedToast ? "rgba(239, 68, 68, 0.15)" : "rgba(16, 185, 129, 0.15)";
+        const toastBorder = isRejectedToast ? "rgba(239, 68, 68, 0.4)" : "rgba(16, 185, 129, 0.4)";
+        const badgeLabel = isRejectedToast ? "RAD ETILDI" : "TASDIQLANDI";
+
+        return (
+          <div
+            className="live-sms-approved-toast"
+            onClick={() => {
               setLiveApprovedToast(null);
+              handleOpenNotifications();
             }}
             style={{
-              background: "transparent",
-              border: "none",
-              color: "var(--theme-muted, #94a3b8)",
+              position: "fixed",
+              top: "16px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: "calc(100% - 32px)",
+              maxWidth: "460px",
+              backgroundColor: isThemeLight ? "rgba(255, 255, 255, 0.98)" : "rgba(15, 23, 42, 0.98)",
+              color: isThemeLight ? "#0f172a" : "#ffffff",
+              borderRadius: "16px",
+              padding: "14px 16px",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "12px",
+              boxShadow: `0 10px 30px rgba(0, 0, 0, 0.35), 0 0 0 1px ${toastBorder}`,
+              border: `1px solid ${toastBorder}`,
+              zIndex: 999999,
               cursor: "pointer",
-              padding: "4px",
-              margin: "-4px -4px 0 0",
+              animation: "slideDown 0.35s ease-out",
+              backdropFilter: "blur(12px)",
+            }}
+          >
+            <div style={{
+              width: "38px",
+              height: "38px",
+              borderRadius: "12px",
+              backgroundColor: toastBg,
+              border: `1px solid ${toastBorder}`,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-            }}
-            title="Yopish"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
+              flexShrink: 0,
+            }}>
+              {isRejectedToast ? (
+                <XCircle size={22} color="#ef4444" />
+              ) : (
+                <CheckCircle2 size={22} color="#10b981" />
+              )}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2px" }}>
+                <span style={{ fontSize: "0.72rem", fontWeight: 700, color: toastColor, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  AX-Map • {badgeLabel}
+                </span>
+                <span style={{ fontSize: "0.68rem", color: "var(--theme-muted, #94a3b8)" }}>
+                  Hozir
+                </span>
+              </div>
+              <h5 style={{ margin: "0 0 3px", fontSize: "0.92rem", fontWeight: 700, color: isThemeLight ? "#0f172a" : "#f1f5f9" }}>
+                {liveApprovedToast.title || (isRejectedToast ? "Joylashuv rad etildi" : "Joylashuv tasdiqlandi!")}
+              </h5>
+              <p style={{ margin: 0, fontSize: "0.78rem", color: isThemeLight ? "#475569" : "#cbd5e1", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                {liveApprovedToast.message}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setLiveApprovedToast(null);
+              }}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "var(--theme-muted, #94a3b8)",
+                cursor: "pointer",
+                padding: "4px",
+                margin: "-4px -4px 0 0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              title="Yopish"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Ambient background light */}
       <div className="ambient-glow-top"></div>
@@ -5141,8 +5181,8 @@ export default function App() {
                             ) : (
                               <div className="my-stations-list mt-2">
                                 {myStations.map((st) => {
-                                  const isPending = st.status === 'pending' || st.isApproved === false || st.is_approved === false || String(st.id).startsWith("st_user_");
                                   const isRejected = st.status === 'rejected' || st.isRejected === true;
+                                  const isPending = !isRejected && (st.status === 'pending' || st.isApproved === false || st.is_approved === false || String(st.id).startsWith("st_user_"));
                                   const isApproved = !isPending && !isRejected && (st.isApproved === true || st.is_approved === true || st.status === 'approved');
                                   return (
                                     <div
@@ -5175,7 +5215,7 @@ export default function App() {
                                                 border: '1px solid rgba(239, 68, 68, 0.35)',
                                                 color: '#ef4444',
                                               }}>
-                                                <X size={11} /> Rad etildi
+                                                <X size={11} /> Rad etildi (24s ichida o'chadi)
                                               </span>
                                             ) : (
                                               <span style={{
@@ -5207,7 +5247,7 @@ export default function App() {
                                             setSelectedManageStationId(st.id);
                                           }
                                         }}
-                                        title={!isApproved ? "Ko'rib chiqilmoqda" : "Tahrirlash va boshqarish"}
+                                        title={isRejected ? "Rad etilgan (ma'lumot)" : !isApproved ? "Ko'rib chiqilmoqda" : "Tahrirlash va boshqarish"}
                                         aria-label="Tahrirlash"
                                       >
                                         <Edit3 size={17} />
