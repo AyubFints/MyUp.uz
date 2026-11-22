@@ -92,23 +92,31 @@ textarea,
   -webkit-touch-callout: default !important;
 }
 
-/* Custom Scrollbar */
+/* Global scrollbar yashirish - barcha ko'k chiziqlar olib tashlanadi, tepa-pastga siljitish (scroll) to'liq ishlaydi */
+html, body, #root, * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+*::-webkit-scrollbar,
 ::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
 }
 
-::-webkit-scrollbar-track {
-  background: var(--bg-primary);
-}
-
+*::-webkit-scrollbar-thumb,
 ::-webkit-scrollbar-thumb {
-  background: var(--border-active);
-  border-radius: var(--radius-full);
+  display: none !important;
+  background: transparent !important;
+  border: none !important;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-cyan);
+*::-webkit-scrollbar-track,
+::-webkit-scrollbar-track {
+  display: none !important;
+  background: transparent !important;
 }
 
 button {

@@ -80,6 +80,7 @@ import {
   LocateFixed,
   HelpCircle,
   Download,
+  Loader2,
 } from "lucide-react";
 import "./App.css";
 
@@ -1005,6 +1006,7 @@ export default function App() {
     locationImage: null,
   });
   const [locModalError, setLocModalError] = useState("");
+  const [isLocModalSubmitting, setIsLocModalSubmitting] = useState(false);
   const [showLocModalPassword, setShowLocModalPassword] = useState(false);
   const locModalFileInputRef = useRef(null);
 
@@ -1143,120 +1145,138 @@ export default function App() {
   };
 
   const handleFinishLocationModalRegister = async (chosenImg = null) => {
-    const finalImg = chosenImg || locModalData.locationImage || null;
-    const locName = locModalData.locationName.trim();
-    const respPerson = locModalData.responsiblePerson.trim();
-    const locPhone = locModalData.phone;
-    const cleanPhone = locPhone.replace(/\s+/g, '');
-    const token = localStorage.getItem("myup_token");
-
-    const regPayload = {
-      phone: cleanPhone,
-      firstName: respPerson.split(" ")[0] || "Mas'ul",
-      lastName: respPerson.split(" ").slice(1).join(" ") || "",
-      password: locModalData.password,
-      hasLocation: true,
-      canAddStation: true,
-      registeredViaLocation: true,
-      role: "owner",
-      locationName: locName,
-      responsiblePerson: respPerson,
-      locationPhone: locPhone,
-      locationImage: finalImg,
-      avatarUrl: finalImg || null,
-    };
-
-    let realUserId = user?.id;
-
-    if (!token || !user || !user.id || user.id.startsWith("usr_")) {
-      // Foydalanuvchi tizimga kirmagan bo'lsa: markaziy PostgreSQL bazasida ro'yxatdan o'tkazamiz (Real Account)
-      try {
-        let authRes;
+    setIsLocModalSubmitting(true);
+    try {
+      let finalImg = chosenImg || locModalData.locationImage || null;
+      if (finalImg && typeof finalImg === 'string' && finalImg.startsWith("data:image")) {
         try {
-          authRes = await api.auth.register(regPayload);
-        } catch (regErr) {
-          if (regErr.message?.includes('allaqachon') || regErr.message?.includes('mavjud') || regErr.message?.includes('400')) {
-            const logRes = await api.auth.login(cleanPhone, locModalData.password);
-            if (logRes.success && logRes.token) {
-              localStorage.setItem('myup_token', logRes.token);
-              const upd = await api.auth.updateProfile(regPayload);
-              authRes = {
-                success: true,
-                token: logRes.token,
-                user: upd.user || logRes.user,
-                stations: logRes.stations || []
-              };
+          finalImg = await compressImage(finalImg, 800, 800, 0.7);
+        } catch (e) {
+          console.warn("Rasm siqishda ogohlantirish:", e);
+        }
+      }
+      const locName = locModalData.locationName.trim();
+      const respPerson = locModalData.responsiblePerson.trim();
+      const locPhone = locModalData.phone;
+      const cleanPhone = locPhone.replace(/\s+/g, '');
+      const token = localStorage.getItem("myup_token");
+
+      const regPayload = {
+        phone: cleanPhone,
+        firstName: respPerson.split(" ")[0] || "Mas'ul",
+        lastName: respPerson.split(" ").slice(1).join(" ") || "",
+        password: locModalData.password,
+        hasLocation: true,
+        canAddStation: true,
+        registeredViaLocation: true,
+        role: "owner",
+        locationName: locName,
+        responsiblePerson: respPerson,
+        locationPhone: locPhone,
+        locationImage: finalImg,
+        avatarUrl: finalImg || null,
+      };
+
+      let realUserId = user?.id;
+
+      if (!token || !user || !user.id || user.id.startsWith("usr_")) {
+        // Foydalanuvchi tizimga kirmagan bo'lsa: markaziy PostgreSQL bazasida ro'yxatdan o'tkazamiz (Real Account)
+        try {
+          let authRes;
+          try {
+            authRes = await api.auth.register(regPayload);
+          } catch (regErr) {
+            if (regErr.message?.includes('allaqachon') || regErr.message?.includes('mavjud') || regErr.message?.includes('400')) {
+              const logRes = await api.auth.login(cleanPhone, locModalData.password);
+              if (logRes.success && logRes.token) {
+                localStorage.setItem('myup_token', logRes.token);
+                const upd = await api.auth.updateProfile(regPayload);
+                authRes = {
+                  success: true,
+                  token: logRes.token,
+                  user: upd.user || logRes.user,
+                  stations: logRes.stations || []
+                };
+              } else {
+                throw regErr;
+              }
             } else {
               throw regErr;
             }
-          } else {
-            throw regErr;
           }
-        }
 
-        if (authRes?.token && authRes?.user) {
-          localStorage.setItem("myup_token", authRes.token);
-          realUserId = authRes.user.id;
-          if (Array.isArray(authRes.stations) && authRes.stations.length > 0) {
-            setMyStations(authRes.stations);
-            try {
-              localStorage.setItem("myup_my_stations", JSON.stringify(authRes.stations));
-            } catch (e) {}
+          if (authRes?.token && authRes?.user) {
+            localStorage.setItem("myup_token", authRes.token);
+            realUserId = authRes.user.id;
+            if (Array.isArray(authRes.stations) && authRes.stations.length > 0) {
+              setMyStations(authRes.stations);
+              try {
+                localStorage.setItem(`myup_my_stations_${authRes.user.id}`, JSON.stringify(authRes.stations));
+                localStorage.setItem("myup_my_stations", JSON.stringify(authRes.stations));
+              } catch (e) {}
+            }
           }
+        } catch (authErr) {
+          console.warn("Joylashuv registratsiyasida backend xatosi:", authErr.message);
         }
-      } catch (authErr) {
-        console.warn("Joylashuv registratsiyasida backend xatosi:", authErr.message);
+      } else {
+        // Foydalanuvchi allaqachon tizimga kirgan bo'lsa: uning profilini va parolini bazada yangilaymiz
+        try {
+          await api.auth.updateProfile({
+            ...regPayload,
+            password: locModalData.password,
+          });
+        } catch (apiErr) {
+          console.warn("Backendga joylashuv ma'lumotlarini saqlashda xato:", apiErr.message);
+        }
       }
-    } else {
-      // Foydalanuvchi allaqachon tizimga kirgan bo'lsa: uning profilini va parolini bazada yangilaymiz
+
+      // DIQQAT: Bu yerda hech qanday soxta shahobcha (joylashuv) yaratilmaydi!
+      // Faqat foydalanuvchiga joylashuv/shahobcha qo'shish huquqi beriladi.
+      const updatedUser = {
+        ...(user || {}),
+        id: realUserId || user?.id || ("usr_" + Date.now()),
+        role: "owner",
+        hasLocation: true,
+        has_location: true,
+        canAddStation: true,
+        can_add_station: true,
+        registeredViaLocation: true,
+        registered_via_location: true,
+        organizationName: locName,
+        locationName: locName,
+        responsiblePerson: respPerson,
+        locationPhone: locPhone,
+        locationImage: finalImg,
+        phoneNumber: locPhone,
+      };
+
+      setUser(updatedUser);
       try {
-        await api.auth.updateProfile({
-          ...regPayload,
-          password: locModalData.password,
-        });
-      } catch (apiErr) {
-        console.warn("Backendga joylashuv ma'lumotlarini saqlashda xato:", apiErr.message);
-      }
-    }
-
-    // DIQQAT: Bu yerda hech qanday soxta shahobcha (joylashuv) yaratilmaydi!
-    // Faqat foydalanuvchiga joylashuv/shahobcha qo'shish huquqi beriladi.
-    const updatedUser = {
-      ...(user || {}),
-      id: realUserId || user?.id || ("usr_" + Date.now()),
-      role: "owner",
-      hasLocation: true,
-      has_location: true,
-      canAddStation: true,
-      can_add_station: true,
-      registeredViaLocation: true,
-      registered_via_location: true,
-      organizationName: locName,
-      locationName: locName,
-      responsiblePerson: respPerson,
-      locationPhone: locPhone,
-      locationImage: finalImg,
-      phoneNumber: locPhone,
-    };
-
-    setUser(updatedUser);
-    try {
-      localStorage.setItem("myup_user", JSON.stringify(updatedUser));
-    } catch (e) {}
-
-    // Avvalgi ro'yxatdan o'tishda xato qo'shilib qolgan soxta shahobchalarni tozalash
-    setMyStations((prev) => {
-      const cleaned = prev.filter(
-        (s) => !(s.lat === 41.311081 && s.lng === 69.240562 && (!s.address || s.address === "Toshkent" || s.address === "Asosiy filial"))
-      );
-      try {
-        localStorage.setItem("myup_my_stations", JSON.stringify(cleaned));
+        localStorage.setItem("myup_user", JSON.stringify(updatedUser));
       } catch (e) {}
-      return cleaned;
-    });
 
-    setShowLocationRegisterModal(false);
-    setLocModalStep(1);
+      // Avvalgi ro'yxatdan o'tishda xato qo'shilib qolgan soxta shahobchalarni tozalash
+      setMyStations((prev) => {
+        const cleaned = prev.filter(
+          (s) => !(s.lat === 41.311081 && s.lng === 69.240562 && (!s.address || s.address === "Toshkent" || s.address === "Asosiy filial"))
+        );
+        try {
+          if (updatedUser?.id) {
+            localStorage.setItem(`myup_my_stations_${updatedUser.id}`, JSON.stringify(cleaned));
+          }
+          localStorage.setItem("myup_my_stations", JSON.stringify(cleaned));
+        } catch (e) {}
+        return cleaned;
+      });
+
+      setShowLocationRegisterModal(false);
+      setLocModalStep(1);
+    } catch (finishErr) {
+      console.error("handleFinishLocationModalRegister xatosi:", finishErr);
+    } finally {
+      setIsLocModalSubmitting(false);
+    }
   };
 
   const handleOpenEditLocationModal = () => {
@@ -6269,7 +6289,7 @@ export default function App() {
       {showLocationRegisterModal && (
         <div 
           className="notif-modal-overlay location-register-modal-overlay" 
-          onClick={() => setShowLocationRegisterModal(false)}
+          onClick={() => !isLocModalSubmitting && setShowLocationRegisterModal(false)}
         >
           <div 
             className="notif-modal-card location-register-modal-card" 
@@ -6281,7 +6301,9 @@ export default function App() {
             <button
               type="button"
               className="notif-modal-close-btn"
-              onClick={() => setShowLocationRegisterModal(false)}
+              disabled={isLocModalSubmitting}
+              onClick={() => !isLocModalSubmitting && setShowLocationRegisterModal(false)}
+              style={isLocModalSubmitting ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
             >
               <X size={18} />
             </button>
@@ -6476,6 +6498,8 @@ export default function App() {
                     className="location-skip-action-btn"
                     onClick={() => handleFinishLocationModalRegister(null)}
                     title="Rasmsiz davom etish"
+                    disabled={isLocModalSubmitting}
+                    style={isLocModalSubmitting ? { opacity: 0.6, cursor: 'not-allowed' } : {}}
                   >
                     <SkipForward size={16} />
                     <span>Tashlab ketish</span>
@@ -6485,17 +6509,29 @@ export default function App() {
                     type="button" 
                     className="modern-auth-submit-btn flex-1"
                     onClick={() => handleFinishLocationModalRegister(locModalData.locationImage)}
+                    disabled={isLocModalSubmitting}
+                    style={isLocModalSubmitting ? { opacity: 0.85, cursor: 'not-allowed' } : {}}
                   >
-                    <CheckCircle2 size={18} />
-                    <span>Tasdiqlash</span>
+                    {isLocModalSubmitting ? (
+                      <>
+                        <Loader2 size={18} className="spin-icon" />
+                        <span>Tasdiqlanmoqda...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 size={18} />
+                        <span>Tasdiqlash</span>
+                      </>
+                    )}
                   </button>
                 </div>
 
                 <button 
                   type="button" 
                   className="location-step-back-btn"
-                  onClick={() => setLocModalStep(1)}
-                  style={{ marginTop: '12px', textAlign: 'center', width: '100%' }}
+                  onClick={() => !isLocModalSubmitting && setLocModalStep(1)}
+                  disabled={isLocModalSubmitting}
+                  style={{ marginTop: '12px', textAlign: 'center', width: '100%', opacity: isLocModalSubmitting ? 0.5 : 1 }}
                 >
                   ← Ma'lumotlarni o'zgartirish
                 </button>

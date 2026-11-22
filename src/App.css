@@ -1314,7 +1314,7 @@ body {
   box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.45);
   animation: sdModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   display: block; /* Normal block flow sticky ishlashi uchun */
-  scrollbar-width: thin;
+  scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -15597,25 +15597,25 @@ body {
 }
 
 /* Yupqa va chiroyli scrollbar */
+/* Modal va auth kartalari uchun scrollbar butunlay yashirin */
 .location-register-modal-card::-webkit-scrollbar,
 .modern-auth-card::-webkit-scrollbar {
-  width: 5px;
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .location-register-modal-card::-webkit-scrollbar-track,
 .modern-auth-card::-webkit-scrollbar-track {
-  background: transparent;
+  display: none !important;
+  background: transparent !important;
 }
 
 .location-register-modal-card::-webkit-scrollbar-thumb,
 .modern-auth-card::-webkit-scrollbar-thumb {
-  background: rgba(56, 189, 248, 0.3);
-  border-radius: 10px;
-}
-
-.location-register-modal-card::-webkit-scrollbar-thumb:hover,
-.modern-auth-card::-webkit-scrollbar-thumb:hover {
-  background: rgba(56, 189, 248, 0.6);
+  display: none !important;
+  background: transparent !important;
+  border: none !important;
 }
 
 /* Light Theme qo'llab-quvvatlashi */
@@ -18204,8 +18204,7 @@ body.light-theme .location-fallback-btn {
   gap: 12px;
   overflow: hidden;
   padding-bottom: 85px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  scrollbar-width: none;
   flex: 1;
   overscroll-behavior-y: contain !important;
   overscroll-behavior: contain !important;
@@ -18437,8 +18436,7 @@ body.light-theme .location-fallback-btn {
   box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.85), 0 0 30px rgba(56, 189, 248, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.12);
   animation: smartModalIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  scrollbar-width: none;
 }
 
 @keyframes smartModalIn {
