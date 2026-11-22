@@ -453,10 +453,24 @@ export default function App() {
   });
   const [isMyStationsLoading, setIsMyStationsLoading] = useState(false);
 
+  // Profil bo'limiga kirganda manzil bor-yo'qligini faqat bir marta tekshirish (miltillash va qayta yuklanishlarni oldini olish uchun)
+  const hasCheckedMyStationsRef = useRef(false);
+  const isFetchingMyStationsRef = useRef(false);
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+  const myStationsRef = useRef(myStations);
+  useEffect(() => {
+    myStationsRef.current = myStations;
+  }, [myStations]);
+
   // Foydalanuvchi hisobi o'zgarganda (login, hisob almashtirish, logout) shahobchalarni faqat ushbu hisobga moslash
   useEffect(() => {
+    hasCheckedMyStationsRef.current = false;
     if (!user?.id) {
       setMyStations([]);
+      setIsMyStationsLoading(false);
       return;
     }
     try {
@@ -473,7 +487,9 @@ export default function App() {
 
   // Foydalanuvchiga tegishli shahobchalarni PostgreSQL bazasidan yangilash (isInitial=false bo'lsa fonda jim ishlaydi)
   const syncMyStations = useCallback(async (isInitial = false) => {
-    const storedUser = user || (() => {
+    if (isFetchingMyStationsRef.current) return;
+
+    const currentUser = userRef.current || (() => {
       try {
         const s = localStorage.getItem("myup_user");
         return s ? JSON.parse(s) : null;
@@ -482,23 +498,26 @@ export default function App() {
       }
     })();
 
-    if (!storedUser || !storedUser.id) {
+    if (!currentUser || !currentUser.id) {
       setIsMyStationsLoading(false);
       setMyStations([]);
       return;
     }
 
-    const myStParams = { userId: storedUser.id };
-    const phoneVal = storedUser.phoneNumber || storedUser.phone;
-    if (phoneVal) myStParams.phone = phoneVal;
+    const currentList = myStationsRef.current || [];
+    // Faqat birinchi marta tekshirilayotganda va ro'yxat bo'sh bo'lgandagina spinner ko'rsatish
+    const shouldShowLoading = isInitial && !hasCheckedMyStationsRef.current && currentList.length === 0;
 
-    // Faqat dastlabki yuklanishda va ro'yxat bo'sh bo'lgandagina loading spinnerini yoqish!
-    // Har 5 yoki 10 soniyalik avtomatik tekshiruvlarda SPINNER O'YINCHOQ BO'LIB MILTILLAMAYDI!
-    if (isInitial && myStations.length === 0) {
+    if (shouldShowLoading) {
       setIsMyStationsLoading(true);
     }
 
+    isFetchingMyStationsRef.current = true;
     try {
+      const myStParams = { userId: currentUser.id };
+      const phoneVal = currentUser.phoneNumber || currentUser.phone;
+      if (phoneVal) myStParams.phone = phoneVal;
+
       const res = await api.stations.getMyStations(myStParams);
       if (res && res.success && Array.isArray(res.stations)) {
         // 24 soatdan oshgan rad etilgan shahobchalarni xavfsiz filtrlash
@@ -512,7 +531,7 @@ export default function App() {
 
         setMyStations(validStations);
         try {
-          localStorage.setItem(`myup_my_stations_${storedUser.id}`, JSON.stringify(validStations));
+          localStorage.setItem(`myup_my_stations_${currentUser.id}`, JSON.stringify(validStations));
         } catch (e) {}
 
         if (validStations.length > 0) {
@@ -538,20 +557,26 @@ export default function App() {
     } catch (err) {
       console.warn("syncMyStations:", err.message);
     } finally {
+      isFetchingMyStationsRef.current = false;
+      hasCheckedMyStationsRef.current = true;
       setIsMyStationsLoading(false);
     }
-  }, [user, myStations.length]);
+  }, []);
 
-  // Profilga kirilganda barcha shahobchalarni yangilash (shahobcha bo'lmasa 1 marta spinner bilan, bor bo'lsa jimgina)
+  // Profilga kirilganda bir marta tekshirish (agar hali tekshirilmagan bo'lsa spinner bilan, keyin esa butunlay jimgina)
   useEffect(() => {
     if (activeTab === "my") {
-      syncMyStations(myStations.length === 0);
+      if (!hasCheckedMyStationsRef.current) {
+        syncMyStations(true);
+      } else {
+        syncMyStations(false);
+      }
     }
-  }, [activeTab, syncMyStations, myStations.length]);
+  }, [activeTab, syncMyStations]);
 
-  // Foydalanuvchi hisobi va profilini PostgreSQL bazasidan sinxronlash
+  // Foydalanuvchi hisobi va profilini PostgreSQL bazasidan sinxronlash (faqat ilova ochilganda bir marta)
   useEffect(() => {
-    syncMyStations();
+    syncMyStations(false);
     const token = localStorage.getItem("myup_token");
     if (!token) return;
 

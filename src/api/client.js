@@ -1,6 +1,6 @@
 // MyUp.uz Markaziy API mijozi (Frontend -> Backend Express + PostgreSQL)
 
-export const PUBLIC_BACKEND_URL = 'https://booth-trek-artificial-ant.trycloudflare.com/api';
+export const PUBLIC_BACKEND_URL = 'https://background-rome-bios-noon.trycloudflare.com/api';
 
 export const getApiBaseUrl = () => {
   if (typeof window !== 'undefined') {
