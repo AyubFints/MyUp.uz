@@ -1,5 +1,5 @@
 import React from 'react';
-import { Map } from 'lucide-react';
+import { Map, Clock } from 'lucide-react';
 import { formatDistance } from '../utils/distance';
 import { getStationBenzinPrices, stationMatchesFuel } from '../utils/fuel';
 
@@ -9,6 +9,7 @@ export default function StationCard({
   onSelectStation,
   onNavigate
 }) {
+  const isApproved = station.isApproved === true || station.is_approved === true || station.status === 'approved';
   const isCurrentlyOpen = station.isOpen !== false;
   const hasBenzin = stationMatchesFuel(station, 'benzin');
   
@@ -71,7 +72,25 @@ export default function StationCard({
       <div className="custom-sc-header">
         <h3 className="custom-sc-title">{station.name}</h3>
         <div className="custom-sc-header-right">
-          {isCurrentlyOpen && <span className="custom-sc-status custom-open">Ochiq</span>}
+          {!isApproved ? (
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '2px 8px',
+              borderRadius: '6px',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              background: 'rgba(245, 158, 11, 0.15)',
+              border: '1px solid rgba(245, 158, 11, 0.35)',
+              color: '#f59e0b',
+              whiteSpace: 'nowrap'
+            }}>
+              <Clock size={11} /> Ko'rib chiqilmoqda
+            </span>
+          ) : (
+            isCurrentlyOpen && <span className="custom-sc-status custom-open">Ochiq</span>
+          )}
           <span className="custom-sc-distance-val">
             {formatDistance(userDistance)}
           </span>
@@ -104,16 +123,38 @@ export default function StationCard({
         )}
       </div>
 
-      {/* 5. Tugmalar (Faqat manzil ochiq bo'lganda chiqadi) */}
-      {isCurrentlyOpen && (
+      {/* 5. Tugmalar */}
+      {!isApproved ? (
         <div className="custom-sc-actions">
-          <button className="custom-btn-details" onClick={(e) => { e.stopPropagation(); onSelectStation(station); }}>
-            Batafsil
-          </button>
-          <button className="custom-btn-navigate" onClick={handleNavClick}>
-            Borish <Map size={16} />
+          <button 
+            type="button"
+            className="custom-btn-details" 
+            style={{ 
+              width: '100%', 
+              background: 'rgba(245, 158, 11, 0.15)', 
+              borderColor: 'rgba(245, 158, 11, 0.35)', 
+              color: '#f59e0b',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
+            }} 
+            onClick={(e) => { e.stopPropagation(); onSelectStation(station); }}
+          >
+            <Clock size={14} /> <span>Ko'rib chiqilmoqda (Holatni bilish)</span>
           </button>
         </div>
+      ) : (
+        isCurrentlyOpen && (
+          <div className="custom-sc-actions">
+            <button className="custom-btn-details" onClick={(e) => { e.stopPropagation(); onSelectStation(station); }}>
+              Batafsil
+            </button>
+            <button className="custom-btn-navigate" onClick={handleNavClick}>
+              Borish <Map size={16} />
+            </button>
+          </div>
+        )
       )}
     </div>
   );

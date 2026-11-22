@@ -509,10 +509,16 @@ export default function App() {
       .then((res) => {
         if (res.success && Array.isArray(res.stations)) {
           setMyStations((prev) => {
-            // Super admin tomonidan bazadan o'chirilgan shahobchalar butunlay tozalanadi
-            // Faqat bazada rostdan mavjud bo'lganlar va hali serverga yuklanmagan lokal arizalar (st_user_) qoladi
-            const unuploadedLocal = (prev || []).filter((s) => s && s.id && String(s.id).startsWith("st_user_"));
-            const merged = [...res.stations, ...unuploadedLocal];
+            // Hali yuklanmagan lokal va kutilayotgan arizalarni saqlash
+            const pendingOrLocal = (prev || []).filter((s) =>
+              s && s.id && (
+                String(s.id).startsWith("st_user_") ||
+                s.isApproved === false ||
+                s.is_approved === false ||
+                s.status === 'pending'
+              ) && !res.stations.some((rs) => rs.id === s.id)
+            );
+            const merged = [...res.stations, ...pendingOrLocal];
             try {
               localStorage.setItem("myup_my_stations", JSON.stringify(merged));
             } catch (e) {}
@@ -1678,10 +1684,11 @@ export default function App() {
 
         // myStations ro'yxatini bazadagi jonli tasdiqlangan shahobchalar bilan sinxronlashtirish
         setMyStations((prev) => {
-          // Super admin bazadan o'chirgan eski shahobchalarni tozalash (faqat hali yuklanmagan st_user_ qoladi)
+          // Super admin bazadan o'chirgan eski shahobchalarni tozalash
+          // DIQQAT: Hali administrator tomonidan ko'rib chiqilayotgan (isApproved === false) arizalar hech qachon o'chirilmaydi!
           const filtered = (prev || []).filter((mySt) => {
             if (!mySt || !mySt.id) return false;
-            if (String(mySt.id).startsWith("st_user_")) return true;
+            if (mySt.isApproved === false || mySt.is_approved === false || mySt.status === 'pending' || String(mySt.id).startsWith("st_user_")) return true;
             return dbStationIds.has(mySt.id) || dbStationNames.has(mySt.name);
           }).map((mySt) => {
             const dbSt = res.stations.find((s) => s.id === mySt.id || s.name === mySt.name);
@@ -1854,9 +1861,20 @@ export default function App() {
   const [detailStation, setDetailStation] = useState(null);
   const [showProfileDetail, setShowProfileDetail] = useState(false);
 
+  const handleSelectStation = useCallback((st) => {
+    if (!st) return;
+    const isApproved = st.isApproved === true || st.is_approved === true || st.status === 'approved';
+    if (!isApproved) {
+      setPendingInspectionModalStation(st);
+    } else {
+      setDetailStation(st);
+    }
+  }, []);
+
   useEffect(() => {
     closeAllModalsRef.current = () => {
       setDetailStation(null);
+      setPendingInspectionModalStation(null);
       setShowProfileDetail(false);
       setShowNotificationsPage(false);
       setSelectedManageStationId(null);
@@ -3072,7 +3090,7 @@ export default function App() {
   };
 
   // Dublikatlarsiz birlashtirilgan yagona shahobchalar ro'yxati (har bir shahobcha faqat 1 marta chiqadi)
-  // DIQQAT: Hali admin tasdiqlamagan (isApproved === false) shahobchalar asosiy xarita va qidiruvda ko'rinmaydi!
+  // stList faqat tasdiqlangan ommaviy shahobchalar; myStList esa foydalanuvchining o'ziga tegishli barcha shahobchalar
   const combinedUniqueStations = useMemo(() => {
     const stationDict = {};
     const stList = Array.isArray(stations) ? stations : [];
@@ -3085,9 +3103,9 @@ export default function App() {
     });
 
     myStList.forEach((st) => {
-      // Shahobcha faqat super admin tasdiqlaganidan keyingina asosiy xarita va umumiy ro'yxatda paydo bo'ladi!
-      const isApproved = st.isApproved === true || st.is_approved === true || st.status === 'approved';
-      if (st && st.id && typeof st === 'object' && isApproved) {
+      // Foydalanuvchining o'zi kiritgan har qanday shahobcha o'z telefonida saqlanib turadi
+      // (hali tasdiqlanmagan bo'lsa 'Ko'rib chiqilmoqda' sariq belgisi bilan chiqadi)
+      if (st && st.id && typeof st === 'object') {
         const prev = stationDict[st.id];
         stationDict[st.id] = prev && typeof prev === 'object' ? { ...prev, ...st } : st;
       }
@@ -3697,7 +3715,7 @@ export default function App() {
                         userDistance={station.calculatedDistance}
                         isFavorite={favorites.includes(station.id)}
                         onToggleFavorite={handleToggleFavorite}
-                        onSelectStation={setDetailStation}
+                        onSelectStation={handleSelectStation}
                         onNavigate={handleNavigate}
                       />
                     ))}
@@ -3766,7 +3784,7 @@ export default function App() {
                     }}
                     selectedBenzinGrade={selectedBenzinGrade}
                     onSelectBenzinGrade={setSelectedBenzinGrade}
-                    onSelectStation={setDetailStation}
+                    onSelectStation={handleSelectStation}
                     onNavigate={handleNavigate}
                     searchQuery={searchQuery}
                     showSidebar={false}
@@ -4985,9 +5003,7 @@ export default function App() {
                                           className="my-station-simple-card"
                                           onClick={() => {
                                             if (!isApproved) {
-                                              setSubmittedStationForModal(st);
-                                              setSmartOnboardingMode("station_submitted");
-                                              setShowSmartOnboarding(true);
+                                              setPendingInspectionModalStation(st);
                                             } else {
                                               setSelectedManageStationId(st.id);
                                             }
@@ -5147,7 +5163,7 @@ export default function App() {
               }}
               selectedBenzinGrade={selectedBenzinGrade}
               onSelectBenzinGrade={setSelectedBenzinGrade}
-              onSelectStation={setDetailStation}
+              onSelectStation={handleSelectStation}
               onNavigate={handleNavigate}
               searchQuery={searchQuery}
               showSidebar={true}
