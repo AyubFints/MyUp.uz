@@ -447,8 +447,78 @@ export default function App() {
     }
   });
 
-  // Foydalanuvchi hisobi va shahobchalarini PostgreSQL bazasidan sinxronlash (Multi-device sync)
+  // Foydalanuvchiga tegishli shahobchalarni PostgreSQL bazasidan har doim yangilab turish (Multi-device sync)
+  const syncMyStations = useCallback(async () => {
+    const storedUser = user || (() => {
+      try {
+        const s = localStorage.getItem("myup_user");
+        return s ? JSON.parse(s) : null;
+      } catch {
+        return null;
+      }
+    })();
+
+    if (!storedUser) return;
+
+    const myStParams = {};
+    if (storedUser.id) myStParams.userId = storedUser.id;
+    const phoneVal = storedUser.phoneNumber || storedUser.phone;
+    if (phoneVal) myStParams.phone = phoneVal;
+
+    try {
+      const res = await api.stations.getMyStations(myStParams);
+      if (res && res.success && Array.isArray(res.stations)) {
+        setMyStations((prev) => {
+          const pendingOrLocal = (prev || []).filter((s) =>
+            s && s.id && (
+              String(s.id).startsWith("st_user_") ||
+              s.isApproved === false ||
+              s.is_approved === false ||
+              s.status === 'pending'
+            ) && !res.stations.some((rs) => rs.id === s.id)
+          );
+          const merged = [...res.stations, ...pendingOrLocal];
+          try {
+            localStorage.setItem("myup_my_stations", JSON.stringify(merged));
+          } catch (e) {}
+          return merged;
+        });
+
+        if (res.stations.length > 0) {
+          setUser((prev) => {
+            if (prev && (!prev.hasLocation || !prev.has_location)) {
+              const updated = {
+                ...prev,
+                hasLocation: true,
+                has_location: true,
+                canAddStation: true,
+                can_add_station: true,
+                locationName: prev.locationName || res.stations[0]?.name || "",
+              };
+              try {
+                localStorage.setItem("myup_user", JSON.stringify(updated));
+              } catch (e) {}
+              return updated;
+            }
+            return prev;
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("syncMyStations:", err.message);
+    }
+  }, [user]);
+
+  // Profilga kirilganda avtomatik barcha shahobchalarni qayta yangilash
   useEffect(() => {
+    if (activeTab === "my") {
+      syncMyStations();
+    }
+  }, [activeTab, syncMyStations]);
+
+  // Foydalanuvchi hisobi va profilini PostgreSQL bazasidan sinxronlash
+  useEffect(() => {
+    syncMyStations();
     const token = localStorage.getItem("myup_token");
     if (!token) return;
 
@@ -487,47 +557,7 @@ export default function App() {
       .catch((err) => {
         console.warn("Profil tekshiruvi:", err.message);
       });
-
-    // 2. Foydalanuvchining barcha shahobchalarini yangilash (mavjudlarini o'chirib yubormasdan birlashtirish)
-    const storedUser = (() => {
-      try {
-        const s = localStorage.getItem("myup_user");
-        return s ? JSON.parse(s) : null;
-      } catch {
-        return null;
-      }
-    })();
-
-    const myStParams = {};
-    if (storedUser?.id) myStParams.userId = storedUser.id;
-    if (storedUser?.phoneNumber || storedUser?.phone) {
-      myStParams.phone = storedUser.phoneNumber || storedUser.phone;
-    }
-
-    api.stations
-      .getMyStations(myStParams)
-      .then((res) => {
-        if (res.success && Array.isArray(res.stations)) {
-          setMyStations((prev) => {
-            // Hali yuklanmagan lokal va kutilayotgan arizalarni saqlash
-            const pendingOrLocal = (prev || []).filter((s) =>
-              s && s.id && (
-                String(s.id).startsWith("st_user_") ||
-                s.isApproved === false ||
-                s.is_approved === false ||
-                s.status === 'pending'
-              ) && !res.stations.some((rs) => rs.id === s.id)
-            );
-            const merged = [...res.stations, ...pendingOrLocal];
-            try {
-              localStorage.setItem("myup_my_stations", JSON.stringify(merged));
-            } catch (e) {}
-            return merged;
-          });
-        }
-      })
-      .catch(() => {});
-  }, []);
+  }, [syncMyStations]);
 
   // Avtomatik orqa fonda sinxronlash (Offline yaratilgan foydalanuvchilar va shahobchalarni PostgreSQL bazasiga yuklash)
   useEffect(() => {
@@ -1704,17 +1734,25 @@ export default function App() {
             return mySt;
           });
 
-          // Foydalanuvchiga tegishli bazadagi yangi shahobchalarni qo'shish
-          if (user?.id) {
-            const userSts = res.stations.filter(
-              (s) => s.ownerId === user.id || s.owner_id === user.id || s.createdBy === user.id
-            );
-            userSts.forEach((uSt) => {
-              if (!filtered.some((f) => f.id === uSt.id)) {
-                filtered.push(uSt);
-              }
-            });
-          }
+          // Foydalanuvchiga tegishli bazadagi yangi shahobchalarni qo'shish (ID yoki Telefon raqami bo'yicha)
+          const currentUserId = user?.id;
+          const currentUserPhoneDigits = (user?.phoneNumber || user?.phone || '').replace(/\D/g, '');
+
+          const userSts = res.stations.filter((s) => {
+            if (!s) return false;
+            if (currentUserId && (s.ownerId === currentUserId || s.owner_id === currentUserId || s.createdBy === currentUserId)) return true;
+            if (currentUserPhoneDigits) {
+              const sPhoneDigits = (s.phone || '').replace(/\D/g, '');
+              if (sPhoneDigits && sPhoneDigits === currentUserPhoneDigits) return true;
+            }
+            return false;
+          });
+
+          userSts.forEach((uSt) => {
+            if (!filtered.some((f) => f.id === uSt.id)) {
+              filtered.push(uSt);
+            }
+          });
 
           try {
             localStorage.setItem("myup_my_stations", JSON.stringify(filtered));
@@ -1737,18 +1775,25 @@ export default function App() {
     } finally {
       setIsStationsLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, user?.phoneNumber, user?.phone]);
 
   useEffect(() => {
     loadStationsFromDb();
-    const handleFocus = () => loadStationsFromDb();
+    syncMyStations();
+    const handleFocus = () => {
+      loadStationsFromDb();
+      syncMyStations();
+    };
     window.addEventListener("focus", handleFocus);
-    const pollInterval = setInterval(loadStationsFromDb, 6000);
+    const pollInterval = setInterval(() => {
+      loadStationsFromDb();
+      syncMyStations();
+    }, 5000);
     return () => {
       window.removeEventListener("focus", handleFocus);
       clearInterval(pollInterval);
     };
-  }, [loadStationsFromDb]);
+  }, [loadStationsFromDb, syncMyStations]);
 
   // myStations o'zgarganda localStorage ga saqlash
   useEffect(() => {
@@ -4731,6 +4776,9 @@ export default function App() {
                         user?.hasLocation ||
                         user?.has_location ||
                         user?.role === 'owner' ||
+                        user?.role === 'super_admin' ||
+                        user?.canAddStation ||
+                        user?.can_add_station ||
                         myStations.length > 0
                       );
 
@@ -4938,141 +4986,137 @@ export default function App() {
                             </div>
                           )}
 
-                          {/* 3. FAQAT JOYLAShUV JOYLAShDAN RO'YXATDAN O'TGAN BO'LSA:
-                                 Joylashuv qo'shish va Mening joylashuvlarim ko'rinadi.
-                                 Oddiy user bo'lsa faollashtirish kartasi ko'rsatiladi */}
-                          {isLocationRegistered ? (
-                            <>
-                              {/* 2. PROFIL PASTIDA JOYLASHUV QO'SHISH DEGAN JOY */}
-                              <button
-                                className="profile-add-station-banner-btn"
-                                onClick={() => {
-                                  setEditingStation(null);
-                                  setShowAddStation(true);
-                                }}
-                              >
-                                <div className="add-station-icon-halo">
-                                  <Plus size={22} />
-                                </div>
-                                <div className="add-station-banner-text">
-                                  <span className="add-station-banner-title">
-                                    Joylashuv qo'shish
-                                  </span>
-                                  <span className="add-station-banner-subtitle">
-                                    O'z xizmat ko'rsatish markazingizni AX-Map ga joylashtiring
-                                  </span>
-                                </div>
-                                <div className="add-station-banner-arrow">
-                                  <ChevronRight size={18} />
-                                </div>
-                              </button>
+                          {/* 2. PROFIL PASTIDA JOYLASHUV QO'SHISH TUGMASI VA MENING JOYLASHUVLARIM */}
+                          <button
+                            className="profile-add-station-banner-btn"
+                            onClick={() => {
+                              setEditingStation(null);
+                              setShowAddStation(true);
+                            }}
+                          >
+                            <div className="add-station-icon-halo">
+                              <Plus size={22} />
+                            </div>
+                            <div className="add-station-banner-text">
+                              <span className="add-station-banner-title">
+                                Joylashuv qo'shish
+                              </span>
+                              <span className="add-station-banner-subtitle">
+                                O'z xizmat ko'rsatish markazingizni AX-Map ga joylashtiring
+                              </span>
+                            </div>
+                            <div className="add-station-banner-arrow">
+                              <ChevronRight size={18} />
+                            </div>
+                          </button>
 
-                              {/* 3. PASTIDA UNING JOYLASHUVLARI (Mening joylashuvlarim) */}
-                              <div className="profile-my-locations-wrapper">
-                                <div className="my-locations-header-bar">
-                                  <div className="my-locations-title-cluster">
-                                    <MapPin size={18} color="#3b82f6" />
-                                    <h4>Mening joylashuvlarim</h4>
-                                    <span className="my-locations-count-pill">
-                                      {myStations.length}
-                                    </span>
-                                  </div>
-                                </div>
+                          {/* 3. MENING JOYLASHUVLARIM RO'YXATI */}
+                          <div className="profile-my-locations-wrapper">
+                            <div className="my-locations-header-bar">
+                              <div className="my-locations-title-cluster">
+                                <MapPin size={18} color="#3b82f6" />
+                                <h4>Mening joylashuvlarim</h4>
+                                <span className="my-locations-count-pill">
+                                  {myStations.length}
+                                </span>
+                              </div>
+                            </div>
 
-                                {myStations.length === 0 ? (
-                                  <div className="profile-no-locations-empty">
-                                    <button
-                                      className="create-demo-station-btn profile-add-location-empty-btn"
+                            {myStations.length === 0 ? (
+                              <div className="profile-no-locations-empty">
+                                <button
+                                  className="create-demo-station-btn profile-add-location-empty-btn"
+                                  onClick={() => {
+                                    setEditingStation(null);
+                                    setShowAddStation(true);
+                                  }}
+                                >
+                                  <Plus size={16} />
+                                  <span>Joylashuv qo'shish</span>
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="my-stations-list mt-2">
+                                {myStations.map((st) => {
+                                  const isApproved = st.isApproved === true || st.is_approved === true || st.status === 'approved' || stations.some((s) => s.id === st.id || s.name === st.name);
+                                  const isRejected = st.status === 'rejected' || st.isRejected === true;
+                                  return (
+                                    <div
+                                      key={st.id}
+                                      className="my-station-simple-card"
                                       onClick={() => {
-                                        setEditingStation(null);
-                                        setShowAddStation(true);
+                                        if (!isApproved) {
+                                          setPendingInspectionModalStation(st);
+                                        } else {
+                                          setSelectedManageStationId(st.id);
+                                        }
                                       }}
                                     >
-                                      <Plus size={16} />
-                                      <span>Joylashuv qo'shish</span>
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <div className="my-stations-list mt-2">
-                                    {myStations.map((st) => {
-                                      const isApproved = st.isApproved === true || st.is_approved === true || st.status === 'approved' || stations.some((s) => s.id === st.id || s.name === st.name);
-                                      const isRejected = st.status === 'rejected' || st.isRejected === true;
-                                      return (
-                                        <div
-                                          key={st.id}
-                                          className="my-station-simple-card"
-                                          onClick={() => {
-                                            if (!isApproved) {
-                                              setPendingInspectionModalStation(st);
-                                            } else {
-                                              setSelectedManageStationId(st.id);
-                                            }
-                                          }}
-                                        >
-                                          <div className="my-station-simple-info">
-                                            <h5 className="my-station-simple-title">
-                                              {st.name}
-                                            </h5>
-                                            {!isApproved || isRejected ? (
-                                              <div style={{ marginTop: '4px' }}>
-                                                {isRejected ? (
-                                                  <span style={{
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    gap: '4px',
-                                                    padding: '2px 8px',
-                                                    borderRadius: '6px',
-                                                    fontSize: '0.72rem',
-                                                    fontWeight: 600,
-                                                    background: 'rgba(239, 68, 68, 0.15)',
-                                                    border: '1px solid rgba(239, 68, 68, 0.35)',
-                                                    color: '#ef4444',
-                                                  }}>
-                                                    <X size={11} /> Rad etildi
-                                                  </span>
-                                                ) : (
-                                                  <span style={{
-                                                    display: 'inline-flex',
-                                                    alignItems: 'center',
-                                                    gap: '4px',
-                                                    padding: '2px 8px',
-                                                    borderRadius: '6px',
-                                                    fontSize: '0.72rem',
-                                                    fontWeight: 600,
-                                                    background: 'rgba(245, 158, 11, 0.15)',
-                                                    border: '1px solid rgba(245, 158, 11, 0.35)',
-                                                    color: '#f59e0b',
-                                                  }}>
-                                                    <Clock size={11} /> Ko'rib chiqilmoqda
-                                                  </span>
-                                                )}
-                                              </div>
-                                            ) : null}
+                                      <div className="my-station-simple-info">
+                                        <h5 className="my-station-simple-title">
+                                          {st.name}
+                                        </h5>
+                                        {!isApproved || isRejected ? (
+                                          <div style={{ marginTop: '4px' }}>
+                                            {isRejected ? (
+                                              <span style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                                padding: '2px 8px',
+                                                borderRadius: '6px',
+                                                fontSize: '0.72rem',
+                                                fontWeight: 600,
+                                                background: 'rgba(239, 68, 68, 0.15)',
+                                                border: '1px solid rgba(239, 68, 68, 0.35)',
+                                                color: '#ef4444',
+                                              }}>
+                                                <X size={11} /> Rad etildi
+                                              </span>
+                                            ) : (
+                                              <span style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                                padding: '2px 8px',
+                                                borderRadius: '6px',
+                                                fontSize: '0.72rem',
+                                                fontWeight: 600,
+                                                background: 'rgba(245, 158, 11, 0.15)',
+                                                border: '1px solid rgba(245, 158, 11, 0.35)',
+                                                color: '#f59e0b',
+                                              }}>
+                                                <Clock size={11} /> Ko'rib chiqilmoqda
+                                              </span>
+                                            )}
                                           </div>
+                                        ) : null}
+                                      </div>
 
-                                          <button
-                                            className="my-station-edit-pencil-btn"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              if (!isApproved) {
-                                                setPendingInspectionModalStation(st);
-                                              } else {
-                                                setSelectedManageStationId(st.id);
-                                              }
-                                            }}
-                                            title={!isApproved ? "Ko'rib chiqilmoqda" : "Tahrirlash va boshqarish"}
-                                            aria-label="Tahrirlash"
-                                          >
-                                            <Edit3 size={17} />
-                                          </button>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                )}
+                                      <button
+                                        className="my-station-edit-pencil-btn"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (!isApproved) {
+                                            setPendingInspectionModalStation(st);
+                                          } else {
+                                            setSelectedManageStationId(st.id);
+                                          }
+                                        }}
+                                        title={!isApproved ? "Ko'rib chiqilmoqda" : "Tahrirlash va boshqarish"}
+                                        aria-label="Tahrirlash"
+                                      >
+                                        <Edit3 size={17} />
+                                      </button>
+                                    </div>
+                                  );
+                                })}
                               </div>
-                            </>
-                          ) : (
+                            )}
+                          </div>
+
+                          {/* 4. AGAR JOYLASHUVI BO'LMASA VA AKTIVLASHTIRILMAGAN BO'LSA - TAVSIYA KARTASI */}
+                          {!isLocationRegistered && myStations.length === 0 && (
                             <div 
                               className="profile-activate-location-card" 
                               style={{

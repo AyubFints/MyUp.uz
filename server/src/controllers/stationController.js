@@ -103,13 +103,14 @@ export const getAllStations = async (req, res) => {
 export const getMyStations = async (req, res) => {
   try {
     const userId = req.user?.id || req.query.userId || null;
-    const phone = req.user?.phone || req.query.phone || null;
+    let phone = req.user?.phone || req.query.phone || null;
 
     if (!userId && !phone) {
       return res.json({ success: true, count: 0, stations: [] });
     }
 
     const cleanPhone = phone ? phone.replace(/\s+/g, '') : '';
+    const phoneDigits = phone ? phone.replace(/\D/g, '') : '';
     const validUuid = isUuid(userId) ? userId : null;
 
     let whereConditions = [];
@@ -119,9 +120,33 @@ export const getMyStations = async (req, res) => {
       params.push(validUuid);
       whereConditions.push(`s.owner_id = $${params.length}`);
     }
-    if (cleanPhone) {
+    if (phoneDigits) {
+      params.push(phoneDigits);
+      whereConditions.push(`REGEXP_REPLACE(s.phone, '\\D', '', 'g') = $${params.length}`);
+    } else if (cleanPhone) {
       params.push(cleanPhone, phone);
       whereConditions.push(`(REPLACE(s.phone, ' ', '') = $${params.length - 1} OR s.phone = $${params.length})`);
+    }
+
+    // Agar validUuid bor, lekin telefon berilmagan bo'lsa - users jadvalidan telefonini topib qo'shamiz
+    if (validUuid && !phoneDigits) {
+      const uRes = await query(`SELECT phone FROM users WHERE id = $1 LIMIT 1`, [validUuid]).catch(() => ({ rows: [] }));
+      if (uRes.rows.length > 0 && uRes.rows[0].phone) {
+        const uPhoneDigits = uRes.rows[0].phone.replace(/\D/g, '');
+        if (uPhoneDigits) {
+          params.push(uPhoneDigits);
+          whereConditions.push(`REGEXP_REPLACE(s.phone, '\\D', '', 'g') = $${params.length}`);
+        }
+      }
+    }
+
+    // Agar telefon bor, lekin validUuid berilmagan bo'lsa - users jadvalidan id sini topib qo'shamiz
+    if (phoneDigits && !validUuid) {
+      const uRes = await query(`SELECT id FROM users WHERE REGEXP_REPLACE(phone, '\\D', '', 'g') = $1 LIMIT 1`, [phoneDigits]).catch(() => ({ rows: [] }));
+      if (uRes.rows.length > 0 && uRes.rows[0].id) {
+        params.push(uRes.rows[0].id);
+        whereConditions.push(`s.owner_id = $${params.length}`);
+      }
     }
 
     if (whereConditions.length === 0) {
@@ -129,10 +154,10 @@ export const getMyStations = async (req, res) => {
     }
 
     // Egasi bo'lmagan yoki yangilanishi kerak bo'lgan, telefoni mos keladigan shahobchalarni biriktirish
-    if (validUuid && cleanPhone) {
+    if (validUuid && phoneDigits) {
       await query(
-        `UPDATE stations SET owner_id = $1 WHERE (owner_id IS NULL OR owner_id != $1) AND (REPLACE(phone, ' ', '') = $2 OR phone = $3)`,
-        [validUuid, cleanPhone, phone]
+        `UPDATE stations SET owner_id = $1 WHERE (owner_id IS NULL OR owner_id != $1) AND REGEXP_REPLACE(phone, '\\D', '', 'g') = $2`,
+        [validUuid, phoneDigits]
       ).catch(() => {});
     }
 
