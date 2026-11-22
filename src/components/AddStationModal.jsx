@@ -535,6 +535,10 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
   };
 
   const handleSubmit = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setSubmitError('');
+
     const parsedPrices = Object.fromEntries(
       Object.entries(fuelPrices)
         .filter(([k]) => selectedTypes.includes(k))
@@ -609,9 +613,6 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
       reviewsCount: 1,
     };
 
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    setSubmitError('');
     try {
       if (onSave) {
         await onSave(newStation);

@@ -301,6 +301,48 @@ export const createStation = async (req, res) => {
 
     const finalGasPressure = Number(gasPressure || pressures?.metan || 200);
 
+    // Deduplication check: agar so'nggi 2 daqiqa ichida xuddi shu foydalanuvchi/telefon tomonidan
+    // bir xil nom va yaqin koordinataga ega shahobcha yuborilgan bo'lsa, qayta yaratilmasdan mavjudini qaytarish
+    const trimmedName = name.trim();
+    const parsedLat = parseFloat(lat);
+    const parsedLng = parseFloat(lng);
+
+    const dupCheck = await query(
+      `SELECT s.id, s.name, s.lat, s.lng, s.address, s.city, s.phone,
+              s.is_open AS "isOpen", s.reopen_time AS "reopenTime",
+              s.rating, s.rating_count AS "ratingCount", s.owner_id AS "ownerId",
+              s.is_approved AS "isApproved", s.status, s.rejected_at AS "rejectedAt", s.created_at AS "createdAt",
+              s.description, s.images, s.verification_images AS "verificationImages", s.types, s.gas_pressure AS "gasPressure"
+       FROM stations s
+       WHERE (
+         (s.owner_id IS NOT NULL AND s.owner_id = $1)
+         OR (REGEXP_REPLACE(s.phone, '\\D', '', 'g') = $2 AND $2 != '')
+       )
+       AND LOWER(TRIM(s.name)) = LOWER($3)
+       AND ABS(s.lat - $4) < 0.0005
+       AND ABS(s.lng - $5) < 0.0005
+       AND s.created_at >= NOW() - INTERVAL '3 minutes'
+       ORDER BY s.created_at DESC
+       LIMIT 1`,
+      [ownerId, stationDigits || ownerDigits, trimmedName, parsedLat, parsedLng]
+    );
+
+    if (dupCheck.rows.length > 0) {
+      const existingSt = dupCheck.rows[0];
+      return res.status(200).json({
+        success: true,
+        station: {
+          ...existingSt,
+          type: existingSt.types || ['metan'],
+          prices: prices || {},
+          pressures: pressures || {},
+          amenities: amenities || {},
+          payments: payments || {}
+        },
+        message: 'Shahobcha allaqachon qabul qilingan, moderatsiya ko\'rib chiqilmoqda.',
+      });
+    }
+
     // 1. Shahobcha yaratish (is_approved: false, status: 'pending')
     const stResult = await query(
       `INSERT INTO stations (

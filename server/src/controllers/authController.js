@@ -183,12 +183,21 @@ export const login = async (req, res) => {
     }
 
     // 1. Agar foydalanuvchining telefon raqami bilan avval ochilgan shahobchalar owner_id bo'lmasa, bog'lash
-    await query(
-      `UPDATE stations 
-       SET owner_id = $1 
-       WHERE (owner_id IS NULL OR owner_id != $1) AND (REPLACE(phone, ' ', '') = $2 OR phone = $3)`,
-      [rawUser.id, cleanInputPhone, rawUser.phone]
-    ).catch(() => {});
+    const userPhoneDigits = (rawUser.phone || '').replace(/\D/g, '');
+    const inputPhoneDigits = (cleanInputPhone || '').replace(/\D/g, '');
+
+    if (userPhoneDigits || inputPhoneDigits) {
+      await query(
+        `UPDATE stations 
+         SET owner_id = $1 
+         WHERE (owner_id IS NULL OR owner_id != $1) 
+           AND (
+             (REGEXP_REPLACE(phone, '\\D', '', 'g') = $2 AND $2 != '')
+             OR (REGEXP_REPLACE(phone, '\\D', '', 'g') = $3 AND $3 != '')
+           )`,
+        [rawUser.id, userPhoneDigits, inputPhoneDigits]
+      ).catch(() => {});
+    }
 
     // 2. Foydalanuvchining barcha manzillarini (shahobchalarini) bazadan olish
     const stationsResult = await query(
@@ -214,10 +223,12 @@ export const login = async (req, res) => {
       LEFT JOIN fuel_prices fp ON s.id = fp.station_id
       LEFT JOIN station_amenities sa ON s.id = sa.station_id
       LEFT JOIN station_payments sp ON s.id = sp.station_id
-      WHERE s.owner_id = $1 OR REPLACE(s.phone, ' ', '') = $2 OR s.phone = $3
+      WHERE s.owner_id = $1 
+         OR (REGEXP_REPLACE(s.phone, '\\D', '', 'g') = $2 AND $2 != '')
+         OR (REGEXP_REPLACE(s.phone, '\\D', '', 'g') = $3 AND $3 != '')
       GROUP BY s.id, sa.station_id, sp.station_id
       ORDER BY s.created_at DESC`,
-      [rawUser.id, cleanInputPhone, rawUser.phone]
+      [rawUser.id, userPhoneDigits, inputPhoneDigits]
     );
 
     const stations = stationsResult.rows.map((st) => {

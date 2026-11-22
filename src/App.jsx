@@ -298,6 +298,7 @@ export default function App() {
 
   const hasSubHistoryRef = useRef(false);
   const closeAllModalsRef = useRef(null);
+  const isAutoSyncInProgressRef = useRef(false);
 
   // Telefon ortga tugmasi va URL routing boshqaruvi (/privacy, /apps va boshqalar)
   // Talab: Qaysidir bo'limda bo'linganda va orqaga qaytish tugmasi bosilganda asosiy bo'limga (home) o'tsin,
@@ -446,6 +447,7 @@ export default function App() {
       return [];
     }
   });
+  const [isMyStationsLoading, setIsMyStationsLoading] = useState(false);
 
   // Foydalanuvchiga tegishli shahobchalarni PostgreSQL bazasidan har doim yangilab turish (Multi-device sync)
   const syncMyStations = useCallback(async () => {
@@ -458,7 +460,10 @@ export default function App() {
       }
     })();
 
-    if (!storedUser) return;
+    if (!storedUser) {
+      setIsMyStationsLoading(false);
+      return;
+    }
 
     const myStParams = {};
     if (storedUser.id) myStParams.userId = storedUser.id;
@@ -466,22 +471,29 @@ export default function App() {
     if (phoneVal) myStParams.phone = phoneVal;
 
     try {
+      setIsMyStationsLoading(true);
       const res = await api.stations.getMyStations(myStParams);
       if (res && res.success && Array.isArray(res.stations)) {
         setMyStations((prev) => {
-          const pendingOrLocal = (prev || []).filter((s) =>
-            s && s.id && (
-              String(s.id).startsWith("st_user_") ||
-              s.isApproved === false ||
-              s.is_approved === false ||
-              s.status === 'pending'
-            ) && !res.stations.some((rs) => rs.id === s.id)
+          const backendStations = res.stations || [];
+          const localOnly = (prev || []).filter((s) =>
+            s && s.id && String(s.id).startsWith("st_user_") &&
+            !backendStations.some((bs) => bs.id === s.id || (bs.name === s.name && Math.abs(bs.lat - s.lat) < 0.0005))
           );
-          const merged = [...res.stations, ...pendingOrLocal];
+
+          const seen = new Set();
+          const cleanMerged = [];
+          for (const st of [...backendStations, ...localOnly]) {
+            if (st && st.id && !seen.has(st.id)) {
+              seen.add(st.id);
+              cleanMerged.push(st);
+            }
+          }
+
           try {
-            localStorage.setItem("myup_my_stations", JSON.stringify(merged));
+            localStorage.setItem("myup_my_stations", JSON.stringify(cleanMerged));
           } catch (e) {}
-          return merged;
+          return cleanMerged;
         });
 
         if (res.stations.length > 0) {
@@ -506,6 +518,8 @@ export default function App() {
       }
     } catch (err) {
       console.warn("syncMyStations:", err.message);
+    } finally {
+      setIsMyStationsLoading(false);
     }
   }, [user]);
 
@@ -562,100 +576,110 @@ export default function App() {
   // Avtomatik orqa fonda sinxronlash (Offline yaratilgan foydalanuvchilar va shahobchalarni PostgreSQL bazasiga yuklash)
   useEffect(() => {
     const runAutoSync = async () => {
-      // 1. Kutilayotgan foydalanuvchi registratsiyasini bazaga yuborish
+      if (isAutoSyncInProgressRef.current) return;
+      isAutoSyncInProgressRef.current = true;
+
       try {
-        const pendingUserRaw = localStorage.getItem("myup_pending_user_reg");
-        if (pendingUserRaw) {
-          const pendingUser = JSON.parse(pendingUserRaw);
-          if (pendingUser && pendingUser.phone) {
-            const res = await api.auth.register(pendingUser).catch(async (e) => {
-              if (e.message?.includes('allaqachon') || e.message?.includes('mavjud')) {
-                return await api.auth.login(pendingUser.phone, pendingUser.password).catch(() => null);
+        // 1. Kutilayotgan foydalanuvchi registratsiyasini bazaga yuborish
+        try {
+          const pendingUserRaw = localStorage.getItem("myup_pending_user_reg");
+          if (pendingUserRaw) {
+            const pendingUser = JSON.parse(pendingUserRaw);
+            if (pendingUser && pendingUser.phone) {
+              const res = await api.auth.register(pendingUser).catch(async (e) => {
+                if (e.message?.includes('allaqachon') || e.message?.includes('mavjud')) {
+                  return await api.auth.login(pendingUser.phone, pendingUser.password).catch(() => null);
+                }
+                return null;
+              });
+              if (res && res.success && res.token && res.user) {
+                console.log("✅ Offline foydalanuvchi bazaga sinxronlandi:", res.user.id);
+                localStorage.setItem("myup_token", res.token);
+                setUser((prev) => ({ ...prev, id: res.user.id, role: res.user.role || prev?.role }));
+                localStorage.removeItem("myup_pending_user_reg");
               }
-              return null;
-            });
-            if (res && res.success && res.token && res.user) {
-              console.log("✅ Offline foydalanuvchi bazaga sinxronlandi:", res.user.id);
-              localStorage.setItem("myup_token", res.token);
-              setUser((prev) => ({ ...prev, id: res.user.id, role: res.user.role || prev?.role }));
-              localStorage.removeItem("myup_pending_user_reg");
             }
           }
-        }
-      } catch (e) {}
+        } catch (e) {}
 
-      // 2. Kutilayotgan lokal shahobchalarni (st_user_) bazaga yuborish
-      if (Array.isArray(myStations) && myStations.length > 0) {
-        const localStations = myStations.filter((s) => s && s.id && String(s.id).startsWith("st_user_"));
-        for (const localSt of localStations) {
-          try {
-            let syncImgs = localSt.images;
-            if (Array.isArray(syncImgs) && syncImgs.length > 0) {
-              syncImgs = await Promise.all(syncImgs.map(img => compressImage(img, 1200, 1200, 0.75)));
-            }
-            let syncVerif = localSt.verificationImages;
-            if (syncVerif && typeof syncVerif === 'object') {
-              syncVerif = {
-                exterior: await compressImage(syncVerif.exterior || '', 1200, 1200, 0.75),
-                interior: await compressImage(syncVerif.interior || '', 1200, 1200, 0.75),
-                roadside: await compressImage(syncVerif.roadside || '', 1200, 1200, 0.75),
-              };
-            }
+        // 2. Kutilayotgan lokal shahobchalarni (st_user_) bazaga yuborish
+        if (Array.isArray(myStations) && myStations.length > 0) {
+          const localStations = myStations.filter((s) => s && s.id && String(s.id).startsWith("st_user_") && !s._isSyncing);
+          for (const localSt of localStations) {
+            localSt._isSyncing = true;
+            try {
+              let syncImgs = localSt.images;
+              if (Array.isArray(syncImgs) && syncImgs.length > 0) {
+                syncImgs = await Promise.all(syncImgs.map(img => compressImage(img, 1200, 1200, 0.75)));
+              }
+              let syncVerif = localSt.verificationImages;
+              if (syncVerif && typeof syncVerif === 'object') {
+                syncVerif = {
+                  exterior: await compressImage(syncVerif.exterior || '', 1200, 1200, 0.75),
+                  interior: await compressImage(syncVerif.interior || '', 1200, 1200, 0.75),
+                  roadside: await compressImage(syncVerif.roadside || '', 1200, 1200, 0.75),
+                };
+              }
 
-            const res = await api.stations.create({
-              name: localSt.name,
-              lat: localSt.lat,
-              lng: localSt.lng,
-              address: localSt.address,
-              city: localSt.city || "Toshkent",
-              phone: localSt.phone || user?.phoneNumber || "",
-              isOpen: localSt.isOpen ?? true,
-              prices: localSt.prices,
-              pressures: localSt.pressures,
-              gasPressure: localSt.gasPressure,
-              types: localSt.type || localSt.types,
-              description: localSt.description,
-              images: syncImgs,
-              verificationImages: syncVerif,
-              amenities: localSt.amenities,
-              payments: localSt.payments,
-              userId: user?.id,
-              ownerId: user?.id,
-              createdBy: user?.id,
-              ownerPhone: user?.phoneNumber || user?.phone || "",
-              userPhone: user?.phoneNumber || user?.phone || "",
-            });
-
-            if (res && res.success && res.station) {
-              console.log("✅ Offline shahobcha bazaga muvaffaqiyatli sinxronlandi:", res.station.id, res.station.name);
-              const isStApproved = res.station.isApproved === true || res.station.is_approved === true || res.station.status === 'approved';
-              setMyStations((prev) => {
-                const next = prev.map((s) =>
-                  s.id === localSt.id
-                    ? { ...localSt, ...res.station, isApproved: isStApproved, is_approved: isStApproved, status: res.station.status || 'pending' }
-                    : s
-                );
-                try {
-                  localStorage.setItem("myup_my_stations", JSON.stringify(next));
-                } catch (e) {}
-                return next;
+              const res = await api.stations.create({
+                name: localSt.name,
+                lat: localSt.lat,
+                lng: localSt.lng,
+                address: localSt.address,
+                city: localSt.city || "Toshkent",
+                phone: localSt.phone || user?.phoneNumber || "",
+                isOpen: localSt.isOpen ?? true,
+                prices: localSt.prices,
+                pressures: localSt.pressures,
+                gasPressure: localSt.gasPressure,
+                types: localSt.type || localSt.types,
+                description: localSt.description,
+                images: syncImgs,
+                verificationImages: syncVerif,
+                amenities: localSt.amenities,
+                payments: localSt.payments,
+                userId: user?.id,
+                ownerId: user?.id,
+                createdBy: user?.id,
+                ownerPhone: user?.phoneNumber || user?.phone || "",
+                userPhone: user?.phoneNumber || user?.phone || "",
               });
 
-              if (isStApproved) {
-                setStations((prev) => {
-                  const exists = prev.find((s) => s.id === res.station.id || s.id === localSt.id);
-                  return exists
-                    ? prev.map((s) => (s.id === res.station.id || s.id === localSt.id ? res.station : s))
-                    : [res.station, ...prev];
+              if (res && res.success && res.station) {
+                console.log("✅ Offline shahobcha bazaga muvaffaqiyatli sinxronlandi:", res.station.id, res.station.name);
+                const isStApproved = (res.station.isApproved === true || res.station.is_approved === true || res.station.status === 'approved') && res.station.status !== 'pending';
+                setMyStations((prev) => {
+                  const next = prev.map((s) =>
+                    s.id === localSt.id
+                      ? { ...localSt, ...res.station, isApproved: isStApproved, is_approved: isStApproved, status: res.station.status || 'pending' }
+                      : s
+                  );
+                  try {
+                    localStorage.setItem("myup_my_stations", JSON.stringify(next));
+                  } catch (e) {}
+                  return next;
                 });
-              } else {
-                setStations((prev) => prev.filter((s) => s.id !== res.station.id && s.id !== localSt.id));
+
+                if (isStApproved) {
+                  setStations((prev) => {
+                    const exists = prev.find((s) => s.id === res.station.id || s.id === localSt.id);
+                    return exists
+                      ? prev.map((s) => (s.id === res.station.id || s.id === localSt.id ? res.station : s))
+                      : [res.station, ...prev];
+                  });
+                } else {
+                  // Hali admin tasdiqlamagan bo'lsa, asosiy ro'yxatdan qat'iy chiqarib tashlanadi
+                  setStations((prev) => prev.filter((s) => s.id !== res.station.id && s.id !== localSt.id));
+                }
               }
+            } catch (syncErr) {
+              // Server javob bermasa flagni yechamiz, keyingi siklda qayta urinadi
+              localSt._isSyncing = false;
             }
-          } catch (syncErr) {
-            // Server javob bermasa keyingi siklda qayta urinadi
           }
         }
+      } finally {
+        isAutoSyncInProgressRef.current = false;
       }
     };
 
@@ -1692,13 +1716,19 @@ export default function App() {
             return s;
           });
         } catch (e) {}
-        setStations(mergedStations);
+        const approvedStations = mergedStations.filter(s => 
+          s && s.id && 
+          (s.isApproved === true || s.is_approved === true || s.status === 'approved') && 
+          s.status !== 'pending' &&
+          s.isApproved !== false && 
+          s.is_approved !== false
+        );
+        setStations(approvedStations);
         try {
-          localStorage.setItem("myup_cached_stations", JSON.stringify(mergedStations));
+          localStorage.setItem("myup_cached_stations", JSON.stringify(approvedStations));
         } catch (e) {}
 
-        const dbStationIds = new Set(res.stations.map((s) => s.id));
-        const dbStationNames = new Set(res.stations.map((s) => s.name));
+        const dbStationIds = new Set(approvedStations.map((s) => s.id));
 
         // Sevimlilar ro'yxatidan bazadan o'chirilgan shahobchalarni tozalash
         setFavorites((prevFavs) => {
@@ -1710,55 +1740,6 @@ export default function App() {
             } catch (e) {}
           }
           return validFavs;
-        });
-
-        // myStations ro'yxatini bazadagi jonli tasdiqlangan shahobchalar bilan sinxronlashtirish
-        setMyStations((prev) => {
-          // Super admin bazadan o'chirgan eski shahobchalarni tozalash
-          // DIQQAT: Hali administrator tomonidan ko'rib chiqilayotgan (isApproved === false) arizalar hech qachon o'chirilmaydi!
-          const filtered = (prev || []).filter((mySt) => {
-            if (!mySt || !mySt.id) return false;
-            if (mySt.isApproved === false || mySt.is_approved === false || mySt.status === 'pending' || String(mySt.id).startsWith("st_user_")) return true;
-            return dbStationIds.has(mySt.id) || dbStationNames.has(mySt.name);
-          }).map((mySt) => {
-            const dbSt = res.stations.find((s) => s.id === mySt.id || s.name === mySt.name);
-            if (dbSt) {
-              return {
-                ...mySt,
-                ...dbSt,
-                isApproved: true,
-                is_approved: true,
-                status: 'approved'
-              };
-            }
-            return mySt;
-          });
-
-          // Foydalanuvchiga tegishli bazadagi yangi shahobchalarni qo'shish (ID yoki Telefon raqami bo'yicha)
-          const currentUserId = user?.id;
-          const currentUserPhoneDigits = (user?.phoneNumber || user?.phone || '').replace(/\D/g, '');
-
-          const userSts = res.stations.filter((s) => {
-            if (!s) return false;
-            if (currentUserId && (s.ownerId === currentUserId || s.owner_id === currentUserId || s.createdBy === currentUserId)) return true;
-            if (currentUserPhoneDigits) {
-              const sPhoneDigits = (s.phone || '').replace(/\D/g, '');
-              if (sPhoneDigits && sPhoneDigits === currentUserPhoneDigits) return true;
-            }
-            return false;
-          });
-
-          userSts.forEach((uSt) => {
-            if (!filtered.some((f) => f.id === uSt.id)) {
-              filtered.push(uSt);
-            }
-          });
-
-          try {
-            localStorage.setItem("myup_my_stations", JSON.stringify(filtered));
-          } catch (e) {}
-
-          return filtered;
         });
       }
     } catch (err) {
@@ -2415,8 +2396,9 @@ export default function App() {
           } catch (e) {}
           return nextList;
         });
+
         // Faqat super admin tasdiqlagan bo'lsa, asosiy ro'yxatga qo'shiladi!
-        const isApprovedBool = savedSt.isApproved === true || savedSt.is_approved === true || savedSt.status === 'approved';
+        const isApprovedBool = (savedSt.isApproved === true || savedSt.is_approved === true || savedSt.status === 'approved') && savedSt.status !== 'pending' && savedSt.isApproved !== false && savedSt.is_approved !== false;
         if (isApprovedBool) {
           setStations((prev) => {
             const exists = prev.find((s) => s.id === savedSt.id || s.id === station.id);
@@ -2428,6 +2410,8 @@ export default function App() {
           // Hali admin tasdiqlamagan bo'lsa, asosiy ro'yxatdan qat'iy chiqarib tashlanadi
           setStations((prev) => prev.filter((s) => s.id !== savedSt.id && s.id !== station.id));
         }
+
+        setTimeout(() => syncMyStations(), 300);
         return res;
       }
       throw new Error(res?.message || "Serverga yozishda xatolik yuz berdi");
@@ -3134,30 +3118,28 @@ export default function App() {
     setStations((prev) => prev.map(updateFn));
   };
 
-  // Dublikatlarsiz birlashtirilgan yagona shahobchalar ro'yxati (har bir shahobcha faqat 1 marta chiqadi)
-  // stList faqat tasdiqlangan ommaviy shahobchalar; myStList esa foydalanuvchining o'ziga tegishli barcha shahobchalar
+  // Dublikatlarsiz birlashtirilgan yagona shahobchalar ro'yxati (Asosiy sahifa va Xarita uchun)
+  // DIQQAT: Asosiy sahifa va xaritada FAQAT super admin tomonidan tasdiqlangan shahobchalar ko'rsatiladi!
+  // Kutilayotgan (pending / ko'rib chiqilmoqda) arizalar hech kimga, hatto muallifning o'ziga ham asosiy bo'limda ko'rinmaydi.
+  // Ular faqatgina muallifning o'z Profil bo'limida 'Ko'rib chiqilmoqda' bo'lib turadi.
   const combinedUniqueStations = useMemo(() => {
     const stationDict = {};
     const stList = Array.isArray(stations) ? stations : [];
-    const myStList = Array.isArray(myStations) ? myStations : [];
 
     stList.forEach((st) => {
-      if (st && st.id && st.isApproved !== false && st.is_approved !== false) {
+      if (
+        st && st.id && 
+        (st.isApproved === true || st.is_approved === true || st.status === 'approved') &&
+        st.status !== 'pending' &&
+        st.isApproved !== false &&
+        st.is_approved !== false
+      ) {
         stationDict[st.id] = st;
       }
     });
 
-    myStList.forEach((st) => {
-      // Foydalanuvchining o'zi kiritgan har qanday shahobcha o'z telefonida saqlanib turadi
-      // (hali tasdiqlanmagan bo'lsa 'Ko'rib chiqilmoqda' sariq belgisi bilan chiqadi)
-      if (st && st.id && typeof st === 'object') {
-        const prev = stationDict[st.id];
-        stationDict[st.id] = prev && typeof prev === 'object' ? { ...prev, ...st } : st;
-      }
-    });
-
     return Object.values(stationDict);
-  }, [stations, myStations]);
+  }, [stations]);
 
   const allStationsList = useMemo(() => {
     const sourceList = Array.isArray(combinedUniqueStations) ? combinedUniqueStations : [];
@@ -5022,7 +5004,22 @@ export default function App() {
                               </div>
                             </div>
 
-                            {myStations.length === 0 ? (
+                            {isMyStationsLoading && myStations.length === 0 ? (
+                              <div className="profile-no-locations-empty" style={{ padding: '28px 16px', textAlign: 'center' }}>
+                                <div style={{
+                                  width: '26px',
+                                  height: '26px',
+                                  border: '3px solid rgba(56, 189, 248, 0.2)',
+                                  borderTopColor: '#38bdf8',
+                                  borderRadius: '50%',
+                                  animation: 'spin 0.8s linear infinite',
+                                  margin: '0 auto 10px',
+                                }} />
+                                <span style={{ fontSize: '0.85rem', color: 'var(--theme-muted, #94a3b8)', fontWeight: 500 }}>
+                                  Manzillaringiz yuklanmoqda...
+                                </span>
+                              </div>
+                            ) : myStations.length === 0 ? (
                               <div className="profile-no-locations-empty">
                                 <button
                                   className="create-demo-station-btn profile-add-location-empty-btn"
@@ -5038,8 +5035,9 @@ export default function App() {
                             ) : (
                               <div className="my-stations-list mt-2">
                                 {myStations.map((st) => {
-                                  const isApproved = st.isApproved === true || st.is_approved === true || st.status === 'approved' || stations.some((s) => s.id === st.id || s.name === st.name);
+                                  const isPending = st.status === 'pending' || st.isApproved === false || st.is_approved === false || String(st.id).startsWith("st_user_");
                                   const isRejected = st.status === 'rejected' || st.isRejected === true;
+                                  const isApproved = !isPending && !isRejected && (st.isApproved === true || st.is_approved === true || st.status === 'approved');
                                   return (
                                     <div
                                       key={st.id}
@@ -5056,7 +5054,7 @@ export default function App() {
                                         <h5 className="my-station-simple-title">
                                           {st.name}
                                         </h5>
-                                        {!isApproved || isRejected ? (
+                                        {isPending || isRejected ? (
                                           <div style={{ marginTop: '4px' }}>
                                             {isRejected ? (
                                               <span style={{
