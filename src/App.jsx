@@ -4930,8 +4930,6 @@ export default function App() {
                         user?.has_location ||
                         user?.role === 'owner' ||
                         user?.role === 'super_admin' ||
-                        user?.canAddStation ||
-                        user?.can_add_station ||
                         myStations.length > 0
                       );
 
@@ -5139,9 +5137,11 @@ export default function App() {
                             </div>
                           )}
 
-                          {/* 2. PROFIL PASTIDA JOYLASHUV QO'SHISH TUGMASI VA MENING JOYLASHUVLARIM */}
-                          <button
-                            className="profile-add-station-banner-btn"
+                          {/* 2. PROFIL PASTIDA JOYLASHUV QO'SHISH TUGMASI VA MENING JOYLASHUVLARIM (Faqat faollashtirilgandan keyin chiqadi) */}
+                          {(isLocationRegistered || myStations.length > 0) && (
+                            <>
+                              <button
+                                className="profile-add-station-banner-btn"
                             onClick={() => {
                               setEditingStation(null);
                               setShowAddStation(true);
@@ -5283,6 +5283,8 @@ export default function App() {
                               </div>
                             )}
                           </div>
+                        </>
+                      )}
 
                           {/* 4. AGAR JOYLASHUVI BO'LMASA VA AKTIVLASHTIRILMAGAN BO'LSA - TAVSIYA KARTASI */}
                           {!isLocationRegistered && myStations.length === 0 && (
