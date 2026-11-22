@@ -66,13 +66,14 @@ function AddStationMapPicker({ position, onLocationSelect }) {
 
       marker.on('dragend', () => {
         const lngLat = marker.getLngLat();
+        map.flyTo({ center: [lngLat.lng, lngLat.lat], duration: 300 });
         onLocationSelect([lngLat.lat, lngLat.lng]);
       });
 
       map.on('click', (e) => {
         const { lng, lat } = e.lngLat;
         marker.setLngLat([lng, lat]);
-        map.flyTo({ center: [lng, lat], duration: 400 });
+        map.flyTo({ center: [lng, lat], duration: 300 });
         onLocationSelect([lat, lng]);
       });
 
@@ -239,14 +240,29 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
   // Map states
   const [mapPos, setMapPos] = useState([41.311081, 69.240562]); // Default Tashkent
   const [isLocating, setIsLocating] = useState(false);
+  const hasUserCustomLocationRef = useRef(false);
+  const step4LocateDoneRef = useRef(false);
 
-  // Foydalanuvchining joylashuvini avtomatik aniqlash
-  const locateUser = useCallback(() => {
+  // Foydalanuvchining joylashuvini aniqlash (avtomatik yoki "Joylashuvim" tugmasi orqali)
+  const locateUser = useCallback((isManual = false) => {
+    // Agar foydalanuvchi xaritada o'zi nuqta tanlagan bo'lsa va bu avtomatik so'rov bo'lsa, qaytarib tashlamaymiz!
+    if (!isManual && hasUserCustomLocationRef.current) {
+      return;
+    }
+
+    if (isManual) {
+      // Foydalanuvchi "Joylashuvim" tugmasini ataylab bosganda, erkin tanlovni o'chirib, o'z joylashuviga qaytaramiz
+      hasUserCustomLocationRef.current = false;
+    }
+
     setIsLocating(true);
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           setIsLocating(false);
+          // Agar foydalanuvchi bu so'rov tugaguncha qo'lda boshqa joyni tanlagan bo'lsa va bu avtomatik bo'lsa, teginmaymiz
+          if (!isManual && hasUserCustomLocationRef.current) return;
+
           const coords = [pos.coords.latitude, pos.coords.longitude];
           setMapPos(coords);
           try {
@@ -259,16 +275,18 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
         (err) => {
           setIsLocating(false);
           console.warn("Geolokatsiya aniqlanmadi:", err?.message);
+          if (!isManual && hasUserCustomLocationRef.current) return;
           if (userCoords?.lat && userCoords?.lng) {
             const coords = [userCoords.lat, userCoords.lng];
             setMapPos(coords);
             reverseGeocode(coords[0], coords[1]).then(setAddress);
           }
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
       );
     } else if (userCoords?.lat && userCoords?.lng) {
       setIsLocating(false);
+      if (!isManual && hasUserCustomLocationRef.current) return;
       const coords = [userCoords.lat, userCoords.lng];
       setMapPos(coords);
       reverseGeocode(coords[0], coords[1]).then(setAddress);
@@ -387,6 +405,9 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
         setSelectedTypes(['metan']);
         setFuelPrices({ metan: '3800' });
         setPhone('+998 ');
+        step4LocateDoneRef.current = false;
+        hasUserCustomLocationRef.current = false;
+
         const initialCoords = (userCoords?.lat && userCoords?.lng)
           ? [userCoords.lat, userCoords.lng]
           : [41.311081, 69.240562];
@@ -413,19 +434,32 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
         setQ1(true);
         setQ2(true);
 
-        // Avtomatik foydalanuvchi joylashuvini topish
-        locateUser();
+        // Dastlabki koordinatalarni aniqlash
+        if (userCoords?.lat && userCoords?.lng) {
+          reverseGeocode(initialCoords[0], initialCoords[1]).then(setAddress);
+        } else {
+          locateUser(false);
+        }
       }
     }
   }, [isOpen, editStation]);
 
 
-  // 4-bosqichga o'tganda (xarita ochilganda) avtomatik odam qayerdaligini topib xaritani ko'rsatish
+  // 4-bosqichga o'tganda (xarita ochilganda) faqat 1 marta dastlabki ko'rsatish
   useEffect(() => {
     if (step === 4 && !editStation) {
-      locateUser();
+      if (!step4LocateDoneRef.current && !hasUserCustomLocationRef.current) {
+        step4LocateDoneRef.current = true;
+        if (userCoords?.lat && userCoords?.lng) {
+          const coords = [userCoords.lat, userCoords.lng];
+          setMapPos(coords);
+          reverseGeocode(coords[0], coords[1]).then(setAddress);
+        } else {
+          locateUser(false);
+        }
+      }
     }
-  }, [step, editStation, locateUser]);
+  }, [step, editStation]);
 
   if (!isOpen) return null;
 
@@ -470,6 +504,7 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
   };
 
   const handleMapClick = async (pos) => {
+    hasUserCustomLocationRef.current = true;
     setMapPos(pos);
     setLocationConfirmed(false);
     setIsAddressCorrect(null);
@@ -842,12 +877,28 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
               <button
                 type="button"
                 className={`add-map-gps-btn ${isLocating ? 'locating' : ''}`}
-                onClick={locateUser}
+                onClick={() => locateUser(true)}
                 title="Mening hozirgi joylashuvim"
               >
                 <Crosshair size={16} className={isLocating ? "animate-spin" : ""} />
                 <span>{isLocating ? "Aniqlanmoqda..." : "Joylashuvim"}</span>
               </button>
+            </div>
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '7px 12px',
+              background: 'rgba(56, 189, 248, 0.08)',
+              border: '1px solid rgba(56, 189, 248, 0.22)',
+              borderRadius: '9px',
+              fontSize: '0.8rem',
+              color: '#38bdf8',
+              marginTop: '10px',
+            }}>
+              <MapPin size={15} style={{ flexShrink: 0 }} />
+              <span>Shahobcha sal narida bo'lsa, xaritani surib yoki kerakli joyga bosib, pinni o'sha yerga qo'ying.</span>
             </div>
 
             {isAddressCorrect !== true ? (
