@@ -2290,22 +2290,6 @@ export default function App() {
   const handleSaveStation = async (station) => {
     station.createdBy = user?.id;
 
-    // Rasmlarni avtomatik siqish (Canvas orqali 1200px va ~120KB)
-    let compressedImgs = station.images;
-    if (Array.isArray(compressedImgs) && compressedImgs.length > 0) {
-      compressedImgs = await Promise.all(
-        compressedImgs.map((img) => compressImage(img, 1200, 1200, 0.75))
-      );
-    }
-    let compressedVerif = station.verificationImages;
-    if (compressedVerif && typeof compressedVerif === 'object') {
-      compressedVerif = {
-        exterior: await compressImage(compressedVerif.exterior || '', 1200, 1200, 0.75),
-        interior: await compressImage(compressedVerif.interior || '', 1200, 1200, 0.75),
-        roadside: await compressImage(compressedVerif.roadside || '', 1200, 1200, 0.75),
-      };
-    }
-
     try {
       const res = await api.stations.create({
         name: station.name,
@@ -2320,8 +2304,8 @@ export default function App() {
         gasPressure: station.gasPressure,
         types: station.type,
         description: station.description,
-        images: compressedImgs,
-        verificationImages: compressedVerif,
+        images: station.images,
+        verificationImages: station.verificationImages,
         amenities: station.amenities,
         payments: station.payments,
         userId: user?.id,

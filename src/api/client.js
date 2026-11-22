@@ -1,6 +1,6 @@
 // MyUp.uz Markaziy API mijozi (Frontend -> Backend Express + PostgreSQL)
 
-export const PUBLIC_BACKEND_URL = 'https://shed-arthritis-completion-ceo.trycloudflare.com/api';
+export const PUBLIC_BACKEND_URL = 'https://booth-trek-artificial-ant.trycloudflare.com/api';
 
 export const getApiBaseUrl = () => {
   if (typeof window !== 'undefined') {
@@ -10,33 +10,21 @@ export const getApiBaseUrl = () => {
       const queryApi = urlParams.get('api') || urlParams.get('apiUrl');
       if (queryApi && queryApi.startsWith('http')) {
         const clean = queryApi.replace(/\/$/, '');
-        localStorage.setItem('myup_custom_api_url', clean);
         return clean;
-      }
-    } catch {}
-
-    // 1. Saqlangan maxsus backend manzili
-    try {
-      const storedApi = localStorage.getItem('myup_custom_api_url');
-      if (storedApi && storedApi.startsWith('http')) {
-        return storedApi.replace(/\/$/, '');
       }
     } catch {}
 
     const hostname = window.location.hostname;
     const isLocalIp = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(hostname) || hostname.endsWith('.local');
 
-    // 2. Wi-Fi dagi telefon kompyuterning lokal IP si (192.168.x.x) orqali kirayotgan bo'lsa
+    // 1. Wi-Fi dagi telefon kompyuterning lokal IP si (192.168.x.x) orqali kirayotgan bo'lsa
     const envUrl = import.meta.env.VITE_API_URL;
     if (isLocalIp && envUrl && envUrl.includes('localhost')) {
       return envUrl.replace('localhost', hostname);
     }
 
-    // 3. Vercel yoki internetdagi domen orqali kirilayotgan bo'lsa (Cloudflare orqali markaziy serverga to'g'ridan-to'g'ri ulanish)
+    // 2. Vercel yoki internetdagi domen orqali kirilayotgan bo'lsa (Cloudflare HTTP/2 orqali to'g'ridan-to'g'ri ulanish)
     if (!isLocalIp && hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      if (envUrl && !envUrl.includes('localhost')) {
-        return envUrl.replace(/\/$/, '');
-      }
       return PUBLIC_BACKEND_URL;
     }
 
@@ -48,7 +36,7 @@ export const getApiBaseUrl = () => {
 export const API_BASE_URL = getApiBaseUrl();
 
 // Yordamchi so'rov yuboruvchi funksiya (avtomatik retry va barqaror timeout)
-async function request(endpoint, options = {}, retries = 1) {
+async function request(endpoint, options = {}, retries = 2) {
   const token = localStorage.getItem('myup_token');
   const headers = {
     'Content-Type': 'application/json',
@@ -56,8 +44,8 @@ async function request(endpoint, options = {}, retries = 1) {
     ...options.headers,
   };
 
-  // Standart 20 soniyalik qulay timeout (mobil internet va 3G/4G tarmoqlarda barqaror ishlashi uchun)
-  const timeoutMs = options.timeout || 20000;
+  // Katta so'rovlar (masalan shahobcha yaratish) uchun 90s, oddiylar uchun 30s
+  const timeoutMs = options.timeout || (options.method === 'POST' ? 90000 : 30000);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -112,15 +100,15 @@ async function request(endpoint, options = {}, retries = 1) {
   } catch (err) {
     clearTimeout(timeoutId);
 
-    // Agar mobil tarmoq uzilsa yoki vaqtinchalik timeout bo'lsa, GET so'rovlarni avtomatik 1 marta qayta sinash
+    // Agar mobil tarmoq uzilsa yoki vaqtinchalik timeout bo'lsa, GET so'rovlarni avtomatik qayta sinash
     const isGetOrSafe = !options.method || options.method === 'GET';
     if (retries > 0 && isGetOrSafe && (err.name === 'AbortError' || err.message?.includes('fetch') || err.name === 'TypeError')) {
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      await new Promise((resolve) => setTimeout(resolve, 800));
       return request(endpoint, options, retries - 1);
     }
 
     if (err.name === 'AbortError') {
-      throw new Error("Server javob berish vaqti tugadi (Timeout)");
+      throw new Error("Server javob berish vaqti tugadi (Timeout). Iltimos, internet aloqasini tekshirib qaytadan urinib ko'ring.");
     }
     throw err;
   }
