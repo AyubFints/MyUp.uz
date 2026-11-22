@@ -227,3 +227,12 @@ const gracefulShutdown = async (signal) => {
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
+// Kutilmagan asinxron xatoliklar jarayonni (process) qulatib yubormasligi uchun himoya
+process.on('uncaughtException', (err) => {
+  console.error('💥 [Server Himoyasi] Uncaught Exception:', err.message, err.stack);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 [Server Himoyasi] Unhandled Rejection:', reason);
+});
+

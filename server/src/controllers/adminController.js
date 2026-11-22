@@ -224,9 +224,26 @@ export const approveStation = async (req, res) => {
       console.warn("Bildirishnoma saqlashda xatolik:", notifErr.message);
     }
 
+    // Admin frontend faqat id, isApproved, status, rejectedAt, name ma'lumotlarini kutadi.
+    // Katta hajmdagi base64 rasmlarni HTTP javobiga qo'shib yuborish ulanish uzilishiga (ECONNRESET / 500) sabab bo'lmasligi uchun xavfsiz obyekt qaytaramiz:
+    const safeStation = {
+      id: station.id,
+      name: station.name,
+      lat: station.lat,
+      lng: station.lng,
+      address: station.address,
+      city: station.city,
+      phone: station.phone,
+      isApproved: isApprovedBool,
+      is_approved: isApprovedBool,
+      status: isApprovedBool ? 'approved' : 'rejected',
+      rejectedAt: isApprovedBool ? null : (station.rejected_at || new Date().toISOString()),
+      rejected_at: isApprovedBool ? null : (station.rejected_at || new Date().toISOString()),
+    };
+
     res.json({
       success: true,
-      station,
+      station: safeStation,
       message: isApprovedBool ? 'Shahobcha tasdiqlandi' : 'Shahobcha rad etildi (1 kundan so\'ng admindan o\'chiriladi)',
     });
   } catch (err) {
@@ -265,11 +282,13 @@ export const deleteStationAdmin = async (req, res) => {
       }
     }
 
-    // 5. Admin audit log yozish
+    // 5. Admin audit log yozish (faqat xavfsiz UUID bo'lsa)
+    const adminUuid = (req.user?.id && isUuid(req.user.id)) ? req.user.id : null;
+    const targetUuid = (id && isUuid(id)) ? id : null;
     await query(
       `INSERT INTO admin_logs (admin_id, action, target_type, target_id, details)
        VALUES ($1, $2, $3, $4, $5)`,
-      [req.user?.id || null, 'DELETE_STATION', 'station', id, JSON.stringify({ name: stationName })]
+      [adminUuid, 'DELETE_STATION', 'station', targetUuid, JSON.stringify({ name: stationName })]
     ).catch(() => {});
 
     res.json({
