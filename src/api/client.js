@@ -47,7 +47,7 @@ export const getApiBaseUrl = () => {
 
 export const API_BASE_URL = getApiBaseUrl();
 
-// Yordamchi so'rov yuboruvchi funksiya (avtomatik retry va 8s barqaror timeout)
+// Yordamchi so'rov yuboruvchi funksiya (avtomatik retry va barqaror timeout)
 async function request(endpoint, options = {}, retries = 1) {
   const token = localStorage.getItem('myup_token');
   const headers = {
@@ -56,8 +56,8 @@ async function request(endpoint, options = {}, retries = 1) {
     ...options.headers,
   };
 
-  // 8 soniyalik qulay timeout (mobil internet va 3G/4G tarmoqlarda barqaror ishlashi uchun)
-  const timeoutMs = options.timeout || 8000;
+  // Standart 20 soniyalik qulay timeout (mobil internet va 3G/4G tarmoqlarda barqaror ishlashi uchun)
+  const timeoutMs = options.timeout || 20000;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -175,6 +175,7 @@ export const api = {
       request('/stations', {
         method: 'POST',
         body: JSON.stringify(stationData),
+        timeout: 60000,
       }),
 
     updateStatus: (id, statusData) =>

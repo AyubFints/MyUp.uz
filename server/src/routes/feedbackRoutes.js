@@ -1,12 +1,21 @@
 import express from 'express';
-import { createFeedback, getFeedbacks, replyFeedback, deleteFeedback } from '../controllers/feedbackController.js';
-import { requireAuth, requireRole, optionalAuth } from '../middlewares/authMiddleware.js';
+import {
+  createFeedback,
+  getFeedbacks,
+  replyFeedback,
+  deleteFeedback,
+  markFeedbackAsRead,
+  markAllFeedbacksAsRead,
+} from '../controllers/feedbackController.js';
+import { requireAdmin, optionalAuth } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
 
 router.post('/', createFeedback);
 router.get('/', optionalAuth, getFeedbacks);
-router.delete('/:id', deleteFeedback);
-router.patch('/:id/reply', requireAuth, requireRole('super_admin'), replyFeedback);
+router.patch('/mark-read', requireAdmin, markAllFeedbacksAsRead);
+router.patch('/:id/read', requireAdmin, markFeedbackAsRead);
+router.patch('/:id/reply', requireAdmin, replyFeedback);
+router.delete('/:id', requireAdmin, deleteFeedback);
 
 export default router;

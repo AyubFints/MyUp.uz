@@ -1,13 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   MapPin, Check, Plus, Trash2, Camera, Phone, User, Droplets, Zap, Flame, 
-  Fuel, ChevronRight, ChevronLeft, Type, X, Sparkles, CheckCircle2, Clock, Crosshair
+  Fuel, ChevronRight, ChevronLeft, Type, X, Sparkles, CheckCircle2, Clock, Crosshair, AlertCircle
 } from 'lucide-react';
 import * as maplibregl from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import * as pmtiles from 'pmtiles';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { getAppMapStyle } from '../utils/mapStyle';
+import { compressImage } from '../utils/imageCompressor';
 
 // MapLibre Web Worker va PMTiles protokoli
 maplibregl.setWorkerUrl(workerUrl);
@@ -304,19 +305,23 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
   });
   const [showSuccessSubmittedModal, setShowSuccessSubmittedModal] = useState(false);
   const [submittedCountdown, setSubmittedCountdown] = useState(5);
+  const [submitError, setSubmitError] = useState('');
 
   const extInputRef = useRef(null);
   const intInputRef = useRef(null);
   const roadInputRef = useRef(null);
 
-  const handleVerificationUpload = (slot, e) => {
+  const handleVerificationUpload = async (slot, e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setVerificationImages(prev => ({ ...prev, [slot]: reader.result }));
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file, 1200, 1200, 0.75);
+      if (compressed) {
+        setVerificationImages(prev => ({ ...prev, [slot]: compressed }));
+      }
+    } catch (err) {
+      console.warn("Rasm yuklashda xato:", err);
+    }
   };
 
   const removeVerificationImage = (slot) => {
@@ -472,19 +477,22 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
     setAddress(addr);
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (images.length + files.length > 5) {
       alert("Eng ko'pi bilan 5 ta rasm yuklash mumkin!");
       return;
     }
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setImages(prev => [...prev, reader.result]);
-      };
-      reader.readAsDataURL(file);
-    });
+    for (const file of files) {
+      try {
+        const compressed = await compressImage(file, 1200, 1200, 0.75);
+        if (compressed) {
+          setImages(prev => [...prev, compressed]);
+        }
+      } catch (err) {
+        console.warn("Rasm siqishda xato:", err);
+      }
+    }
   };
 
   const removeImage = (idx) => {
@@ -515,11 +523,19 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
       combinedImgs.push('https://images.unsplash.com/photo-1545459720-aac8509eb02c?auto=format&fit=crop&w=600&q=80');
     }
 
+    // Barcha rasmlarning to'liq siqilganligini kafolatlaymiz (har biri ~120KB)
+    const compressedImages = await Promise.all(
+      combinedImgs.map(img => compressImage(img, 1200, 1200, 0.75))
+    );
+    const compressedExt = await compressImage(verificationImages.exterior || images[0] || combinedImgs[0] || '', 1200, 1200, 0.75);
+    const compressedInt = await compressImage(verificationImages.interior || images[1] || combinedImgs[1] || '', 1200, 1200, 0.75);
+    const compressedRoad = await compressImage(verificationImages.roadside || images[2] || combinedImgs[2] || '', 1200, 1200, 0.75);
+
     // Tekshiruv uchun 3 ta rasm:
     const finalVerification = {
-      exterior: verificationImages.exterior || images[0] || combinedImgs[0] || '',
-      interior: verificationImages.interior || images[1] || combinedImgs[1] || '',
-      roadside: verificationImages.roadside || images[2] || combinedImgs[2] || '',
+      exterior: compressedExt,
+      interior: compressedInt,
+      roadside: compressedRoad,
     };
 
     const newStation = {
@@ -533,7 +549,7 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
       lng: mapPos[1],
       address: address?.full || 'Toshkent sh., Chilonzor tumani',
       description,
-      images: combinedImgs,
+      images: compressedImages,
       verificationImages: finalVerification,
       gasPressure: selectedTypes.includes('metan') ? 200 : null,
       pressures: selectedTypes.includes('metan') ? { metan: 200 } : (selectedTypes.includes('propan') ? { propan: 16 } : {}),
@@ -560,16 +576,18 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
 
     if (isSubmitting) return;
     setIsSubmitting(true);
+    setSubmitError('');
     try {
       if (onSave) {
         await onSave(newStation);
       }
-    } catch (err) {
-      console.warn("Shahobcha saqlash xatosi:", err);
-    } finally {
-      setIsSubmitting(false);
       setShowSuccessSubmittedModal(true);
       setSubmittedCountdown(5);
+    } catch (err) {
+      console.error("Shahobcha saqlash xatosi:", err);
+      setSubmitError(err?.message || "Serverga yuborishda xatolik yuz berdi. Internet aloqasini tekshiring va qaytadan bosing.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1275,6 +1293,25 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
                 </button>
               </div>
             </div>
+
+            {submitError && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                color: '#fca5a5',
+                padding: '0.75rem 1rem',
+                borderRadius: '10px',
+                fontSize: '0.85rem',
+                marginTop: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                textAlign: 'left',
+              }}>
+                <AlertCircle size={20} style={{ flexShrink: 0, color: '#ef4444' }} />
+                <span>{submitError}</span>
+              </div>
+            )}
 
             <div className="modern-add-actions-row mt-4">
               <button 

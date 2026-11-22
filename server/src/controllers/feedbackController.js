@@ -109,6 +109,42 @@ export const getFeedbacks = async (req, res) => {
   }
 };
 
+// Fikr holatini ko'rilgan deb belgilash (Admin ko'rishi bilanoq yangi statusi o'chadi)
+export const markFeedbackAsRead = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await query(
+      `UPDATE feedbacks
+       SET status = 'korildi'
+       WHERE id = $1 AND status = 'yangi'
+       RETURNING *`,
+      [id]
+    );
+
+    const fb = result.rows[0];
+    res.json({ success: true, feedback: fb || null });
+  } catch (err) {
+    console.error('MarkFeedbackAsRead xatosi:', err);
+    res.status(500).json({ success: false, message: "Fikr holatini o'zgartirishda xatolik." });
+  }
+};
+
+// Barcha yangi fikrlarni ko'rilgan deb belgilash (Admin bo'limga kirganda barcha 'yangi'lar 'korildi' bo'ladi)
+export const markAllFeedbacksAsRead = async (req, res) => {
+  try {
+    const result = await query(
+      `UPDATE feedbacks
+       SET status = 'korildi'
+       WHERE status = 'yangi'
+       RETURNING id`
+    );
+    res.json({ success: true, updatedCount: result.rowCount || 0 });
+  } catch (err) {
+    console.error('MarkAllFeedbacksAsRead xatosi:', err);
+    res.status(500).json({ success: false, message: "Fikrlarni yangilashda xatolik." });
+  }
+};
+
 // Fikr holatini o'zgartirish yoki javob yozish (Super Admin)
 export const replyFeedback = async (req, res) => {
   try {

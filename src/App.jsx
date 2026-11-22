@@ -23,6 +23,7 @@ import { playReopenAlertSound } from "./utils/audio";
 import { useIsInstalledApp } from "./utils/platform";
 import { DEFAULT_ACTIVE_ADS } from "./data/defaultAds";
 import api from "./api/client";
+import { compressImage } from "./utils/imageCompressor";
 import {
   Menu,
   Fuel,
@@ -552,6 +553,19 @@ export default function App() {
         const localStations = myStations.filter((s) => s && s.id && String(s.id).startsWith("st_user_"));
         for (const localSt of localStations) {
           try {
+            let syncImgs = localSt.images;
+            if (Array.isArray(syncImgs) && syncImgs.length > 0) {
+              syncImgs = await Promise.all(syncImgs.map(img => compressImage(img, 1200, 1200, 0.75)));
+            }
+            let syncVerif = localSt.verificationImages;
+            if (syncVerif && typeof syncVerif === 'object') {
+              syncVerif = {
+                exterior: await compressImage(syncVerif.exterior || '', 1200, 1200, 0.75),
+                interior: await compressImage(syncVerif.interior || '', 1200, 1200, 0.75),
+                roadside: await compressImage(syncVerif.roadside || '', 1200, 1200, 0.75),
+              };
+            }
+
             const res = await api.stations.create({
               name: localSt.name,
               lat: localSt.lat,
@@ -565,12 +579,15 @@ export default function App() {
               gasPressure: localSt.gasPressure,
               types: localSt.type || localSt.types,
               description: localSt.description,
-              images: localSt.images,
-              verificationImages: localSt.verificationImages,
+              images: syncImgs,
+              verificationImages: syncVerif,
               amenities: localSt.amenities,
               payments: localSt.payments,
               userId: user?.id,
               ownerId: user?.id,
+              createdBy: user?.id,
+              ownerPhone: user?.phoneNumber || user?.phone || "",
+              userPhone: user?.phoneNumber || user?.phone || "",
             });
 
             if (res && res.success && res.station) {
@@ -2273,6 +2290,22 @@ export default function App() {
   const handleSaveStation = async (station) => {
     station.createdBy = user?.id;
 
+    // Rasmlarni avtomatik siqish (Canvas orqali 1200px va ~120KB)
+    let compressedImgs = station.images;
+    if (Array.isArray(compressedImgs) && compressedImgs.length > 0) {
+      compressedImgs = await Promise.all(
+        compressedImgs.map((img) => compressImage(img, 1200, 1200, 0.75))
+      );
+    }
+    let compressedVerif = station.verificationImages;
+    if (compressedVerif && typeof compressedVerif === 'object') {
+      compressedVerif = {
+        exterior: await compressImage(compressedVerif.exterior || '', 1200, 1200, 0.75),
+        interior: await compressImage(compressedVerif.interior || '', 1200, 1200, 0.75),
+        roadside: await compressImage(compressedVerif.roadside || '', 1200, 1200, 0.75),
+      };
+    }
+
     try {
       const res = await api.stations.create({
         name: station.name,
@@ -2287,8 +2320,8 @@ export default function App() {
         gasPressure: station.gasPressure,
         types: station.type,
         description: station.description,
-        images: station.images,
-        verificationImages: station.verificationImages,
+        images: compressedImgs,
+        verificationImages: compressedVerif,
         amenities: station.amenities,
         payments: station.payments,
         userId: user?.id,
@@ -2298,8 +2331,8 @@ export default function App() {
         userPhone: user?.phoneNumber || user?.phone || "",
       });
 
-      if (res.success && res.station) {
-        const savedSt = res.station;
+      if (res && (res.success || res.station)) {
+        const savedSt = res.station || { ...station, id: res.id || station.id };
         console.log("✅ Shahobcha muvaffaqiyatli PostgreSQL ga saqlandi:", savedSt.id, savedSt.name);
 
         // Multi-device sync: foydalanuvchida joylashuv faolligini darhol tasdiqlab qo'yamiz
@@ -2347,36 +2380,14 @@ export default function App() {
         } else {
           // Hali admin tasdiqlamagan bo'lsa, asosiy ro'yxatdan qat'iy chiqarib tashlanadi
           setStations((prev) => prev.filter((s) => s.id !== savedSt.id && s.id !== station.id));
-          // Administrator tekshiruviga yuborildi modal oynasini ko'rsatish
-          setSubmittedStationForModal(savedSt || station);
-          setSmartOnboardingMode("station_submitted");
-          setShowSmartOnboarding(true);
         }
-        return;
+        return res;
       }
+      throw new Error(res?.message || "Serverga yozishda xatolik yuz berdi");
     } catch (err) {
-      console.warn("Shahobchani PostgreSQL ga saqlashda xato (offline rejimga o'tildi):", err);
-    }
-
-    // Fallback: Agar backend vaqtinchalik javob bermasa (offline saqlash)
-    const isApprovedFallback = station.isApproved === true || station.is_approved === true || station.status === 'approved';
-    const exists = myStations.find((s) => s.id === station.id);
-    if (exists) {
-      setMyStations(myStations.map((s) => (s.id === station.id ? station : s)));
-    } else {
-      setMyStations([...myStations, station]);
-    }
-
-    if (isApprovedFallback) {
-      setStations((prev) => {
-        const ex = prev.find((s) => s.id === station.id);
-        return ex ? prev.map((s) => (s.id === station.id ? station : s)) : [...prev, station];
-      });
-    } else {
-      setStations((prev) => prev.filter((s) => s.id !== station.id));
-      setSubmittedStationForModal(station);
-      setSmartOnboardingMode("station_submitted");
-      setShowSmartOnboarding(true);
+      console.error("Shahobchani PostgreSQL ga saqlashda xato:", err);
+      // Xatoni qat'iy ravishda qaytaramiz (yutib yubormasdan) - foydalanuvchi xabardor bo'lishi kerak
+      throw err;
     }
   };
 
