@@ -727,12 +727,11 @@ export default function App() {
         ?.getAll({ userId: userId || "", phone: userPhone })
         .then((res) => {
           if (res.success && Array.isArray(res.notifications)) {
-            const cleanUserPhone = userPhone.replace(/\s+/g, "");
+            const userPhoneDigits = userPhone.replace(/\D/g, "");
             const myUnread = res.notifications.filter((n) => {
-              const nPhone = (n.userPhone || n.phone || "").replace(/\s+/g, "");
-              if (cleanUserPhone && nPhone) return nPhone === cleanUserPhone && !n.isRead && !n.readAt;
-              if (userId && n.userId) return n.userId === userId && !n.isRead && !n.readAt;
-              return false;
+              const nPhoneDigits = (n.userPhone || n.phone || "").replace(/\D/g, "");
+              const isMine = (userId && n.userId === userId) || (userPhoneDigits && nPhoneDigits === userPhoneDigits);
+              return isMine && !n.isRead && !n.readAt;
             });
             const count = myUnread.length;
             setUnreadNotifCount(count);
@@ -741,6 +740,17 @@ export default function App() {
               localStorage.setItem("myup_notif_unread_count", String(count));
               localStorage.setItem("myup_notif_unread", count > 0 ? "true" : "false");
             } catch (e) {}
+
+            // Agar yangi tasdiqlash yoki moderator xabari bo'lsa, ekranda SMS kabi popup banner ko'rsatish
+            const newToastItem = myUnread.find((n) => 
+              n.type === 'station_approved' || 
+              (n.badge && n.badge.includes('Tasdiqlandi')) ||
+              (n.title && n.title.toLowerCase().includes('tasdiqlandi'))
+            );
+            if (newToastItem && !shownApprovedNotifIdsRef.current.has(newToastItem.id)) {
+              shownApprovedNotifIdsRef.current.add(newToastItem.id);
+              setLiveApprovedToast(newToastItem);
+            }
           }
         })
         .catch(() => {});
@@ -754,6 +764,19 @@ export default function App() {
   // Bildirishnomalar holati
   const [showNotificationsPage, setShowNotificationsPage] = useState(false);
   const [pendingInspectionModalStation, setPendingInspectionModalStation] = useState(null);
+  const [liveApprovedToast, setLiveApprovedToast] = useState(null);
+  const shownApprovedNotifIdsRef = useRef(new Set());
+
+  // Jonli SMS-xabarni 10 soniyadan so'ng avtomatik yopish
+  useEffect(() => {
+    if (liveApprovedToast) {
+      const timer = setTimeout(() => {
+        setLiveApprovedToast(null);
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [liveApprovedToast]);
+
   const [unreadNotifCount, setUnreadNotifCount] = useState(() => {
     try {
       const savedCount = localStorage.getItem("myup_notif_unread_count");
@@ -3342,6 +3365,89 @@ export default function App() {
       }}
     >
       {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
+
+      {/* JONLI SMS-USLUBIDAGI BILDIRISHNOMA (Super Admin Tasdiqlaganda Tushadi) */}
+      {liveApprovedToast && (
+        <div
+          className="live-sms-approved-toast"
+          onClick={() => {
+            setLiveApprovedToast(null);
+            handleOpenNotifications();
+          }}
+          style={{
+            position: "fixed",
+            top: "16px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: "calc(100% - 32px)",
+            maxWidth: "460px",
+            backgroundColor: isThemeLight ? "rgba(255, 255, 255, 0.98)" : "rgba(15, 23, 42, 0.98)",
+            color: isThemeLight ? "#0f172a" : "#ffffff",
+            borderRadius: "16px",
+            padding: "14px 16px",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "12px",
+            boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(16, 185, 129, 0.4)",
+            border: "1px solid rgba(16, 185, 129, 0.4)",
+            zIndex: 999999,
+            cursor: "pointer",
+            animation: "slideDown 0.35s ease-out",
+            backdropFilter: "blur(12px)",
+          }}
+        >
+          <div style={{
+            width: "38px",
+            height: "38px",
+            borderRadius: "12px",
+            backgroundColor: "rgba(16, 185, 129, 0.15)",
+            border: "1px solid rgba(16, 185, 129, 0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}>
+            <CheckCircle2 size={22} color="#10b981" />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2px" }}>
+              <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "#10b981", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                AX-Map • SMS Xabar
+              </span>
+              <span style={{ fontSize: "0.68rem", color: "var(--theme-muted, #94a3b8)" }}>
+                Hozir
+              </span>
+            </div>
+            <h5 style={{ margin: "0 0 3px", fontSize: "0.92rem", fontWeight: 700, color: isThemeLight ? "#0f172a" : "#f1f5f9" }}>
+              {liveApprovedToast.title || "Joylashuv tasdiqlandi!"}
+            </h5>
+            <p style={{ margin: 0, fontSize: "0.78rem", color: isThemeLight ? "#475569" : "#cbd5e1", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+              {liveApprovedToast.message}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setLiveApprovedToast(null);
+            }}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "var(--theme-muted, #94a3b8)",
+              cursor: "pointer",
+              padding: "4px",
+              margin: "-4px -4px 0 0",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            title="Yopish"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Ambient background light */}
       <div className="ambient-glow-top"></div>

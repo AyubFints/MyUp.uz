@@ -332,12 +332,12 @@ export default function NotificationsView({
       ?.getAll({ userId: userId || "", phone: userPhone })
       .then((res) => {
         if (isMounted && res.success && Array.isArray(res.notifications)) {
-          const cleanUserPhone = userPhone.replace(/\s+/g, "");
+          const userPhoneDigits = userPhone.replace(/\D/g, "");
           // Faqat joriy foydalanuvchiga tegishli bildirishnomalar
           const myOnly = res.notifications.filter(n => {
-            const nPhone = (n.userPhone || n.phone || "").replace(/\s+/g, "");
-            if (cleanUserPhone && nPhone) return nPhone === cleanUserPhone;
-            if (userId && n.userId) return n.userId === userId;
+            const nPhoneDigits = (n.userPhone || n.phone || "").replace(/\D/g, "");
+            if (userId && n.userId && n.userId === userId) return true;
+            if (userPhoneDigits && nPhoneDigits && nPhoneDigits === userPhoneDigits) return true;
             return false;
           });
 

@@ -15,17 +15,18 @@ export const getUserNotifications = async (req, res) => {
     const userId = req.user?.id || req.query.userId || null;
     const phone = req.query.phone || req.user?.phone || null;
     const cleanPhone = phone ? String(phone).replace(/\s+/g, '') : null;
+    const phoneDigits = phone ? String(phone).replace(/\D/g, '') : '';
 
     const isUUID = userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
 
     // Xavfsizlik: Begona foydalanuvchilar (mehmonlar yoki ID/telefonsizlar)ga boshqa foydalanuvchilarning
     // moderatsiya xabarlari yoki admin javoblari ko'rinmasligi uchun darhol bo'sh ro'yxat qaytaramiz!
-    if (!isUUID && (!cleanPhone || cleanPhone.length < 7)) {
+    if (!isUUID && (!phoneDigits || phoneDigits.length < 7)) {
       return res.json({ success: true, count: 0, unreadCount: 0, notifications: [] });
     }
 
     let sql = `
-      SELECT id, user_id AS "userId", station_id AS "stationId",
+      SELECT id, user_id AS "userId", user_phone AS "userPhone", station_id AS "stationId",
              title, message, badge, type, is_read AS "isRead",
              read_at AS "readAt", created_at AS "createdAt"
       FROM user_notifications
@@ -36,15 +37,15 @@ export const getUserNotifications = async (req, res) => {
     `;
     const params = [];
 
-    if (isUUID && cleanPhone) {
-      params.push(userId, phone, cleanPhone);
-      sql += ` AND (user_id = $1 OR user_phone = $2 OR REPLACE(user_phone, ' ', '') = $3)`;
+    if (isUUID && phoneDigits) {
+      params.push(userId, phoneDigits);
+      sql += ` AND (user_id = $1 OR (REGEXP_REPLACE(user_phone, '\\D', '', 'g') = $2 AND $2 != ''))`;
     } else if (isUUID) {
       params.push(userId);
       sql += ` AND user_id = $1`;
-    } else if (cleanPhone) {
-      params.push(phone, cleanPhone);
-      sql += ` AND (user_phone = $1 OR REPLACE(user_phone, ' ', '') = $2)`;
+    } else if (phoneDigits) {
+      params.push(phoneDigits);
+      sql += ` AND REGEXP_REPLACE(user_phone, '\\D', '', 'g') = $1`;
     }
 
     sql += ` ORDER BY created_at DESC LIMIT 50`;
@@ -64,7 +65,7 @@ export const markNotificationsRead = async (req, res) => {
   try {
     const userId = req.user?.id || req.body?.userId || null;
     const phone = req.body?.phone || req.user?.phone || null;
-    const cleanPhone = phone ? phone.replace(/\s+/g, '') : null;
+    const phoneDigits = phone ? String(phone).replace(/\D/g, '') : '';
     const { id } = req.body || {};
 
     let sql = `
@@ -80,15 +81,15 @@ export const markNotificationsRead = async (req, res) => {
       sql += ` AND id = $1`;
     } else {
       const isUUID = userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
-      if (isUUID && phone) {
-        params.push(userId, phone, cleanPhone);
-        sql += ` AND (user_id = $1 OR user_phone = $2 OR REPLACE(user_phone, ' ', '') = $3)`;
+      if (isUUID && phoneDigits) {
+        params.push(userId, phoneDigits);
+        sql += ` AND (user_id = $1 OR (REGEXP_REPLACE(user_phone, '\\D', '', 'g') = $2 AND $2 != ''))`;
       } else if (isUUID) {
         params.push(userId);
         sql += ` AND user_id = $1`;
-      } else if (phone) {
-        params.push(phone, cleanPhone);
-        sql += ` AND (user_phone = $1 OR REPLACE(user_phone, ' ', '') = $2)`;
+      } else if (phoneDigits) {
+        params.push(phoneDigits);
+        sql += ` AND REGEXP_REPLACE(user_phone, '\\D', '', 'g') = $1`;
       }
     }
 

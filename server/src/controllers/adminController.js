@@ -193,13 +193,31 @@ export const approveStation = async (req, res) => {
         ? "Joylashuv tasdiqlandi! Sizdan har kuni jonli ma'lumotlarni to'ldirib turishingizni so'rab qolamiz: gaz bosimini jonli kiritib turing, yoqilg'i narxlarini to'g'ri va jonli o'zgartirib turing hamda ochiq/yopiq holatlarini ham kiritib turing, iltimos!"
         : `Siz kiritgan "${station.name}" manzili Dastur Administratsiyasi tomonidan rad etildi.`;
 
-      const safeOwnerId = isUuid(station.owner_id) ? station.owner_id : null;
+      let safeOwnerId = isUuid(station.owner_id) ? station.owner_id : null;
+      let targetUserPhone = station.phone || null;
+
+      if (safeOwnerId) {
+        const uRes = await query(`SELECT id, phone FROM users WHERE id = $1 LIMIT 1`, [safeOwnerId]).catch(() => ({ rows: [] }));
+        if (uRes.rows.length > 0 && uRes.rows[0].phone) {
+          targetUserPhone = uRes.rows[0].phone;
+        }
+      } else if (targetUserPhone) {
+        const pDigits = targetUserPhone.replace(/\D/g, '');
+        if (pDigits) {
+          const uRes = await query(`SELECT id, phone FROM users WHERE REGEXP_REPLACE(phone, '\\D', '', 'g') = $1 LIMIT 1`, [pDigits]).catch(() => ({ rows: [] }));
+          if (uRes.rows.length > 0) {
+            safeOwnerId = uRes.rows[0].id;
+            targetUserPhone = uRes.rows[0].phone || targetUserPhone;
+          }
+        }
+      }
+
       const safeStationId = isUuid(station.id) ? station.id : null;
 
       await query(
         `INSERT INTO user_notifications (user_id, user_phone, station_id, title, message, badge, type, is_read, read_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, false, NULL)`,
-        [safeOwnerId, station.phone || null, safeStationId, notifTitle, notifMsg, notifBadge, notifType]
+        [safeOwnerId, targetUserPhone, safeStationId, notifTitle, notifMsg, notifBadge, notifType]
       );
       console.log(`✅ Bildirishnoma yaratildi (${notifType}) station:`, station.name);
     } catch (notifErr) {
