@@ -260,6 +260,9 @@ export const createStation = async (req, res) => {
     const cleanOwnerPhone = requestedOwnerPhone ? requestedOwnerPhone.replace(/\s+/g, '') : '';
     const cleanStationPhone = phone ? phone.replace(/\s+/g, '') : '';
 
+    const ownerDigits = (requestedOwnerPhone || '').replace(/\D/g, '');
+    const stationDigits = (phone || '').replace(/\D/g, '');
+
     if (!ownerId && requestedOwnerId && isUuid(requestedOwnerId)) {
       const uRes = await query(`SELECT id FROM users WHERE id = $1 LIMIT 1`, [requestedOwnerId]);
       if (uRes.rows.length > 0) {
@@ -267,15 +270,15 @@ export const createStation = async (req, res) => {
       }
     }
 
-    if (!ownerId && cleanOwnerPhone) {
-      const uRes = await query(`SELECT id FROM users WHERE REPLACE(phone, ' ', '') = $1 OR phone = $2 LIMIT 1`, [cleanOwnerPhone, requestedOwnerPhone]);
+    if (!ownerId && ownerDigits) {
+      const uRes = await query(`SELECT id FROM users WHERE REGEXP_REPLACE(phone, '\\D', '', 'g') = $1 LIMIT 1`, [ownerDigits]);
       if (uRes.rows.length > 0) {
         ownerId = uRes.rows[0].id;
       }
     }
 
-    if (!ownerId && cleanStationPhone) {
-      const uRes = await query(`SELECT id FROM users WHERE REPLACE(phone, ' ', '') = $1 OR phone = $2 LIMIT 1`, [cleanStationPhone, phone]);
+    if (!ownerId && stationDigits) {
+      const uRes = await query(`SELECT id FROM users WHERE REGEXP_REPLACE(phone, '\\D', '', 'g') = $1 LIMIT 1`, [stationDigits]);
       if (uRes.rows.length > 0) {
         ownerId = uRes.rows[0].id;
       }
