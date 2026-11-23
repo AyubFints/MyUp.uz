@@ -1,9 +1,9 @@
 // Rasmlarni yuklashdan oldin avtomatik siqish (HTML5 Canvas yordamida)
 // Zamonaviy telefon kameralari 4K/48MP suratga oladi (5MB - 15MB).
-// Ushbu funksiya ularni sifatini yo'qotmasdan 1200px va ~120KB - 200KB gacha siqadi.
-// Natijada mobil internet (3G/4G) da 0.2 soniyada serverga uzatiladi.
+// Ushbu funksiya ularni sifatini yo'qotmasdan 1000px va ~70KB - 120KB gacha siqadi.
+// Natijada mobil internet (3G/4G) da 0.2 soniyada serverga uzatiladi va tarmoq uzilishi yuz bermaydi.
 
-export async function compressImage(fileOrDataUrl, maxWidth = 1200, maxHeight = 1200, quality = 0.75) {
+export async function compressImage(fileOrDataUrl, maxWidth = 1000, maxHeight = 1000, quality = 0.7) {
   if (!fileOrDataUrl) return '';
 
   return new Promise((resolve) => {
@@ -41,7 +41,7 @@ export async function compressImage(fileOrDataUrl, maxWidth = 1200, maxHeight = 
     if (typeof fileOrDataUrl === 'string') {
       if (fileOrDataUrl.startsWith('data:image/')) {
         // Agar allaqachon data:URL bo'lsa, lekin katta bo'lsa siqamiz
-        if (fileOrDataUrl.length > 250000) {
+        if (fileOrDataUrl.length > 150000) {
           processImage(fileOrDataUrl);
         } else {
           resolve(fileOrDataUrl);

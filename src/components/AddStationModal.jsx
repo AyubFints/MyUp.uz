@@ -333,7 +333,7 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const compressed = await compressImage(file, 1200, 1200, 0.75);
+      const compressed = await compressImage(file, 960, 960, 0.7);
       if (compressed) {
         setVerificationImages(prev => ({ ...prev, [slot]: compressed }));
       }
@@ -520,7 +520,7 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
     }
     for (const file of files) {
       try {
-        const compressed = await compressImage(file, 1200, 1200, 0.75);
+        const compressed = await compressImage(file, 960, 960, 0.7);
         if (compressed) {
           setImages(prev => [...prev, compressed]);
         }
@@ -562,13 +562,13 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
       combinedImgs.push('https://images.unsplash.com/photo-1545459720-aac8509eb02c?auto=format&fit=crop&w=600&q=80');
     }
 
-    // Barcha rasmlarning to'liq siqilganligini kafolatlaymiz (har biri ~120KB)
+    // Barcha rasmlarning to'liq siqilganligini kafolatlaymiz (har biri ~70KB-100KB)
     const compressedImages = await Promise.all(
-      combinedImgs.map(img => compressImage(img, 1200, 1200, 0.75))
+      combinedImgs.map(img => compressImage(img, 960, 960, 0.7))
     );
-    const compressedExt = await compressImage(verificationImages.exterior || images[0] || combinedImgs[0] || '', 1200, 1200, 0.75);
-    const compressedInt = await compressImage(verificationImages.interior || images[1] || combinedImgs[1] || '', 1200, 1200, 0.75);
-    const compressedRoad = await compressImage(verificationImages.roadside || images[2] || combinedImgs[2] || '', 1200, 1200, 0.75);
+    const compressedExt = await compressImage(verificationImages.exterior || images[0] || combinedImgs[0] || '', 960, 960, 0.7);
+    const compressedInt = await compressImage(verificationImages.interior || images[1] || combinedImgs[1] || '', 960, 960, 0.7);
+    const compressedRoad = await compressImage(verificationImages.roadside || images[2] || combinedImgs[2] || '', 960, 960, 0.7);
 
     // Tekshiruv uchun 3 ta rasm:
     const finalVerification = {
@@ -621,7 +621,12 @@ export default function AddStationModal({ isOpen, onClose, onSave, editStation, 
       setSubmittedCountdown(5);
     } catch (err) {
       console.error("Shahobcha saqlash xatosi:", err);
-      setSubmitError(err?.message || "Serverga yuborishda xatolik yuz berdi. Internet aloqasini tekshiring va qaytadan bosing.");
+      const isFetchErr = err?.message?.includes('fetch') || err?.message?.includes('Failed to fetch') || err?.name === 'TypeError';
+      setSubmitError(
+        isFetchErr
+          ? "Internet aloqasi sustligi sababli serverga ulanib bo'lmadi. Internet aloqangizni tekshirib, qaytadan yuborishni bosing."
+          : (err?.message || "Serverga yuborishda xatolik yuz berdi. Internet aloqasini tekshiring va qaytadan bosing.")
+      );
     } finally {
       setIsSubmitting(false);
     }

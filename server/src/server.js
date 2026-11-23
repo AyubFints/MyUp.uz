@@ -190,6 +190,10 @@ const server = app.listen(PORT, () => {
   console.log(`=========================================`);
 });
 
+// Cloudflare Tunnel va teskari proksi bilan keep-alive poygasi (ECONNRESET / Failed to fetch) ning oldini olish
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
+
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.log(`\x1b[33m[Port ${PORT}]\x1b[0m Server allaqachon ishlab turibdi. Yangi nusxa ochish shart emas.`);
