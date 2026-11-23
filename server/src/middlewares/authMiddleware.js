@@ -59,13 +59,9 @@ export const requireRole = (...roles) => {
 export const requireAdmin = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    if (process.env.NODE_ENV !== 'production') {
-      req.user = { id: 'admin_dev', role: 'super_admin' };
-      return next();
-    }
     return res.status(401).json({
       success: false,
-      message: 'Avtorizatsiyadan o\'tilmagan. Token topilmadi.',
+      message: 'Avtorizatsiyadan o\'tilmagan. Admin tokeni talab qilinadi.',
     });
   }
 
@@ -76,18 +72,14 @@ export const requireAdmin = (req, res, next) => {
     if (req.user.role !== 'super_admin' && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Ruxsat berilmadi. Faqat Admin uchun.',
+        message: 'Ruxsat berilmadi. Ushbu amal faqat Super Admin uchun.',
       });
     }
     next();
   } catch (err) {
-    if (process.env.NODE_ENV !== 'production') {
-      req.user = { id: 'admin_dev', role: 'super_admin' };
-      return next();
-    }
     return res.status(401).json({
       success: false,
-      message: 'Yaroqsiz token.',
+      message: 'Yaroqsiz yoki muddati o\'tgan admin tokeni.',
     });
   }
 };

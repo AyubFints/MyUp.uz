@@ -521,15 +521,8 @@ export default function App() {
 
       const res = await api.stations.getMyStations(myStParams);
       if (res && res.success && Array.isArray(res.stations)) {
-        // 24 soatdan oshgan rad etilgan shahobchalarni xavfsiz filtrlash
-        const validStations = res.stations.filter(st => {
-          if (st.status === 'rejected' && (st.rejectedAt || st.rejected_at)) {
-            const age = Date.now() - new Date(st.rejectedAt || st.rejected_at).getTime();
-            if (age > 24 * 3600 * 1000) return false;
-          }
-          return true;
-        });
-
+        // Foydalanuvchi yaratgan barcha manzillar tarixini to'liq saqlab qolamiz (rad etilganlar ham yo'qolmaydi)
+        const validStations = res.stations;
         setMyStations(validStations);
         try {
           localStorage.setItem(`myup_my_stations_${currentUser.id}`, JSON.stringify(validStations));

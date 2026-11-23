@@ -54,6 +54,9 @@ CREATE TABLE IF NOT EXISTS stations (
 CREATE INDEX IF NOT EXISTS idx_stations_coords ON stations (lat, lng);
 CREATE INDEX IF NOT EXISTS idx_stations_city ON stations (city);
 CREATE INDEX IF NOT EXISTS idx_stations_approved ON stations (is_approved);
+CREATE INDEX IF NOT EXISTS idx_stations_status ON stations (status);
+CREATE INDEX IF NOT EXISTS idx_stations_owner ON stations (owner_id);
+CREATE INDEX IF NOT EXISTS idx_stations_created ON stations (created_at DESC);
 
 -- 3. YOQILG'I NARXLARI VA GAZ BOSIMI (Fuel Prices & Pressure)
 CREATE TABLE IF NOT EXISTS fuel_prices (

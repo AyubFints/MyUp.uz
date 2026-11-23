@@ -1,4 +1,4 @@
-import { query } from '../config/db.js';
+import { pool, query } from '../config/db.js';
 
 const isUuid = (id) => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
@@ -99,17 +99,9 @@ export const getAllStations = async (req, res) => {
   }
 };
 
-// Foydalanuvchining o'z shahobchalarini olish (Tasdiqlangan va tasdiqlanmagan barchasi)
+// Foydalanuvchining o'z shahobchalarini olish (Tasdiqlangan, kutilayotgan va rad etilgan barchasi)
 export const getMyStations = async (req, res) => {
   try {
-    // 1 kundan oshgan rad etilgan shahobchalarni avtomatik tozalash (bazadan butunlay o'chirish)
-    await query(`
-      DELETE FROM stations 
-      WHERE status = 'rejected' 
-        AND rejected_at IS NOT NULL 
-        AND rejected_at < NOW() - INTERVAL '1 day'
-    `).catch(() => {});
-
     const userId = req.user?.id || req.query.userId || null;
     let phone = req.user?.phone || req.query.phone || null;
 
@@ -165,7 +157,6 @@ export const getMyStations = async (req, res) => {
       LEFT JOIN station_amenities sa ON s.id = sa.station_id
       LEFT JOIN station_payments sp ON s.id = sp.station_id
       WHERE s.owner_id = $1
-        AND (s.rejected_at IS NULL OR s.rejected_at >= NOW() - INTERVAL '1 day')
       GROUP BY s.id, sa.station_id, sp.station_id
       ORDER BY s.created_at DESC
     `;
@@ -207,114 +198,121 @@ export const getMyStations = async (req, res) => {
   }
 };
 
-// Yangi shahobcha qo'shish
+// Yangi shahobcha qo'shish (To'liq PostgreSQL Transaction & Concurrency Lock)
 export const createStation = async (req, res) => {
+  const {
+    name,
+    lat,
+    lng,
+    address,
+    city,
+    phone,
+    isOpen,
+    reopenTime,
+    prices,
+    pressures,
+    gasPressure,
+    types,
+    description,
+    images,
+    verificationImages,
+    amenities,
+    payments,
+  } = req.body;
+
+  if (!name || lat === undefined || lng === undefined) {
+    return res.status(400).json({ success: false, message: 'Nomi va geolokatsiya (lat/lng) kiritilishi shart.' });
+  }
+
+  let ownerId = req.user ? req.user.id : null;
+  const requestedOwnerId = req.body.userId || req.body.ownerId || req.body.createdBy;
+  const requestedOwnerPhone = req.body.ownerPhone || req.body.userPhone || '';
+  const cleanOwnerPhone = requestedOwnerPhone ? requestedOwnerPhone.replace(/\s+/g, '') : '';
+  const ownerDigits = (requestedOwnerPhone || '').replace(/\D/g, '');
+
+  if (!ownerId && requestedOwnerId && isUuid(requestedOwnerId)) {
+    const uRes = await query(`SELECT id FROM users WHERE id = $1 LIMIT 1`, [requestedOwnerId]);
+    if (uRes.rows.length > 0) {
+      ownerId = uRes.rows[0].id;
+    }
+  }
+
+  if (!ownerId && ownerDigits) {
+    const uRes = await query(`SELECT id FROM users WHERE REGEXP_REPLACE(phone, '\\D', '', 'g') = $1 LIMIT 1`, [ownerDigits]);
+    if (uRes.rows.length > 0) {
+      ownerId = uRes.rows[0].id;
+    }
+  }
+
+  const isApproved = Boolean(req.user && req.user.role === 'super_admin');
+  const stationStatus = isApproved ? 'approved' : 'pending';
+
+  const normalizedTypes = Array.isArray(types) && types.length > 0
+    ? types
+    : (prices && typeof prices === 'object' ? Object.keys(prices) : ['metan']);
+
+  const finalGasPressure = Number(gasPressure || pressures?.metan || 200);
+  const trimmedName = name.trim();
+  const parsedLat = parseFloat(lat);
+  const parsedLng = parseFloat(lng);
+
+  // PostgreSQL tranzaksiyasi: stations, fuel_prices, amenities, payments va users yangilanishi bitta ulanishda atomar bajariladi
+  const client = await pool.connect();
   try {
-    const {
-      name,
-      lat,
-      lng,
-      address,
-      city,
-      phone,
-      isOpen,
-      reopenTime,
-      prices,
-      pressures,
-      gasPressure,
-      types,
-      description,
-      images,
-      verificationImages,
-      amenities,
-      payments,
-    } = req.body;
+    await client.query('BEGIN');
 
-    if (!name || lat === undefined || lng === undefined) {
-      return res.status(400).json({ success: false, message: 'Nomi va geolokatsiya (lat/lng) kiritilishi shart.' });
-    }
+    // Poyga holati (Race Condition) va dublikatlardan himoyalash:
+    // Bir xil foydalanuvchi bir vaqtda bir nechta so'rov yuborsa, tranzaksiya darajasida advisory lock olamiz
+    if (ownerId || cleanOwnerPhone) {
+      const lockIdentifier = `${ownerId || cleanOwnerPhone}_${trimmedName.toLowerCase()}`;
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [lockIdentifier]);
 
-    let ownerId = req.user ? req.user.id : null;
-    const requestedOwnerId = req.body.userId || req.body.ownerId || req.body.createdBy;
-    const requestedOwnerPhone = req.body.ownerPhone || req.body.userPhone || '';
-    const cleanOwnerPhone = requestedOwnerPhone ? requestedOwnerPhone.replace(/\s+/g, '') : '';
-    const ownerDigits = (requestedOwnerPhone || '').replace(/\D/g, '');
-
-    if (!ownerId && requestedOwnerId && isUuid(requestedOwnerId)) {
-      const uRes = await query(`SELECT id FROM users WHERE id = $1 LIMIT 1`, [requestedOwnerId]);
-      if (uRes.rows.length > 0) {
-        ownerId = uRes.rows[0].id;
-      }
-    }
-
-    if (!ownerId && ownerDigits) {
-      const uRes = await query(`SELECT id FROM users WHERE REGEXP_REPLACE(phone, '\\D', '', 'g') = $1 LIMIT 1`, [ownerDigits]);
-      if (uRes.rows.length > 0) {
-        ownerId = uRes.rows[0].id;
-      }
-    }
-
-    if (ownerId) {
-      await query(
-        `UPDATE users SET has_location = true, can_add_station = true WHERE id = $1`,
-        [ownerId]
-      ).catch(() => {});
-    }
-    // Foydalanuvchi qo'shgan yangi manzil har doim Super Admin tekshiruvi (moderatsiya) uchun yuboriladi!
-    // Faqat super_admin roli bilan yaratilgan shahobchalargina avtomatik tasdiqlanadi.
-    const isApproved = Boolean(req.user && req.user.role === 'super_admin');
-    const stationStatus = isApproved ? 'approved' : 'pending';
-
-    const normalizedTypes = Array.isArray(types) && types.length > 0
-      ? types
-      : (prices && typeof prices === 'object' ? Object.keys(prices) : ['metan']);
-
-    const finalGasPressure = Number(gasPressure || pressures?.metan || 200);
-
-    // Deduplication check: agar so'nggi 3 daqiqa ichida xuddi shu foydalanuvchi tomonidan
-    // bir xil nom va yaqin koordinataga ega shahobcha yuborilgan bo'lsa, qayta yaratilmasdan mavjudini qaytarish
-    const trimmedName = name.trim();
-    const parsedLat = parseFloat(lat);
-    const parsedLng = parseFloat(lng);
-
-    let dupCheck = { rows: [] };
-    if (ownerId) {
-      dupCheck = await query(
+      // Lock ostida so'nggi 3 daqiqa ichida yaratilgan dublikat borligini tekshiramiz
+      const dupCheck = await client.query(
         `SELECT s.id, s.name, s.lat, s.lng, s.address, s.city, s.phone,
                 s.is_open AS "isOpen", s.reopen_time AS "reopenTime",
                 s.rating, s.rating_count AS "ratingCount", s.owner_id AS "ownerId",
                 s.is_approved AS "isApproved", s.status, s.rejected_at AS "rejectedAt", s.created_at AS "createdAt",
                 s.description, s.images, s.verification_images AS "verificationImages", s.types, s.gas_pressure AS "gasPressure"
          FROM stations s
-         WHERE s.owner_id = $1
-           AND LOWER(TRIM(s.name)) = LOWER($2)
-           AND ABS(s.lat - $3) < 0.0005
-           AND ABS(s.lng - $4) < 0.0005
+         WHERE (s.owner_id = $1 OR (s.phone = $2 AND $2 != ''))
+           AND LOWER(TRIM(s.name)) = LOWER($3)
+           AND ABS(s.lat - $4) < 0.0005
+           AND ABS(s.lng - $5) < 0.0005
            AND s.created_at >= NOW() - INTERVAL '3 minutes'
          ORDER BY s.created_at DESC
          LIMIT 1`,
-        [ownerId, trimmedName, parsedLat, parsedLng]
+        [ownerId, phone || cleanOwnerPhone, trimmedName, parsedLat, parsedLng]
+      );
+
+      if (dupCheck.rows.length > 0) {
+        await client.query('COMMIT');
+        const existingSt = dupCheck.rows[0];
+        return res.status(200).json({
+          success: true,
+          station: {
+            ...existingSt,
+            type: existingSt.types || ['metan'],
+            prices: prices || {},
+            pressures: pressures || {},
+            amenities: amenities || {},
+            payments: payments || {}
+          },
+          message: 'Shahobcha allaqachon qabul qilingan, moderatsiya ko\'rib chiqilmoqda.',
+        });
+      }
+    }
+
+    // 1. Foydalanuvchi hisobini yangilash (faqat hali faollashmagan bo'lsagina yangilaydi, row lock contention oldini olish)
+    if (ownerId) {
+      await client.query(
+        `UPDATE users SET has_location = true, can_add_station = true WHERE id = $1 AND (has_location = false OR can_add_station = false)`,
+        [ownerId]
       );
     }
 
-    if (dupCheck.rows.length > 0) {
-      const existingSt = dupCheck.rows[0];
-      return res.status(200).json({
-        success: true,
-        station: {
-          ...existingSt,
-          type: existingSt.types || ['metan'],
-          prices: prices || {},
-          pressures: pressures || {},
-          amenities: amenities || {},
-          payments: payments || {}
-        },
-        message: 'Shahobcha allaqachon qabul qilingan, moderatsiya ko\'rib chiqilmoqda.',
-      });
-    }
-
-    // 1. Shahobcha yaratish (is_approved: false, status: 'pending')
-    const stResult = await query(
+    // 2. Shahobcha kiritish (stations jadvali)
+    const stResult = await client.query(
       `INSERT INTO stations (
         name, lat, lng, address, city, phone, is_open, reopen_time,
         owner_id, is_approved, status, description, images, types, gas_pressure, verification_images
@@ -322,9 +320,9 @@ export const createStation = async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING *`,
       [
-        name.trim(),
-        parseFloat(lat),
-        parseFloat(lng),
+        trimmedName,
+        parsedLat,
+        parsedLng,
         address || 'Toshkent shahri',
         city || 'Toshkent',
         phone || '',
@@ -347,7 +345,7 @@ export const createStation = async (req, res) => {
 
     const station = stResult.rows[0];
 
-    // 2. Yoqilg'i narxlarini saqlash
+    // 3. Yoqilg'i narxlarini saqlash (fuel_prices jadvali)
     const savedPrices = {};
     const savedPressures = {};
 
@@ -360,7 +358,7 @@ export const createStation = async (req, res) => {
             : Number(pressures?.[fuelType] || (fuelType === 'metan' ? finalGasPressure : 0));
 
           if (price > 0 || pressure > 0) {
-            await query(
+            await client.query(
               `INSERT INTO fuel_prices (station_id, fuel_type, price, pressure_atm, is_available)
                VALUES ($1, $2, $3, $4, true)
                ON CONFLICT (station_id, fuel_type) DO UPDATE SET price = $3, pressure_atm = $4, is_available = true`,
@@ -373,10 +371,10 @@ export const createStation = async (req, res) => {
       }
     }
 
-    // 3. Qulayliklarni saqlash
+    // 4. Qulayliklarni saqlash (station_amenities jadvali)
     let savedAmenities = null;
     if (amenities && typeof amenities === 'object') {
-      const amRes = await query(
+      const amRes = await client.query(
         `INSERT INTO station_amenities (station_id, coffee, toilet, shop, car_wash, prayer_room, wifi, food, tires)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          ON CONFLICT (station_id) DO UPDATE SET 
@@ -397,10 +395,10 @@ export const createStation = async (req, res) => {
       savedAmenities = amRes.rows[0];
     }
 
-    // 4. To'lov turlarini saqlash
+    // 5. To'lov turlarini saqlash (station_payments jadvali)
     let savedPayments = null;
     if (payments && typeof payments === 'object') {
-      const pmRes = await query(
+      const pmRes = await client.query(
         `INSERT INTO station_payments (station_id, cash, uzcard, humo, visa, mastercard)
          VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT (station_id) DO UPDATE SET
@@ -417,6 +415,9 @@ export const createStation = async (req, res) => {
       );
       savedPayments = pmRes.rows[0];
     }
+
+    // Barcha operatsiyalar muvaffaqiyatli yakunlangach, atomar COMMIT qilamiz
+    await client.query('COMMIT');
 
     const fullStation = {
       id: station.id,
@@ -452,8 +453,11 @@ export const createStation = async (req, res) => {
       message: isApproved ? 'Shahobcha ma\'lumotlar bazasiga saqlandi!' : 'Shahobcha yuborildi, admin tasdig\'i kutilmoqda.',
     });
   } catch (err) {
-    console.error('CreateStation xatosi:', err);
+    await client.query('ROLLBACK');
+    console.error('CreateStation tranzaksiya xatosi (ROLLBACK):', err);
     res.status(500).json({ success: false, message: 'Shahobcha saqlashda server xatoligi: ' + err.message });
+  } finally {
+    client.release();
   }
 };
 
@@ -581,9 +585,27 @@ export const deleteStation = async (req, res) => {
     const { reason, authorName, authorPhone, userId } = req.body || {};
 
     // 1. O'chirilayotgan shahobcha nomini olamiz
-    const stRes = await query('SELECT name, address, owner_id FROM stations WHERE id = $1', [id]);
+    const stRes = await query('SELECT name, address, owner_id, phone FROM stations WHERE id = $1', [id]);
+    if (stRes.rows.length === 0) {
+      return res.json({ success: true, message: 'Shahobcha allaqachon o\'chirilgan.' });
+    }
     const stationName = stRes.rows[0]?.name || 'Noma\'lum shahobcha';
     const stationAddress = stRes.rows[0]?.address || '';
+    const stationOwnerId = stRes.rows[0]?.owner_id;
+    const stationPhone = stRes.rows[0]?.phone || '';
+
+    // Xavfsizlik: Faqat Super Admin yoki manzil egasigina o'chira oladi
+    const isSuperAdmin = req.user && (req.user.role === 'super_admin' || req.user.role === 'admin');
+    const isOwner = req.user?.id && stationOwnerId && req.user.id === stationOwnerId;
+    const isClientOwner = (userId && stationOwnerId && userId === stationOwnerId) ||
+      (authorPhone && stationPhone && authorPhone.replace(/\D/g, '') !== '' && authorPhone.replace(/\D/g, '') === stationPhone.replace(/\D/g, ''));
+
+    if (!isSuperAdmin && !isOwner && !isClientOwner) {
+      return res.status(403).json({
+        success: false,
+        message: 'Ruxsat berilmadi. Siz faqat o\'zingiz yaratgan manzilni o\'chira olasiz.',
+      });
+    }
 
     // 2. user_notifications dagi bog'lanishlarni tozalaymiz
     await query('UPDATE user_notifications SET station_id = NULL WHERE station_id = $1', [id]).catch(() => {});

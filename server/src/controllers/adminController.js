@@ -8,14 +8,6 @@ const isUuid = (id) =>
 // Super Admin Asosiy Statistikasi (Dashboard Stats)
 export const getDashboardStats = async (req, res) => {
   try {
-    // 1 kundan oshgan rad etilgan shahobchalarni avtomatik tozalash (getAllStationsAdmin bilan sinxron)
-    await query(`
-      DELETE FROM stations 
-      WHERE status = 'rejected' 
-        AND rejected_at IS NOT NULL 
-        AND rejected_at < NOW() - INTERVAL '1 day'
-    `).catch(() => {});
-
     // 1. Foydalanuvchilar, Shahobchalar va Jonli trafik
     const [
       usersCount,
@@ -29,7 +21,7 @@ export const getDashboardStats = async (req, res) => {
       traffic
     ] = await Promise.all([
       query('SELECT COUNT(*)::int AS count FROM users'),
-      query("SELECT COUNT(*)::int AS count FROM stations WHERE (rejected_at IS NULL OR rejected_at >= NOW() - INTERVAL '1 day')"),
+      query('SELECT COUNT(*)::int AS count FROM stations'),
       query("SELECT COUNT(*)::int AS count FROM stations WHERE is_open = true AND (status != 'rejected' OR status IS NULL)"),
       query("SELECT COUNT(*)::int AS count FROM stations WHERE (is_approved = false OR status = 'pending') AND (status IS NULL OR status != 'rejected')"),
       query("SELECT COUNT(*)::int AS count FROM stations WHERE is_approved = true OR status = 'approved'"),
@@ -90,17 +82,9 @@ export const getDashboardStats = async (req, res) => {
   }
 };
 
-// Barcha shahobchalar ro'yxati (Super Admin uchun: tasdiqlangan va tasdiqlanmagan)
+// Barcha shahobchalar ro'yxati (Super Admin uchun: tasdiqlangan, kutilayotgan va rad etilganlar to'liq tarixi)
 export const getAllStationsAdmin = async (req, res) => {
   try {
-    // 1 kundan oshgan rad etilgan shahobchalarni admindan avtomatik tozalash
-    await query(`
-      DELETE FROM stations 
-      WHERE status = 'rejected' 
-        AND rejected_at IS NOT NULL 
-        AND rejected_at < NOW() - INTERVAL '1 day'
-    `).catch(() => {});
-
     const result = await query(`
       SELECT 
         s.id, s.name, s.lat, s.lng, s.address, s.city, s.phone,
@@ -122,7 +106,6 @@ export const getAllStationsAdmin = async (req, res) => {
       LEFT JOIN fuel_prices fp ON s.id = fp.station_id
       LEFT JOIN station_amenities sa ON s.id = sa.station_id
       LEFT JOIN station_payments sp ON s.id = sp.station_id
-      WHERE (s.rejected_at IS NULL OR s.rejected_at >= NOW() - INTERVAL '1 day')
       GROUP BY s.id, u.id, sa.station_id, sp.station_id
       ORDER BY s.created_at DESC
     `);
@@ -139,28 +122,50 @@ export const approveStation = async (req, res) => {
     const { isApproved } = req.body;
     const isApprovedBool = Boolean(isApproved);
 
-    // Agar ID to'g'ri UUID formatida bo'lmasa (masalan, demo/mock "plc-201" yoki frontend lokal identifikatori)
     if (!isUuid(id)) {
-      return res.json({
-        success: true,
-        station: {
-          id,
-          isApproved: isApprovedBool,
-          status: isApprovedBool ? 'approved' : 'rejected',
-          rejectedAt: isApprovedBool ? null : new Date().toISOString()
-        },
-        message: isApprovedBool ? 'Shahobcha tasdiqlandi' : 'Shahobcha rad etildi (1 kundan so\'ng admindan o\'chiriladi)',
+      return res.status(400).json({
+        success: false,
+        message: 'Yaroqsiz shahobcha identifikatori (UUID talab qilinadi).',
       });
     }
 
+    // 1. Manzilning bazadagi joriy holatini tekshirish
+    const currentRes = await query(
+      `SELECT id, name, status, is_approved, rejected_at, owner_id, phone 
+       FROM stations 
+       WHERE id = $1 LIMIT 1`,
+      [id]
+    );
+
+    if (currentRes.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Shahobcha ma\'lumotlar bazasidan topilmadi.',
+      });
+    }
+
+    const existingStation = currentRes.rows[0];
+
+    // 2. Himoya: Bitta manzilga ikki marta qaror berilishining va qarorlar to'qnashuvining oldini olish
+    if (existingStation.status !== 'pending') {
+      const currentLabel = existingStation.status === 'approved' ? 'Tasdiqlangan' : 'Rad etilgan';
+      return res.status(409).json({
+        success: false,
+        message: `Ushbu manzilga allaqachon qaror qabul qilingan (Hozirgi holati: "${currentLabel}"). Qayta qaror qabul qilish taqiqlanadi.`,
+        currentStatus: existingStation.status,
+        isApproved: existingStation.is_approved,
+      });
+    }
+
+    // 3. Atomar UPDATE: Faqat status = 'pending' bo'lgandagina ishlaydi (Race condition himoyasi)
     const result = await query(
       `UPDATE stations SET 
          is_approved = $1, 
          status = $2, 
          rejected_at = $3, 
          updated_at = CURRENT_TIMESTAMP 
-       WHERE id = $4 
-       RETURNING *`,
+       WHERE id = $4 AND status = 'pending'
+       RETURNING id, name, lat, lng, address, city, phone, is_approved, status, rejected_at, owner_id`,
       [
         isApprovedBool,
         isApprovedBool ? 'approved' : 'rejected',
@@ -169,22 +174,34 @@ export const approveStation = async (req, res) => {
       ]
     );
 
-    if (result.rows.length === 0) {
-      return res.json({
-        success: true,
-        station: {
-          id,
-          isApproved: isApprovedBool,
-          status: isApprovedBool ? 'approved' : 'rejected',
-          rejectedAt: isApprovedBool ? null : new Date().toISOString()
-        },
-        message: isApprovedBool ? 'Shahobcha tasdiqlandi' : 'Shahobcha rad etildi (1 kundan so\'ng admindan o\'chiriladi)',
+    // 4. Affected rows tekshiruvi: Agar ayni shu soniyada boshqa admin qaror bergan bo'lsa
+    if (result.rowCount === 0 || result.rows.length === 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'Ushbu manzilga ayni paytda boshqa admin tomonidan qaror qabul qilib bo\'lingan.',
       });
     }
 
     const station = result.rows[0];
 
-    // Foydalanuvchining kalakolchikiga bildirishnoma yuborish
+    // 5. Audit jurnaliga (admin_logs) qarorni qayd etish
+    const adminId = req.user?.id && isUuid(req.user.id) ? req.user.id : null;
+    await query(
+      `INSERT INTO admin_logs (admin_id, action, target_type, target_id, details)
+       VALUES ($1, $2, 'station', $3, $4)`,
+      [
+        adminId,
+        isApprovedBool ? 'APPROVE_STATION' : 'REJECT_STATION',
+        id,
+        JSON.stringify({
+          stationName: station.name,
+          decision: isApprovedBool ? 'approved' : 'rejected',
+          adminPhone: req.user?.phone || req.user?.phoneNumber || 'Admin',
+        }),
+      ]
+    ).catch((logErr) => console.warn('Admin log yozishda ogohlantirish:', logErr.message));
+
+    // 6. Foydalanuvchining kalakolchikiga bildirishnoma yuborish
     try {
       const notifTitle = isApprovedBool ? "Joylashuv tasdiqlandi!" : "Joylashuv rad etildi";
       const notifBadge = isApprovedBool ? "Tasdiqlandi" : "Rad etildi";
@@ -219,13 +236,10 @@ export const approveStation = async (req, res) => {
          VALUES ($1, $2, $3, $4, $5, $6, $7, false, NULL)`,
         [safeOwnerId, targetUserPhone, safeStationId, notifTitle, notifMsg, notifBadge, notifType]
       );
-      console.log(`✅ Bildirishnoma yaratildi (${notifType}) station:`, station.name);
     } catch (notifErr) {
       console.warn("Bildirishnoma saqlashda xatolik:", notifErr.message);
     }
 
-    // Admin frontend faqat id, isApproved, status, rejectedAt, name ma'lumotlarini kutadi.
-    // Katta hajmdagi base64 rasmlarni HTTP javobiga qo'shib yuborish ulanish uzilishiga (ECONNRESET / 500) sabab bo'lmasligi uchun xavfsiz obyekt qaytaramiz:
     const safeStation = {
       id: station.id,
       name: station.name,
@@ -244,7 +258,7 @@ export const approveStation = async (req, res) => {
     res.json({
       success: true,
       station: safeStation,
-      message: isApprovedBool ? 'Shahobcha tasdiqlandi' : 'Shahobcha rad etildi (1 kundan so\'ng admindan o\'chiriladi)',
+      message: isApprovedBool ? 'Shahobcha tasdiqlandi' : 'Shahobcha rad etildi',
     });
   } catch (err) {
     console.error('ApproveStation xatosi:', err);
