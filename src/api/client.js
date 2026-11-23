@@ -1,6 +1,6 @@
 // MyUp.uz Markaziy API mijozi (Frontend -> Backend Express + PostgreSQL)
 
-export const PUBLIC_BACKEND_URL = 'https://commentary-hwy-color-cardiac.trycloudflare.com/api';
+export const PUBLIC_BACKEND_URL = 'https://nirvana-arise-preferred-soc.trycloudflare.com/api';
 
 export const getApiBaseUrl = () => {
   if (typeof window !== 'undefined') {
@@ -10,21 +10,40 @@ export const getApiBaseUrl = () => {
       const queryApi = urlParams.get('api') || urlParams.get('apiUrl');
       if (queryApi && queryApi.startsWith('http')) {
         const clean = queryApi.replace(/\/$/, '');
+        try {
+          localStorage.setItem('myup_api_url', clean);
+        } catch {}
         return clean;
+      }
+    } catch {}
+
+    // 1. Brauzer xotirasidagi dinamik API manzili
+    try {
+      const savedApi = localStorage.getItem('myup_api_url') || localStorage.getItem('amaps_admin_api_url');
+      if (savedApi && savedApi.startsWith('http')) {
+        return savedApi.replace(/\/$/, '');
       }
     } catch {}
 
     const hostname = window.location.hostname;
     const isLocalIp = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(hostname) || hostname.endsWith('.local');
 
-    // 1. Wi-Fi dagi telefon kompyuterning lokal IP si (192.168.x.x) orqali kirayotgan bo'lsa
+    // 2. Wi-Fi dagi telefon kompyuterning lokal IP si (192.168.x.x) orqali kirayotgan bo'lsa
     const envUrl = import.meta.env.VITE_API_URL;
-    if (isLocalIp && envUrl && envUrl.includes('localhost')) {
-      return envUrl.replace('localhost', hostname);
+    if (isLocalIp) {
+      if (envUrl && envUrl.includes('localhost')) {
+        return envUrl.replace('localhost', hostname);
+      }
+      return `http://${hostname}:5000/api`;
     }
 
-    // 2. Vercel yoki internetdagi domen orqali kirilayotgan bo'lsa (Cloudflare HTTP/2 orqali to'g'ridan-to'g'ri ulanish)
-    if (!isLocalIp && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+    // 3. Agar haqiqiy tashqi/production VITE_API_URL berilgan bo'lsa
+    if (envUrl && !envUrl.includes('localhost') && envUrl.startsWith('http')) {
+      return envUrl.replace(/\/$/, '');
+    }
+
+    // 4. Vercel yoki internetdagi tashqi domen orqali kirilayotgan bo'lsa (Cloudflare HTTP/2 tunnel)
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
       return PUBLIC_BACKEND_URL;
     }
 
@@ -61,20 +80,22 @@ async function request(endpoint, options = {}, retries = 2) {
       });
 
       const contentType = response.headers.get('content-type') || '';
-      if ((!response.ok || contentType.includes('text/html')) && baseUrl !== PUBLIC_BACKEND_URL) {
-        // Asosiy baseUrl xato bersa, to'g'ridan-to'g'ri Cloudflare backendiga ulanish
-        const fbRes = await fetch(`${PUBLIC_BACKEND_URL}${endpoint}`, {
-          ...options,
-          headers,
-          signal: options.signal || controller.signal,
-        });
-        const fbType = fbRes.headers.get('content-type') || '';
-        if (fbRes.ok && !fbType.includes('text/html')) {
-          response = fbRes;
-        }
+      if ((!response.ok || contentType.includes('text/html')) && baseUrl !== PUBLIC_BACKEND_URL && PUBLIC_BACKEND_URL) {
+        // Asosiy baseUrl xato bersa, Cloudflare orqali sinab ko'rish
+        try {
+          const fbRes = await fetch(`${PUBLIC_BACKEND_URL}${endpoint}`, {
+            ...options,
+            headers,
+            signal: options.signal || controller.signal,
+          });
+          const fbType = fbRes.headers.get('content-type') || '';
+          if (fbRes.ok && !fbType.includes('text/html')) {
+            response = fbRes;
+          }
+        } catch {}
       }
     } catch (netErr) {
-      if (baseUrl !== PUBLIC_BACKEND_URL) {
+      if (baseUrl !== PUBLIC_BACKEND_URL && PUBLIC_BACKEND_URL) {
         response = await fetch(`${PUBLIC_BACKEND_URL}${endpoint}`, {
           ...options,
           headers,

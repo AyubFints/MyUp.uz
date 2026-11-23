@@ -92,6 +92,12 @@ export const getAllStations = async (req, res) => {
       stations.sort((a, b) => (a.distance || 0) - (b.distance || 0));
     }
 
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    });
+
     res.json({ success: true, count: stations.length, stations });
   } catch (err) {
     console.error('GetAllStations xatosi:', err);
@@ -190,6 +196,12 @@ export const getMyStations = async (req, res) => {
         [targetOwnerId]
       ).catch(() => {});
     }
+
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    });
 
     res.json({ success: true, count: stations.length, stations });
   } catch (err) {

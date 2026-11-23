@@ -1825,15 +1825,20 @@ export default function App() {
       }
     } catch (err) {
       console.warn("Shahobchalarni bazadan yuklashda xato:", err.message);
-      try {
-        const cached = localStorage.getItem("myup_cached_stations");
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed)) {
-            setStations(parsed);
+      // Faqatgina xotirada hech qanday manzil bo'lmagandagina keshdan yuklaymiz
+      setStations((prev) => {
+        if (Array.isArray(prev) && prev.length > 0) return prev;
+        try {
+          const cached = localStorage.getItem("myup_cached_stations");
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              return parsed;
+            }
           }
-        }
-      } catch (e) {}
+        } catch (e) {}
+        return [];
+      });
     } finally {
       setIsStationsLoading(false);
     }
@@ -1842,17 +1847,28 @@ export default function App() {
   useEffect(() => {
     loadStationsFromDb();
     syncMyStations(false);
-    const handleFocus = () => {
+
+    const handleSync = () => {
       loadStationsFromDb();
       syncMyStations(false);
     };
-    window.addEventListener("focus", handleFocus);
+
+    window.addEventListener("focus", handleSync);
+    window.addEventListener("online", handleSync);
+    document.addEventListener("visibilitychange", handleSync);
+
+    // Har 5 soniyada yangi tasdiqlangan yoki o'chirilgan manzillarni serverdan sinxronlash
     const pollInterval = setInterval(() => {
-      loadStationsFromDb();
-      syncMyStations(false);
-    }, 10000);
+      if (document.visibilityState === "visible" && navigator.onLine !== false) {
+        loadStationsFromDb();
+        syncMyStations(false);
+      }
+    }, 5000);
+
     return () => {
-      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("focus", handleSync);
+      window.removeEventListener("online", handleSync);
+      document.removeEventListener("visibilitychange", handleSync);
       clearInterval(pollInterval);
     };
   }, [loadStationsFromDb, syncMyStations]);
@@ -2591,10 +2607,19 @@ export default function App() {
       const updated = prev.filter((s) => s.id !== stId);
       try {
         localStorage.setItem("myup_my_stations", JSON.stringify(updated));
+        if (user?.id) {
+          localStorage.setItem(`myup_my_stations_${user.id}`, JSON.stringify(updated));
+        }
       } catch (e) {}
       return updated;
     });
-    setStations((prev) => prev.filter((s) => s.id !== stId));
+    setStations((prev) => {
+      const updated = prev.filter((s) => s.id !== stId);
+      try {
+        localStorage.setItem("myup_cached_stations", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
 
     // 4. Agar boshqaruv sahifasida turgan bo'lsa, chiqib ketish
     if (selectedManageStationId === stId) {
@@ -3839,7 +3864,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {isLocating || (isStationsLoading && stations.length === 0) ? (
+                {isStationsLoading && stations.length === 0 ? (
                   <div className="location-searching-wrapper">
                     <div className="location-detecting-card">
                       <div className="location-detecting-top">
@@ -3853,22 +3878,21 @@ export default function App() {
                           <div className="location-detecting-badge-row">
                             <span className="location-detecting-badge">
                               <span className="location-detecting-dot" />
-                              <span>GPS Aniqlanmoqda</span>
+                              <span>Manzillar yuklanmoqda</span>
                             </span>
-                            <span className="location-accuracy-badge">{locationAccuracyPercent}% aniqlik</span>
                           </div>
-                          <h4 className="location-detecting-heading">Aniq manzilingiz aniqlanmoqda...</h4>
+                          <h4 className="location-detecting-heading">Eng so'nggi ma'lumotlar yuklanmoqda...</h4>
                         </div>
                       </div>
 
                       <p className="location-detecting-sub">
-                        Sizga eng yaqin shahobchalarni to'g'ri masofa bilan chiqarish uchun joylashuv olinmoqda. Brauzer so'raganda <b>"Ruxsat berish"</b> tugmasini bosing.
+                        Serverdan tasdiqlangan shahobchalar va jonli yoqilg'i narxlari olinmoqda...
                       </p>
 
                       <div className="location-progress-bar-bg">
                         <div
                           className="location-progress-bar-fill"
-                          style={{ width: `${locationAccuracyPercent}%` }}
+                          style={{ width: `70%` }}
                         />
                       </div>
                     </div>
@@ -3879,6 +3903,36 @@ export default function App() {
                   </div>
                 ) : (
                   <>
+                    {/* GPS aniqlanayotgan paytda manzillar ko'rinib turadi, tepada esa ixcham eslatma chiqadi */}
+                    {isLocating && stations.length > 0 && !isGpsDismissed && (
+                      <div className="location-detecting-card mb-3" style={{ padding: '12px 16px', marginBottom: '14px' }}>
+                        <div className="location-detecting-top">
+                          <div className="location-detecting-radar" style={{ width: '36px', height: '36px' }}>
+                            <div className="location-radar-ping-ring"></div>
+                            <div className="location-radar-icon-box" style={{ width: '36px', height: '36px' }}>
+                              <Navigation size={18} className="location-radar-arrow-icon" />
+                            </div>
+                          </div>
+                          <div className="location-detecting-meta">
+                            <div className="location-detecting-badge-row">
+                              <span className="location-detecting-badge">
+                                <span className="location-detecting-dot" />
+                                <span>GPS Aniqlanmoqda</span>
+                              </span>
+                              <span className="location-accuracy-badge">{locationAccuracyPercent}%</span>
+                            </div>
+                            <h4 className="location-detecting-heading" style={{ fontSize: '0.85rem' }}>Aniq masofani hisoblash uchun joylashuv olinmoqda...</h4>
+                          </div>
+                        </div>
+                        <div className="location-progress-bar-bg" style={{ marginTop: '8px' }}>
+                          <div
+                            className="location-progress-bar-fill"
+                            style={{ width: `${locationAccuracyPercent}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     {!isLocating && !isGpsActive && !isGpsDismissed && (
                       <div className="location-denied-card" style={{ marginBottom: "16px" }}>
                         <div className="location-denied-icon-wrap">
@@ -3930,6 +3984,18 @@ export default function App() {
                         onNavigate={handleNavigate}
                       />
                     ))}
+
+                    {displayedStations.length === 0 && !isStationsLoading && (
+                      <div className="empty-stations-notice" style={{ textAlign: "center", padding: "40px 16px", color: "var(--text-muted, #94a3b8)" }}>
+                        <MapPinOff size={44} style={{ margin: "0 auto 12px", opacity: 0.6 }} />
+                        <h4 style={{ fontSize: "1rem", fontWeight: 600, margin: "0 0 6px", color: "var(--text-main, #f8fafc)" }}>
+                          Hech qanday shahobcha topilmadi
+                        </h4>
+                        <p style={{ fontSize: "0.82rem", maxWidth: "320px", margin: "0 auto" }}>
+                          Tanlangan parametrlar bo'yicha tasdiqlangan shahobchalar mavjud emas.
+                        </p>
+                      </div>
+                    )}
 
                     {filteredStations.length > visibleStationCount && (
                       <div className="load-more-stations-container">

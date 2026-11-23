@@ -109,6 +109,13 @@ export const getAllStationsAdmin = async (req, res) => {
       GROUP BY s.id, u.id, sa.station_id, sp.station_id
       ORDER BY s.created_at DESC
     `);
+
+    res.set({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+    });
+
     res.json({ success: true, count: result.rows.length, stations: result.rows });
   } catch (err) {
     console.error('GetAllStationsAdmin xatosi:', err);
