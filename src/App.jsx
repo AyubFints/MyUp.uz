@@ -1857,13 +1857,14 @@ export default function App() {
     window.addEventListener("online", handleSync);
     document.addEventListener("visibilitychange", handleSync);
 
-    // Har 5 soniyada yangi tasdiqlangan yoki o'chirilgan manzillarni serverdan sinxronlash
+    // Har 5 daqiqada yangi qo'shilgan yoki o'chirilgan manzillarni serverdan avtomatik yangilash
+    const FIVE_MINUTES_MS = 5 * 60 * 1000;
     const pollInterval = setInterval(() => {
       if (document.visibilityState === "visible" && navigator.onLine !== false) {
         loadStationsFromDb();
         syncMyStations(false);
       }
-    }, 5000);
+    }, FIVE_MINUTES_MS);
 
     return () => {
       window.removeEventListener("focus", handleSync);

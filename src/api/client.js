@@ -43,39 +43,29 @@ export const getApiBaseUrl = () => {
       }
     } catch {}
 
-    // 1. Brauzer xotirasidagi dinamik API manzili (faqat ishonchli bo'lsa va eski lokal bo'lmasa)
+    // 1. Brauzer xotirasidagi dinamik API manzili (eski localhost yoki trycloudflare bo'lsa tozalaymiz)
     try {
       const savedApi = localStorage.getItem('myup_api_url') || localStorage.getItem('amaps_admin_api_url');
-      if (savedApi && savedApi.startsWith('http') && isTrustedApiUrl(savedApi) && !savedApi.includes('localhost') && !savedApi.includes('trycloudflare')) {
+      if (savedApi && (savedApi.includes('localhost') || savedApi.includes('127.0.0.1') || savedApi.includes('trycloudflare'))) {
+        try {
+          localStorage.removeItem('myup_api_url');
+          localStorage.removeItem('amaps_admin_api_url');
+        } catch {}
+      } else if (savedApi && savedApi.startsWith('http') && isTrustedApiUrl(savedApi)) {
         return savedApi.replace(/\/$/, '');
       }
     } catch {}
 
-    const hostname = window.location.hostname;
-    const isLocalIp = /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(hostname) || hostname.endsWith('.local');
-
-    // 2. Wi-Fi dagi telefon kompyuterning lokal IP si (192.168.x.x) orqali kirayotgan bo'lsa
+    // 2. Agar .env da maxsus boshqa tashqi URL berilgan bo'lsa (va u localhost bo'lmasa)
     const envUrl = import.meta.env.VITE_API_URL;
-    if (isLocalIp) {
-      if (envUrl && envUrl.includes('localhost')) {
-        return envUrl.replace('localhost', hostname);
-      }
-      return `http://${hostname}:5000/api`;
-    }
-
-    // 3. Agar haqiqiy tashqi/production VITE_API_URL berilgan bo'lsa
-    if (envUrl && !envUrl.includes('localhost') && envUrl.startsWith('http')) {
+    if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1') && envUrl.startsWith('http')) {
       return envUrl.replace(/\/$/, '');
     }
 
-    // 4. Vercel yoki internetdagi tashqi domen orqali kirilayotgan bo'lsa (Cloudflare HTTP/2 tunnel)
-    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      return PUBLIC_BACKEND_URL;
-    }
-
-    if (envUrl) return envUrl.replace(/\/$/, '');
+    // 3. Standart doimiy rasmiy markaziy server manzili (production va lokal dev uchun)
+    return PUBLIC_BACKEND_URL;
   }
-  return import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  return PUBLIC_BACKEND_URL;
 };
 
 export const API_BASE_URL = getApiBaseUrl();
