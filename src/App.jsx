@@ -11,7 +11,6 @@ import ServicesModal from "./components/ServicesModal";
 import LogoutConfirmModal from "./components/LogoutConfirmModal";
 import StationBellModal from "./components/StationBellModal";
 import PhoneEditModal from "./components/PhoneEditModal";
-import GpsPromptModal from "./components/GpsPromptModal";
 import AuthScreen from "./components/AuthScreen";
 import StationDetailModal from "./components/StationDetailModal";
 import DesktopFooter from "./components/DesktopFooter";
@@ -1624,7 +1623,6 @@ export default function App() {
       return false;
     }
   });
-  const [showGpsModal, setShowGpsModal] = useState(false);
   const [locationStatus, setLocationStatus] = useState(() => {
     try {
       const saved = sessionStorage.getItem("axmap_user_coords") || localStorage.getItem("axmap_last_known_coords");
@@ -1667,11 +1665,6 @@ export default function App() {
   useEffect(() => {
     isGpsDismissedRef.current = isGpsDismissed;
   }, [isGpsDismissed]);
-
-  const showGpsModalRef = useRef(showGpsModal);
-  useEffect(() => {
-    showGpsModalRef.current = showGpsModal;
-  }, [showGpsModal]);
 
   // Category & sub-filter (global — hamma tabda ishlaydi)
   const [activeCategory, setActiveCategory] = useState(() => {
@@ -2041,7 +2034,6 @@ export default function App() {
       setShowCompleteUserProfileModal(false);
       setShowLocationRegisterModal(false);
       setShowEditLocationHeroModal(false);
-      setShowGpsModal(false);
       setNavigationTarget(null);
     };
   }, []);
@@ -2118,7 +2110,6 @@ export default function App() {
       setIsGpsActive(true);
       setLocationStatus("ready");
       setIsLocating(false);
-      setShowGpsModal(false);
       locatingInProgressRef.current = false;
     };
 
@@ -2212,7 +2203,6 @@ export default function App() {
         setIsLocating(false);
         locatingInProgressRef.current = false;
         setUserCoords((prev) => prev || { lat: 41.311081, lng: 69.240562 });
-        setShowGpsModal(true);
         return;
       }
 
@@ -2240,9 +2230,6 @@ export default function App() {
               setLocationStatus("disabled");
               setIsLocating(false);
               locatingInProgressRef.current = false;
-              if (!isGpsDismissedRef.current) {
-                setShowGpsModal(true);
-              }
             }
           },
           {
@@ -2267,9 +2254,6 @@ export default function App() {
         setIsLocating(false);
         locatingInProgressRef.current = false;
         setUserCoords((prev) => prev || { lat: 41.311081, lng: 69.240562 });
-        if (!isGpsDismissedRef.current) {
-          setShowGpsModal(true);
-        }
       }
     }, 9000);
 
@@ -2315,15 +2299,9 @@ export default function App() {
               setLocationStatus("denied");
               setIsLocating(false);
               locatingInProgressRef.current = false;
-              if (!isGpsDismissedRef.current) {
-                setShowGpsModal(true);
-              }
             } else if (wErr?.code === 2) { // POSITION_UNAVAILABLE
               setIsGpsActive(false);
               setLocationStatus("disabled");
-              if (!isGpsDismissedRef.current) {
-                setShowGpsModal(true);
-              }
             }
           },
           {
@@ -2335,22 +2313,6 @@ export default function App() {
       } catch (e) {}
     }
   }, [finishLocatingWithNearestStations]);
-
-  // Telefonning o'z Android sozlamalarini (GPS / ilova ruxsatlarini) to'g'ridan-to'g'ri ochish
-  const handleOpenNativeSettings = useCallback(() => {
-    try {
-      if (/android/i.test(navigator.userAgent)) {
-        if (locationStatus === "denied") {
-          window.location.href = "intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;package=uz.axmap.app;end";
-        } else {
-          window.location.href = "intent:#Intent;action=android.settings.LOCATION_SOURCE_SETTINGS;end";
-        }
-      }
-    } catch (e) {
-      console.warn("Native sozlamalarni ochishda xatolik:", e);
-    }
-    requestLocation({ force: true });
-  }, [locationStatus, requestLocation]);
 
   // 1. Dastur ishga tushishi yoki sahifa yangilanishi (refresh) bilanoq geolokatsiyani so'rash
   useEffect(() => {
@@ -2386,7 +2348,6 @@ export default function App() {
           if (permissionStatus.state === "denied") {
             setIsGpsActive(false);
             setLocationStatus("denied");
-            setShowGpsModal(true);
           } else if (permissionStatus.state === "granted") {
             requestLocation({ force: true, silent: true });
           }
@@ -2397,7 +2358,6 @@ export default function App() {
             } else if (permissionStatus.state === "denied") {
               setIsGpsActive(false);
               setLocationStatus("denied");
-              setShowGpsModal(true);
             }
           };
         })
@@ -2425,25 +2385,17 @@ export default function App() {
           if (pos && pos.coords) {
             setIsGpsActive(true);
             setLocationStatus("ready");
-            setShowGpsModal(false);
             const { latitude, longitude, accuracy } = pos.coords;
             finishLocatingWithNearestStations({ lat: latitude, lng: longitude }, accuracy);
           }
         },
         (err) => {
           console.warn("Fonda 10 soniyalik GPS tekshiruvi: datchik o'chiq:", err?.code);
-          const wasActive = isGpsActiveRef.current;
           setIsGpsActive(false);
           if (err?.code === 1) {
             setLocationStatus("denied");
           } else {
             setLocationStatus("disabled");
-          }
-
-          // Agar geolakatsiya o'chiq bo'lsa va foydalanuvchi qat'iy yopmagan bo'lsa (yoki datchik yangi o'chgan bo'lsa):
-          // Qurilma / dastur geolakatsiyani yoqishga ruxsat so'rasin!
-          if (!isGpsDismissedRef.current || wasActive) {
-            setShowGpsModal(true);
           }
         },
         {
@@ -6931,25 +6883,6 @@ export default function App() {
           </div>
         </div>
       )}
-
-      {/* Geolokatsiyani yoqishni so'rovchi qat'iy modal */}
-      <GpsPromptModal
-        isOpen={showGpsModal}
-        onClose={() => {
-          setShowGpsModal(false);
-          setIsGpsDismissed(true);
-          try {
-            sessionStorage.setItem("myup_gps_dismissed", "true");
-          } catch (e) {}
-        }}
-        onRequestGps={() => {
-          requestLocation({ force: true });
-        }}
-        onOpenSettings={handleOpenNativeSettings}
-        isLocating={isLocating}
-        locationStatus={locationStatus}
-        isThemeLight={isThemeLight}
-      />
 
       <BottomNav
         activeTab={activeTab}
