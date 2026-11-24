@@ -134,7 +134,7 @@ export default function GpsPromptModal({
           }}
         >
           {isDisabled
-            ? "Telefoningizda GPS o'chiq"
+            ? "Geolakatsiyani yoqishga ruxsat berasizmi?"
             : isDenied
             ? "Joylashuvga ruxsat bering"
             : "Geolokatsiyani yoqing"}
@@ -150,7 +150,7 @@ export default function GpsPromptModal({
           }}
         >
           {isDisabled
-            ? "Eng yaqin metan, propan va zapravkalarni aniq masofasi bilan ko'rish uchun telefoningizning 'Joylashuv' (GPS) datchigini yoqing."
+            ? "Eng yaqin metan, propan, benzin va elektr quvvatlagichlarni aniq masofasi bilan ko'rish uchun geolakatsiyani (GPS) yoqishga ruxsat bering."
             : isDenied
             ? "Telefon yoki brauzer sozlamalarida AX-Map ilovasiga joylashuvni aniqlashga ruxsat berilmagan. Sozlamalardan ruxsat bering."
             : "Sizga eng yaqin metan, propan, benzin va elektr quvvatlagichlarni ko'rsatish uchun ilovaga geolokatsiyaga ruxsat bering."}
@@ -228,7 +228,7 @@ export default function GpsPromptModal({
                 }}
               >
                 <Compass size={18} className={isLocating ? "animate-spin" : ""} />
-                <span>{isLocating ? "Aniqlanmoqda..." : "Qayta tekshirish"}</span>
+                <span>{isLocating ? "Aniqlanmoqda..." : "Ruxsat berish (GPS yoqish)"}</span>
               </button>
             </>
           ) : isDenied ? (
@@ -322,7 +322,7 @@ export default function GpsPromptModal({
               cursor: "pointer",
             }}
           >
-            Keyinroq
+            Hozir emas
           </button>
         </div>
       </div>

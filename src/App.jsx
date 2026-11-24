@@ -1643,6 +1643,21 @@ export default function App() {
     isStationsLoadingRef.current = isStationsLoading;
   }, [isStationsLoading]);
 
+  const isGpsActiveRef = useRef(isGpsActive);
+  useEffect(() => {
+    isGpsActiveRef.current = isGpsActive;
+  }, [isGpsActive]);
+
+  const isGpsDismissedRef = useRef(isGpsDismissed);
+  useEffect(() => {
+    isGpsDismissedRef.current = isGpsDismissed;
+  }, [isGpsDismissed]);
+
+  const showGpsModalRef = useRef(showGpsModal);
+  useEffect(() => {
+    showGpsModalRef.current = showGpsModal;
+  }, [showGpsModal]);
+
   // Category & sub-filter (global — hamma tabda ishlaydi)
   const [activeCategory, setActiveCategory] = useState(() => {
     try {
@@ -2182,6 +2197,7 @@ export default function App() {
         setIsLocating(false);
         locatingInProgressRef.current = false;
         setUserCoords((prev) => prev || { lat: 41.311081, lng: 69.240562 });
+        setShowGpsModal(true);
         return;
       }
 
@@ -2204,6 +2220,15 @@ export default function App() {
           },
           (fallbackErr) => {
             console.warn("Quyi aniqlikdagi GPS xatosi:", fallbackErr?.message);
+            if (!hasResolved && !userCoordsRef.current) {
+              setIsGpsActive(false);
+              setLocationStatus("disabled");
+              setIsLocating(false);
+              locatingInProgressRef.current = false;
+              if (!isGpsDismissedRef.current) {
+                setShowGpsModal(true);
+              }
+            }
           },
           {
             enableHighAccuracy: false,
@@ -2227,6 +2252,9 @@ export default function App() {
         setIsLocating(false);
         locatingInProgressRef.current = false;
         setUserCoords((prev) => prev || { lat: 41.311081, lng: 69.240562 });
+        if (!isGpsDismissedRef.current) {
+          setShowGpsModal(true);
+        }
       }
     }, 9000);
 
@@ -2272,6 +2300,15 @@ export default function App() {
               setLocationStatus("denied");
               setIsLocating(false);
               locatingInProgressRef.current = false;
+              if (!isGpsDismissedRef.current) {
+                setShowGpsModal(true);
+              }
+            } else if (wErr?.code === 2) { // POSITION_UNAVAILABLE
+              setIsGpsActive(false);
+              setLocationStatus("disabled");
+              if (!isGpsDismissedRef.current) {
+                setShowGpsModal(true);
+              }
             }
           },
           {
@@ -2305,11 +2342,15 @@ export default function App() {
     requestLocation();
   }, [requestLocation]);
 
-  // 2. Dasturdan chiqib (masalan parda/nastroykadan GPSni yoqib) qaytib kirganda avtomatik qayta tekshirish
+  // 2. Dasturga kirganda, ilovadan chiqib (masalan parda/sozlamalardan GPSni yoqib) qaytib kirganda darhol tekshirish
   useEffect(() => {
     const handleRecheck = () => {
-      if (document.visibilityState === "visible") {
-        requestLocation({ force: true });
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        setIsGpsDismissed(false);
+        try {
+          sessionStorage.removeItem("myup_gps_dismissed");
+        } catch (e) {}
+        requestLocation({ force: true, silent: isGpsActiveRef.current });
       }
     };
 
@@ -2330,16 +2371,18 @@ export default function App() {
           if (permissionStatus.state === "denied") {
             setIsGpsActive(false);
             setLocationStatus("denied");
+            setShowGpsModal(true);
           } else if (permissionStatus.state === "granted") {
-            requestLocation({ force: true });
+            requestLocation({ force: true, silent: true });
           }
 
           permissionStatus.onchange = () => {
             if (permissionStatus.state === "granted") {
-              requestLocation({ force: true });
+              requestLocation({ force: true, silent: true });
             } else if (permissionStatus.state === "denied") {
               setIsGpsActive(false);
               setLocationStatus("denied");
+              setShowGpsModal(true);
             }
           };
         })
@@ -2347,18 +2390,57 @@ export default function App() {
     }
   }, [requestLocation]);
 
-  // 4. GPS o'chiq bo'lsa fonda uzluksiz sokin tekshirib turish (har 15 soniyada)
+  // 4. Foydalanuvchiga bilinmasdan har 10 soniyada geolakatsiya yoniq/o'chiqligini tekshirib turish
   useEffect(() => {
-    if (isGpsActive || isGpsDismissed) {
-      return;
-    }
+    const TEN_SECONDS_MS = 10000;
     const interval = setInterval(() => {
-      if (!isGpsActive && !isLocating && !isGpsDismissed) {
-        requestLocation({ silent: true, force: true });
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
       }
-    }, 15000);
+
+      if (typeof navigator === "undefined" || !navigator.geolocation) {
+        setIsGpsActive(false);
+        setLocationStatus("unsupported");
+        return;
+      }
+
+      // Sokin tekshirish (foydalanuvchiga bilinmasdan koordinatani datchikdan tekshirish)
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (pos && pos.coords) {
+            setIsGpsActive(true);
+            setLocationStatus("ready");
+            setShowGpsModal(false);
+            const { latitude, longitude, accuracy } = pos.coords;
+            finishLocatingWithNearestStations({ lat: latitude, lng: longitude }, accuracy);
+          }
+        },
+        (err) => {
+          console.warn("Fonda 10 soniyalik GPS tekshiruvi: datchik o'chiq:", err?.code);
+          const wasActive = isGpsActiveRef.current;
+          setIsGpsActive(false);
+          if (err?.code === 1) {
+            setLocationStatus("denied");
+          } else {
+            setLocationStatus("disabled");
+          }
+
+          // Agar geolakatsiya o'chiq bo'lsa va foydalanuvchi qat'iy yopmagan bo'lsa (yoki datchik yangi o'chgan bo'lsa):
+          // Qurilma / dastur geolakatsiyani yoqishga ruxsat so'rasin!
+          if (!isGpsDismissedRef.current || wasActive) {
+            setShowGpsModal(true);
+          }
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 6000,
+          maximumAge: 8000,
+        }
+      );
+    }, TEN_SECONDS_MS);
+
     return () => clearInterval(interval);
-  }, [isGpsActive, isLocating, isGpsDismissed, requestLocation]);
+  }, [finishLocatingWithNearestStations]);
 
   // Standart ko'rinishga o'tish (foydalanuvchi "Standart xarita bo'yicha ko'rish"ni bosganda GPS eslatmalarini to'liq yo'qotish)
   const handleUseDefaultLocation = () => {
@@ -6771,7 +6853,13 @@ export default function App() {
       {/* Geolokatsiyani yoqishni so'rovchi qat'iy modal */}
       <GpsPromptModal
         isOpen={showGpsModal}
-        onClose={() => setShowGpsModal(false)}
+        onClose={() => {
+          setShowGpsModal(false);
+          setIsGpsDismissed(true);
+          try {
+            sessionStorage.setItem("myup_gps_dismissed", "true");
+          } catch (e) {}
+        }}
         onRequestGps={() => {
           requestLocation({ force: true });
         }}
