@@ -465,28 +465,6 @@ export default function App() {
     myStationsRef.current = myStations;
   }, [myStations]);
 
-  // Foydalanuvchi hisobi o'zgarganda (login, hisob almashtirish, logout) shahobchalarni faqat ushbu hisobga moslash
-  useEffect(() => {
-    hasCheckedMyStationsRef.current = false;
-    if (!user?.id) {
-      setMyStations([]);
-      setIsMyStationsLoading(false);
-      return;
-    }
-    try {
-      const userSaved = localStorage.getItem(`myup_my_stations_${user.id}`);
-      if (userSaved) {
-        const parsed = JSON.parse(userSaved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setMyStations(parsed);
-        }
-      }
-    } catch {}
-
-    // Multi-device: har doim serverdan foydalanuvchining haqiqiy barcha shahobchalarini (kutilayotgan va tasdiqlangan) yuklash
-    syncMyStations(true);
-  }, [user?.id, syncMyStations]);
-
   // Foydalanuvchiga tegishli shahobchalarni PostgreSQL bazasidan yangilash (isInitial=false bo'lsa fonda jim ishlaydi)
   const syncMyStations = useCallback(async (isInitial = false) => {
     if (isFetchingMyStationsRef.current) return;
@@ -561,6 +539,28 @@ export default function App() {
       setIsMyStationsLoading(false);
     }
   }, []);
+
+  // Foydalanuvchi hisobi o'zgarganda (login, hisob almashtirish, logout) shahobchalarni faqat ushbu hisobga moslash
+  useEffect(() => {
+    hasCheckedMyStationsRef.current = false;
+    if (!user?.id) {
+      setMyStations([]);
+      setIsMyStationsLoading(false);
+      return;
+    }
+    try {
+      const userSaved = localStorage.getItem(`myup_my_stations_${user.id}`);
+      if (userSaved) {
+        const parsed = JSON.parse(userSaved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMyStations(parsed);
+        }
+      }
+    } catch {}
+
+    // Multi-device: har doim serverdan foydalanuvchining haqiqiy barcha shahobchalarini (kutilayotgan va tasdiqlangan) yuklash
+    syncMyStations(true);
+  }, [user?.id, syncMyStations]);
 
   // Profilga kirilganda bir marta tekshirish (agar hali tekshirilmagan bo'lsa spinner bilan, keyin esa butunlay jimgina)
   useEffect(() => {
