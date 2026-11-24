@@ -1,14 +1,40 @@
 // MyUp.uz Markaziy API mijozi (Frontend -> Backend Express + PostgreSQL)
 
-export const PUBLIC_BACKEND_URL = 'https://nirvana-arise-preferred-soc.trycloudflare.com/api';
+export const PUBLIC_BACKEND_URL = 'https://api.ax-map.online/api';
+
+// Xavfsizlik: Faqat ishonchli domen va server manzillariga ruxsat berish
+export const isTrustedApiUrl = (urlStr) => {
+  if (!urlStr || typeof urlStr !== 'string') return false;
+  try {
+    const parsed = new URL(urlStr);
+    const host = parsed.hostname.toLowerCase();
+    // 1. Lokal rivojlanish
+    if (host === 'localhost' || host === '127.0.0.1') return true;
+    // 2. Wi-Fi / Lokal tarmoq IP lari (192.168.*, 10.*, 172.16-31.*)
+    if (/^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(host) || host.endsWith('.local')) return true;
+    // 3. Ishonchli Cloudflare tunnel domeni (*.trycloudflare.com)
+    if (host.endsWith('.trycloudflare.com')) return true;
+    // 4. Loyiha rasmiy domeni (myup.uz, *.myup.uz, ax-map.online, *.ax-map.online)
+    if (host === 'myup.uz' || host.endsWith('.myup.uz') || host === 'ax-map.online' || host.endsWith('.ax-map.online')) return true;
+    // 5. Build vaqtida ko'rsatilgan VITE_API_URL domeni
+    const envUrl = import.meta.env.VITE_API_URL;
+    if (envUrl && envUrl.startsWith('http')) {
+      const envHost = new URL(envUrl).hostname.toLowerCase();
+      if (host === envHost) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+};
 
 export const getApiBaseUrl = () => {
   if (typeof window !== 'undefined') {
-    // 0. URL parametri orqali kiritilgan backend manzili (masalan: ?api=https://... yoki ngrok)
+    // 0. URL parametri orqali kiritilgan ishonchli backend manzili (?api=...)
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const queryApi = urlParams.get('api') || urlParams.get('apiUrl');
-      if (queryApi && queryApi.startsWith('http')) {
+      if (queryApi && queryApi.startsWith('http') && isTrustedApiUrl(queryApi)) {
         const clean = queryApi.replace(/\/$/, '');
         try {
           localStorage.setItem('myup_api_url', clean);
@@ -17,10 +43,10 @@ export const getApiBaseUrl = () => {
       }
     } catch {}
 
-    // 1. Brauzer xotirasidagi dinamik API manzili
+    // 1. Brauzer xotirasidagi dinamik API manzili (faqat ishonchli bo'lsa va eski lokal bo'lmasa)
     try {
       const savedApi = localStorage.getItem('myup_api_url') || localStorage.getItem('amaps_admin_api_url');
-      if (savedApi && savedApi.startsWith('http')) {
+      if (savedApi && savedApi.startsWith('http') && isTrustedApiUrl(savedApi) && !savedApi.includes('localhost') && !savedApi.includes('trycloudflare')) {
         return savedApi.replace(/\/$/, '');
       }
     } catch {}

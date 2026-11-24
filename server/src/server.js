@@ -40,18 +40,40 @@ const configuredOrigins = (process.env.CORS_ORIGIN || '')
   .map((origin) => origin.trim().replace(/\/$/, ''))
   .filter(Boolean);
 
+const isTrustedCorsOrigin = (origin) => {
+  if (!origin) return true;
+  try {
+    const parsed = new URL(origin);
+    const host = parsed.hostname.toLowerCase();
+    // 1. Lokal development
+    if (host === 'localhost' || host === '127.0.0.1') return true;
+    // 2. Wi-Fi va lokal tarmoqdagi telefonlar
+    if (/^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(host) || host.endsWith('.local')) return true;
+    // 3. Ishonchli Cloudflare tunnel
+    if (host.endsWith('.trycloudflare.com')) return true;
+    // 4. Asosiy dastur va subdomenlar (myup.uz, ax-map.online, vercel.app)
+    if (
+      host === 'myup.uz' ||
+      host.endsWith('.myup.uz') ||
+      host === 'ax-map.online' ||
+      host.endsWith('.ax-map.online') ||
+      host.endsWith('.vercel.app')
+    )
+      return true;
+    // 5. Environment orqali sozlangan domenlar
+    if (configuredOrigins.includes(origin) || configuredOrigins.includes(host)) return true;
+    return false;
+  } catch {
+    return false;
+  }
+};
+
 const corsOptions = {
   origin: (origin, callback) => {
     // Brauzersiz (masalan curl, mobile app yoki server-to-server) so'rovlar
     if (!origin) return callback(null, true);
 
-    // Ishlab chiqish muhitida barcha lokal va tarmoq (Wi-Fi orqali ulangan telefonlar) ga to'liq ruxsat
-    if (process.env.NODE_ENV !== 'production') {
-      return callback(null, true);
-    }
-
-    // Sozlangan domenlar ro'yxatida mavjudligini tekshirish
-    if (configuredOrigins.length === 0 || configuredOrigins.includes('*') || configuredOrigins.includes(origin)) {
+    if (isTrustedCorsOrigin(origin)) {
       return callback(null, true);
     }
 

@@ -1,0 +1,31 @@
+# Cloudflare Named Tunnel Namuna Konfiguratsiyasi (tunnel_config.example.yml)
+# Ushbu fayl shaxsiy kompyuter yoki VPS serverni doimiy domen (masalan: api.myup.uz) orqali internetga chiqarish uchun ishlatiladi.
+# DIQQAT: Ushbu fayldan nusxa olib, "server/tunnel_config.yml" deb nomlang va o'zingizning haqiqiy tunnel UUID raqamingizni kiriting.
+#
+# QADAMLAR:
+# 1. Cloudflare akkauntingizga ulanish:
+#    .\cloudflared.exe tunnel login
+#
+# 2. Doimiy tunnel yaratish:
+#    .\cloudflared.exe tunnel create myup-production
+#    (Bu buyruq sizga Tunnel UUID raqamini beradi va credentials json faylini saqlaydi)
+#
+# 3. Domenni tunnelga yo'naltirish (DNS Route):
+#    .\cloudflared.exe tunnel route dns myup-production api.myup.uz
+#
+# 4. Tunnelni ishga tushirish:
+#    .\cloudflared.exe tunnel --config server/tunnel_config.yml run
+
+tunnel: <TUNNEL_UUID_BU_YERGA_YOZILADI>
+credentials-file: C:\Users\user\.cloudflared\<TUNNEL_UUID_BU_YERGA_YOZILADI>.json
+
+ingress:
+  # 1. Backend Express API (port 5000)
+  - hostname: api.myup.uz
+    service: http://localhost:5000
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+
+  # 2. Boshqa barcha so'rovlar uchun 404
+  - service: http_status:404

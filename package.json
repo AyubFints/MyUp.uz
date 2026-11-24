@@ -16,6 +16,7 @@
     "lucide-react": "^1.33.0",
     "maplibre-gl": "^6.13.0",
     "pmtiles": "^4.5.0",
+    "puppeteer-core": "^25.18.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

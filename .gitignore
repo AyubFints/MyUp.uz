@@ -45,3 +45,12 @@ cloudflared.exe
 android-twa/.gradle/
 android-twa/app/build/
 
+# Cloudflare Tunnel credentials and secrets
+.cloudflared/
+*.pem
+cert.pem
+credentials.json
+server/tunnel_config.yml
+server/backup_amaps_db.sql
+
+
