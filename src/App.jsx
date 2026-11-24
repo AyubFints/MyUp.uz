@@ -475,14 +475,17 @@ export default function App() {
       return;
     }
     try {
-      const userSaved = localStorage.getItem(`myup_my_stations_${user.id}`);
+      const userSaved = localStorage.getItem(`myup_my_stations_${user.id}`) || localStorage.getItem("myup_my_stations");
       if (userSaved) {
-        setMyStations(JSON.parse(userSaved));
-      } else {
-        setMyStations([]);
+        const parsed = JSON.parse(userSaved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMyStations(parsed);
+          return;
+        }
       }
+      setMyStations((prev) => (prev && prev.length > 0 ? prev : []));
     } catch {
-      setMyStations([]);
+      setMyStations((prev) => (prev && prev.length > 0 ? prev : []));
     }
   }, [user?.id]);
 
@@ -521,14 +524,25 @@ export default function App() {
 
       const res = await api.stations.getMyStations(myStParams);
       if (res && res.success && Array.isArray(res.stations)) {
-        // Foydalanuvchi yaratgan barcha manzillar tarixini to'liq saqlab qolamiz (rad etilganlar ham yo'qolmaydi)
-        const validStations = res.stations;
-        setMyStations(validStations);
-        try {
-          localStorage.setItem(`myup_my_stations_${currentUser.id}`, JSON.stringify(validStations));
-        } catch (e) {}
+        const serverStations = res.stations;
+        const serverIds = new Set(serverStations.map((s) => s.id));
 
-        if (validStations.length > 0) {
+        setMyStations((prev) => {
+          // Mahalliy yaratilgan va hali server qaytarmagan pending shahobchalarni saqlab qolamiz:
+          const pendingLocal = (prev || []).filter(
+            (s) => s && (s.status === 'pending' || s.isApproved === false || s.is_approved === false || String(s.id).startsWith("st_user_")) && !serverIds.has(s.id)
+          );
+          const validStations = [...pendingLocal, ...serverStations];
+          try {
+            localStorage.setItem("myup_my_stations", JSON.stringify(validStations));
+            if (currentUser?.id) {
+              localStorage.setItem(`myup_my_stations_${currentUser.id}`, JSON.stringify(validStations));
+            }
+          } catch (e) {}
+          return validStations;
+        });
+
+        if (res.stations.length > 0) {
           setUser((prev) => {
             if (prev && (!prev.hasLocation || !prev.has_location)) {
               const updated = {
@@ -537,7 +551,7 @@ export default function App() {
                 has_location: true,
                 canAddStation: true,
                 can_add_station: true,
-                locationName: prev.locationName || validStations[0]?.name || "",
+                locationName: prev.locationName || res.stations[0]?.name || "",
               };
               try {
                 localStorage.setItem("myup_user", JSON.stringify(updated));
@@ -789,6 +803,7 @@ export default function App() {
             if (newToastItem && !shownApprovedNotifIdsRef.current.has(newToastItem.id)) {
               shownApprovedNotifIdsRef.current.add(newToastItem.id);
               setLiveApprovedToast(newToastItem);
+              syncMyStations(false);
             }
           }
         })
@@ -2572,13 +2587,22 @@ export default function App() {
             .catch(() => {});
         }
 
+        if (!savedSt.status) savedSt.status = 'pending';
+        if (savedSt.isApproved === undefined) savedSt.isApproved = false;
+        if (savedSt.is_approved === undefined) savedSt.is_approved = false;
+
+        const targetUserId = user?.id || savedSt.ownerId || savedSt.owner_id;
+
         setMyStations((prev) => {
           const exists = prev.find((s) => s.id === savedSt.id || s.id === station.id);
           const nextList = exists
-            ? prev.map((s) => (s.id === savedSt.id || s.id === station.id ? savedSt : s))
-            : [savedSt, ...prev];
+            ? prev.map((s) => (s.id === savedSt.id || s.id === station.id ? { ...s, ...savedSt, status: 'pending', isApproved: false, is_approved: false } : s))
+            : [{ ...savedSt, status: 'pending', isApproved: false, is_approved: false }, ...prev];
           try {
             localStorage.setItem("myup_my_stations", JSON.stringify(nextList));
+            if (targetUserId) {
+              localStorage.setItem(`myup_my_stations_${targetUserId}`, JSON.stringify(nextList));
+            }
           } catch (e) {}
           return nextList;
         });
@@ -2597,7 +2621,7 @@ export default function App() {
           setStations((prev) => prev.filter((s) => s.id !== savedSt.id && s.id !== station.id));
         }
 
-        setTimeout(() => syncMyStations(), 300);
+        setTimeout(() => syncMyStations(), 500);
         return res;
       }
       throw new Error(res?.message || "Serverga yozishda xatolik yuz berdi");
@@ -4353,6 +4377,28 @@ export default function App() {
                       </div>
                     </div>
 
+                    {/* Super Admin tasdiqlagani va jonli ma'lumotlarni kiritib turish haqidagi eslatma banner */}
+                    <div className="station-manage-approved-banner" style={{
+                      background: "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.22) 100%)",
+                      border: "1px solid rgba(16, 185, 129, 0.4)",
+                      borderRadius: "16px",
+                      padding: "14px 16px",
+                      marginBottom: "16px",
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: "12px",
+                    }}>
+                      <CheckCircle2 size={22} color="#10b981" style={{ flexShrink: 0, marginTop: "2px" }} />
+                      <div>
+                        <h5 style={{ margin: "0 0 4px", fontSize: "0.94rem", fontWeight: 700, color: "#10b981" }}>
+                          Joylashuv tasdiqlandi!
+                        </h5>
+                        <p style={{ margin: 0, fontSize: "0.82rem", lineHeight: 1.45, color: isThemeLight ? "#334155" : "#e2e8f0" }}>
+                          Sizdan gaz bosimini, yoqilg'i narxlarini va ochiq/yopiq holatlarini jonli kiritib turishingiz so'rab qolinadi.
+                        </p>
+                      </div>
+                    </div>
+
                     {/* 2. ALOHIDA TURGAN KARTOTCHKA: Manzil nomi, Yiqqan yulduzlari, Ochiq/Yopiq, Telefon */}
                     <div className="station-manage-main-card">
                       {/* Manzil nomi */}
@@ -5077,6 +5123,42 @@ export default function App() {
                       appTheme={appTheme}
                     />
                   </Suspense>
+                ) : isMyStationsLoading && myStations.length === 0 ? (
+                  <div className="profile-center-loading-card" style={{
+                    textAlign: "center",
+                    padding: "54px 20px",
+                    background: isThemeLight ? "#ffffff" : "var(--theme-card, #1c1c1e)",
+                    borderRadius: "24px",
+                    border: isThemeLight ? "1px solid #e2e8f0" : "1px solid var(--theme-border, rgba(255, 255, 255, 0.08))",
+                    margin: "16px 0",
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+                  }}>
+                    <div style={{
+                      width: "42px",
+                      height: "42px",
+                      border: "3.5px solid rgba(56, 189, 248, 0.2)",
+                      borderTopColor: "#38bdf8",
+                      borderRadius: "50%",
+                      animation: "spin 0.8s linear infinite",
+                      margin: "0 auto 16px",
+                    }} />
+                    <h3 style={{
+                      fontSize: "1.15rem",
+                      fontWeight: 700,
+                      margin: "0 0 8px",
+                      color: isThemeLight ? "#0f172a" : "#ffffff",
+                      fontFamily: "Outfit, sans-serif",
+                    }}>
+                      Profil ma'lumotlari yuklanmoqda...
+                    </h3>
+                    <p style={{
+                      fontSize: "0.86rem",
+                      color: isThemeLight ? "#64748b" : "#94a3b8",
+                      margin: 0,
+                    }}>
+                      Profilingiz va biriktirilgan joylashuvlar sinxronizatsiya qilinmoqda
+                    </p>
+                  </div>
                 ) : (
                   /* ========================================================
                      ASOSIY PROFIL BO'LIMI: JOYLASHUV VA FOYDALANUVCHI KARTALARI
@@ -5299,8 +5381,8 @@ export default function App() {
                             </div>
                           )}
 
-                          {/* 2. PROFIL PASTIDA JOYLASHUV QO'SHISH TUGMASI VA MENING JOYLASHUVLARIM (Faqat faollashtirilgandan keyin chiqadi) */}
-                          {(isLocationRegistered || myStations.length > 0) && (
+                          {/* 2. PROFIL PASTIDA JOYLASHUV QO'SHISH TUGMASI VA MENING JOYLASHUVLARIM */}
+                          {true && (
                             <>
                               <button
                                 className="profile-add-station-banner-btn"
