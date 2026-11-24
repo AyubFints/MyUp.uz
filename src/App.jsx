@@ -474,19 +474,18 @@ export default function App() {
       return;
     }
     try {
-      const userSaved = localStorage.getItem(`myup_my_stations_${user.id}`) || localStorage.getItem("myup_my_stations");
+      const userSaved = localStorage.getItem(`myup_my_stations_${user.id}`);
       if (userSaved) {
         const parsed = JSON.parse(userSaved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           setMyStations(parsed);
-          return;
         }
       }
-      setMyStations((prev) => (prev && prev.length > 0 ? prev : []));
-    } catch {
-      setMyStations((prev) => (prev && prev.length > 0 ? prev : []));
-    }
-  }, [user?.id]);
+    } catch {}
+
+    // Multi-device: har doim serverdan foydalanuvchining haqiqiy barcha shahobchalarini (kutilayotgan va tasdiqlangan) yuklash
+    syncMyStations(true);
+  }, [user?.id, syncMyStations]);
 
   // Foydalanuvchiga tegishli shahobchalarni PostgreSQL bazasidan yangilash (isInitial=false bo'lsa fonda jim ishlaydi)
   const syncMyStations = useCallback(async (isInitial = false) => {
@@ -524,24 +523,17 @@ export default function App() {
       const res = await api.stations.getMyStations(myStParams);
       if (res && res.success && Array.isArray(res.stations)) {
         const serverStations = res.stations;
-        const serverIds = new Set(serverStations.map((s) => s.id));
 
-        setMyStations((prev) => {
-          // Mahalliy yaratilgan va hali server qaytarmagan pending shahobchalarni saqlab qolamiz:
-          const pendingLocal = (prev || []).filter(
-            (s) => s && (s.status === 'pending' || s.isApproved === false || s.is_approved === false || String(s.id).startsWith("st_user_")) && !serverIds.has(s.id)
-          );
-          const validStations = [...pendingLocal, ...serverStations];
-          try {
-            localStorage.setItem("myup_my_stations", JSON.stringify(validStations));
-            if (currentUser?.id) {
-              localStorage.setItem(`myup_my_stations_${currentUser.id}`, JSON.stringify(validStations));
-            }
-          } catch (e) {}
-          return validStations;
-        });
+        // Serverdan kelgan rasmiy ro'yxatni bevosita saqlaymiz (server yagona haqiqat manbai)
+        setMyStations(serverStations);
+        try {
+          localStorage.setItem("myup_my_stations", JSON.stringify(serverStations));
+          if (currentUser?.id) {
+            localStorage.setItem(`myup_my_stations_${currentUser.id}`, JSON.stringify(serverStations));
+          }
+        } catch (e) {}
 
-        if (res.stations.length > 0) {
+        if (serverStations.length > 0) {
           setUser((prev) => {
             if (prev && (!prev.hasLocation || !prev.has_location)) {
               const updated = {
@@ -550,7 +542,7 @@ export default function App() {
                 has_location: true,
                 canAddStation: true,
                 can_add_station: true,
-                locationName: prev.locationName || res.stations[0]?.name || "",
+                locationName: prev.locationName || serverStations[0]?.name || "",
               };
               try {
                 localStorage.setItem("myup_user", JSON.stringify(updated));
@@ -580,6 +572,19 @@ export default function App() {
       }
     }
   }, [activeTab, syncMyStations]);
+
+  // Profil bo'limi ochiq turganda serverdagi o'zgarishlarni (admin tasdiqlashini) fonda avtomatik tekshirib turish
+  useEffect(() => {
+    if (activeTab !== "my" || !user?.id) return;
+
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        syncMyStations(false);
+      }
+    }, 12000);
+
+    return () => clearInterval(interval);
+  }, [activeTab, user?.id, syncMyStations]);
 
   // Foydalanuvchi hisobi va profilini PostgreSQL bazasidan sinxronlash (faqat ilova ochilganda bir marta)
   useEffect(() => {
@@ -2543,21 +2548,8 @@ export default function App() {
         if (savedSt.isApproved === undefined) savedSt.isApproved = false;
         if (savedSt.is_approved === undefined) savedSt.is_approved = false;
 
-        const targetUserId = user?.id || savedSt.ownerId || savedSt.owner_id;
-
-        setMyStations((prev) => {
-          const exists = prev.find((s) => s.id === savedSt.id || s.id === station.id);
-          const nextList = exists
-            ? prev.map((s) => (s.id === savedSt.id || s.id === station.id ? { ...s, ...savedSt, status: 'pending', isApproved: false, is_approved: false } : s))
-            : [{ ...savedSt, status: 'pending', isApproved: false, is_approved: false }, ...prev];
-          try {
-            localStorage.setItem("myup_my_stations", JSON.stringify(nextList));
-            if (targetUserId) {
-              localStorage.setItem(`myup_my_stations_${targetUserId}`, JSON.stringify(nextList));
-            }
-          } catch (e) {}
-          return nextList;
-        });
+        // Serverdan darhol foydalanuvchining yangilangan haqiqiy shahobchalar ro'yxatini yuklaymiz
+        await syncMyStations(false);
 
         // Faqat super admin tasdiqlagan bo'lsa, asosiy ro'yxatga qo'shiladi!
         const isApprovedBool = (savedSt.isApproved === true || savedSt.is_approved === true || savedSt.status === 'approved') && savedSt.status !== 'pending' && savedSt.isApproved !== false && savedSt.is_approved !== false;
@@ -2569,11 +2561,10 @@ export default function App() {
               : [savedSt, ...prev];
           });
         } else {
-          // Hali admin tasdiqlamagan bo'lsa, asosiy ro'yxatdan qat'iy chiqarib tashlanadi
+          // Hali admin tasdiqlamagan bo'lsa, asosiy ro'yxatdan qat'iy chiqarib tashlanadi (faqat muallif profilida kutilayotgan bo'lib turadi)
           setStations((prev) => prev.filter((s) => s.id !== savedSt.id && s.id !== station.id));
         }
 
-        setTimeout(() => syncMyStations(), 500);
         return res;
       }
       throw new Error(res?.message || "Serverga yozishda xatolik yuz berdi");

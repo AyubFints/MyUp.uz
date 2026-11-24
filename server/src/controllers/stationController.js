@@ -131,10 +131,10 @@ export const getMyStations = async (req, res) => {
       return res.json({ success: true, count: 0, stations: [] });
     }
 
-    // Egasi bo'lmagan (owner_id IS NULL) eski shahobchalar bo'lsa va telefoni mos kelsa - xavfsiz biriktirib qo'yish (boshqa odamning stantsiyasiga tegmaydi!)
-    if (phoneDigits) {
+    // Egasi biriktirilmagan yoki telefoni mos keluvchi shahobchalarni ushbu hisobga to'liq biriktirib qo'yish
+    if (targetOwnerId && phoneDigits) {
       await query(
-        `UPDATE stations SET owner_id = $1 WHERE owner_id IS NULL AND REGEXP_REPLACE(phone, '\\D', '', 'g') = $2`,
+        `UPDATE stations SET owner_id = $1 WHERE (owner_id IS NULL OR owner_id != $1) AND REGEXP_REPLACE(phone, '\\D', '', 'g') = $2`,
         [targetOwnerId, phoneDigits]
       ).catch(() => {});
     }
@@ -162,12 +162,13 @@ export const getMyStations = async (req, res) => {
       LEFT JOIN fuel_prices fp ON s.id = fp.station_id
       LEFT JOIN station_amenities sa ON s.id = sa.station_id
       LEFT JOIN station_payments sp ON s.id = sp.station_id
-      WHERE s.owner_id = $1
+      WHERE (s.owner_id = $1)
+         OR ($2 != '' AND REGEXP_REPLACE(s.phone, '\\D', '', 'g') = $2)
       GROUP BY s.id, sa.station_id, sp.station_id
       ORDER BY s.created_at DESC
     `;
 
-    const result = await query(baseQuery, [targetOwnerId]);
+    const result = await query(baseQuery, [targetOwnerId, phoneDigits || '']);
     const stations = result.rows.map((st) => {
       const typeList = Array.isArray(st.types) && st.types.length > 0 
         ? st.types 
