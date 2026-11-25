@@ -1587,6 +1587,7 @@ export default function App() {
 
   // Station Manage Page state (Mening joylarim -> Alohida boshqarish bo'limi)
   const [selectedManageStationId, setSelectedManageStationId] = useState(null);
+  const [visibleApprovedBannerStationId, setVisibleApprovedBannerStationId] = useState(null);
   const [showStationBellModal, setShowStationBellModal] = useState(false);
   const [editingPriceKey, setEditingPriceKey] = useState(null);
   const [tempPriceVal, setTempPriceVal] = useState("");
@@ -1604,6 +1605,62 @@ export default function App() {
   const currentManageStation = useMemo(() => {
     return myStations.find((s) => s.id === selectedManageStationId) || null;
   }, [myStations, selectedManageStationId]);
+
+  const handleOpenManageStation = useCallback((station) => {
+    if (!station || !station.id) return;
+
+    const stId = String(station.id);
+    const isRejected = station.status === 'rejected' || station.isRejected === true;
+    const isPending = !isRejected && (
+      station.status === 'pending' ||
+      station.isApproved === false ||
+      station.is_approved === false ||
+      stId.startsWith("st_user_")
+    );
+    const isApproved = !isPending && !isRejected && (
+      station.isApproved === true ||
+      station.is_approved === true ||
+      station.status === 'approved'
+    );
+
+    if (!isApproved) {
+      setPendingInspectionModalStation(station);
+      return;
+    }
+
+    // Super Admin tasdiqlaganidan keyin manzil ichiga birinchi marta kirilgandagina eslatma bannerini ko'rsatish
+    try {
+      const storageKey = user?.id ? `myup_seen_approved_banners_${user.id}` : "myup_seen_approved_banners";
+      const rawUserSeen = localStorage.getItem(storageKey);
+      const rawGlobalSeen = localStorage.getItem("myup_seen_approved_banners");
+      const userSeen = rawUserSeen ? JSON.parse(rawUserSeen) : [];
+      const globalSeen = rawGlobalSeen ? JSON.parse(rawGlobalSeen) : [];
+      const seenSet = new Set([
+        ...(Array.isArray(userSeen) ? userSeen.map(String) : []),
+        ...(Array.isArray(globalSeen) ? globalSeen.map(String) : []),
+      ]);
+
+      if (!seenSet.has(stId)) {
+        setVisibleApprovedBannerStationId(station.id);
+        const nextUserSeen = Array.from(new Set([...(Array.isArray(userSeen) ? userSeen.map(String) : []), stId]));
+        const nextGlobalSeen = Array.from(new Set([...(Array.isArray(globalSeen) ? globalSeen.map(String) : []), stId]));
+        localStorage.setItem(storageKey, JSON.stringify(nextUserSeen));
+        localStorage.setItem("myup_seen_approved_banners", JSON.stringify(nextGlobalSeen));
+      } else {
+        setVisibleApprovedBannerStationId(null);
+      }
+    } catch {
+      setVisibleApprovedBannerStationId(null);
+    }
+
+    setSelectedManageStationId(station.id);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!selectedManageStationId) {
+      setVisibleApprovedBannerStationId(null);
+    }
+  }, [selectedManageStationId]);
 
   // Quick Gas Pressure Edit
   const [editingPressureId, setEditingPressureId] = useState(null);
@@ -4409,27 +4466,32 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Super Admin tasdiqlagani va jonli ma'lumotlarni kiritib turish haqidagi eslatma banner */}
-                    <div className="station-manage-approved-banner" style={{
-                      background: "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.22) 100%)",
-                      border: "1px solid rgba(16, 185, 129, 0.4)",
-                      borderRadius: "16px",
-                      padding: "14px 16px",
-                      marginBottom: "16px",
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: "12px",
-                    }}>
-                      <CheckCircle2 size={22} color="#10b981" style={{ flexShrink: 0, marginTop: "2px" }} />
-                      <div>
-                        <h5 style={{ margin: "0 0 4px", fontSize: "0.94rem", fontWeight: 700, color: "#10b981" }}>
-                          Joylashuv tasdiqlandi!
-                        </h5>
-                        <p style={{ margin: 0, fontSize: "0.82rem", lineHeight: 1.45, color: isThemeLight ? "#334155" : "#e2e8f0" }}>
-                          Sizdan gaz bosimini, yoqilg'i narxlarini va ochiq/yopiq holatlarini jonli kiritib turishingiz so'rab qolinadi.
-                        </p>
-                      </div>
-                    </div>
+                    {/* Super Admin tasdiqlagani va jonli ma'lumotlarni kiritib turish haqidagi eslatma banner (faqat tasdiqlangandan keyin 1 marta) */}
+                    {visibleApprovedBannerStationId === currentManageStation.id &&
+                      (currentManageStation.isApproved === true || currentManageStation.is_approved === true || currentManageStation.status === 'approved') &&
+                      currentManageStation.status !== 'pending' &&
+                      currentManageStation.status !== 'rejected' && (
+                        <div className="station-manage-approved-banner" style={{
+                          background: "linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.22) 100%)",
+                          border: "1px solid rgba(16, 185, 129, 0.4)",
+                          borderRadius: "16px",
+                          padding: "14px 16px",
+                          marginBottom: "16px",
+                          display: "flex",
+                          alignItems: "flex-start",
+                          gap: "12px",
+                        }}>
+                          <CheckCircle2 size={22} color="#10b981" style={{ flexShrink: 0, marginTop: "2px" }} />
+                          <div>
+                            <h5 style={{ margin: "0 0 4px", fontSize: "0.94rem", fontWeight: 700, color: "#10b981" }}>
+                              Joylashuv tasdiqlandi!
+                            </h5>
+                            <p style={{ margin: 0, fontSize: "0.82rem", lineHeight: 1.45, color: isThemeLight ? "#334155" : "#e2e8f0" }}>
+                              Sizdan gaz bosimini, yoqilg'i narxlarini va ochiq/yopiq holatlarini jonli kiritib turishingiz so'rab qolinadi.
+                            </p>
+                          </div>
+                        </div>
+                    )}
 
                     {/* 2. ALOHIDA TURGAN KARTOTCHKA: Manzil nomi, Yiqqan yulduzlari, Ochiq/Yopiq, Telefon */}
                     <div className="station-manage-main-card">
@@ -5489,13 +5551,7 @@ export default function App() {
                                     <div
                                       key={st.id}
                                       className="my-station-simple-card"
-                                      onClick={() => {
-                                        if (!isApproved) {
-                                          setPendingInspectionModalStation(st);
-                                        } else {
-                                          setSelectedManageStationId(st.id);
-                                        }
-                                      }}
+                                      onClick={() => handleOpenManageStation(st)}
                                     >
                                       <div className="my-station-simple-info">
                                         <h5 className="my-station-simple-title">
@@ -5542,11 +5598,7 @@ export default function App() {
                                         className="my-station-edit-pencil-btn"
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          if (!isApproved) {
-                                            setPendingInspectionModalStation(st);
-                                          } else {
-                                            setSelectedManageStationId(st.id);
-                                          }
+                                          handleOpenManageStation(st);
                                         }}
                                         title={isRejected ? "Rad etilgan (ma'lumot)" : !isApproved ? "Ko'rib chiqilmoqda" : "Tahrirlash va boshqarish"}
                                         aria-label="Tahrirlash"
@@ -6025,8 +6077,8 @@ export default function App() {
           isMyStation={myStations.some((s) => s.id === detailStation?.id)}
           onDeleteStation={(st) => setStationToDelete(st)}
           onManageStation={(st) => {
-            setSelectedManageStationId(st.id);
             setActiveTab('my');
+            handleOpenManageStation(st);
           }}
         />
       )}
