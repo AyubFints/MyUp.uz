@@ -469,24 +469,38 @@ export default function App() {
   const syncMyStations = useCallback(async (isInitial = false) => {
     if (isFetchingMyStationsRef.current) return;
 
-    const currentUser = userRef.current || (() => {
+    let currentUser = userRef.current;
+    if (!currentUser) {
       try {
         const s = localStorage.getItem("myup_user");
-        return s ? JSON.parse(s) : null;
+        currentUser = s ? JSON.parse(s) : null;
       } catch {
-        return null;
+        currentUser = null;
       }
-    })();
+    }
+
+    // LocalStorage dagi kutilayotgan stansiyalar ro'yxati
+    let localPending = [];
+    try {
+      const pStr = localStorage.getItem("myup_pending_stations");
+      localPending = pStr ? JSON.parse(pStr) : [];
+      if (!Array.isArray(localPending)) localPending = [];
+    } catch {
+      localPending = [];
+    }
 
     if (!currentUser || !currentUser.id) {
       setIsMyStationsLoading(false);
-      setMyStations([]);
+      // Agar kutilayotgan mahalliy stansiyalar bo'lsa, ularni ko'rsatib turamiz (foydalanuvchida manzil yo'qolib ketmasligi uchun)
+      if (localPending.length > 0) {
+        setMyStations(localPending);
+      }
       return;
     }
 
     const currentList = myStationsRef.current || [];
     // Faqat birinchi marta tekshirilayotganda va ro'yxat bo'sh bo'lgandagina spinner ko'rsatish
-    const shouldShowLoading = isInitial && !hasCheckedMyStationsRef.current && currentList.length === 0;
+    const shouldShowLoading = isInitial && !hasCheckedMyStationsRef.current && currentList.length === 0 && localPending.length === 0;
 
     if (shouldShowLoading) {
       setIsMyStationsLoading(true);
@@ -502,16 +516,53 @@ export default function App() {
       if (res && res.success && Array.isArray(res.stations)) {
         const serverStations = res.stations;
 
-        // Serverdan kelgan rasmiy ro'yxatni bevosita saqlaymiz (server yagona haqiqat manbai)
-        setMyStations(serverStations);
+        // Serverdan kelgan rasmiy ro'yxatni mahalliy kutilayotgan stansiyalar bilan xavfsiz birlashtiramiz
+        const mergedMap = new Map();
+
+        // 1. Serverdagi rasmiy stansiyalarni qo'shamiz
+        serverStations.forEach((st) => {
+          if (st && st.id) mergedMap.set(st.id, st);
+        });
+
+        // 2. Mahalliy xotiradagi kutilayotgan stansiyalarni tekshiramiz
+        const allCandidates = [
+          ...localPending,
+          ...currentList.filter((s) => s && (s.status === 'pending' || s.isApproved === false || s.is_approved === false))
+        ];
+
+        const nextPendingList = [];
+        for (const cand of allCandidates) {
+          if (!cand || !cand.id) continue;
+          if (mergedMap.has(cand.id)) {
+            const serverItem = mergedMap.get(cand.id);
+            if (serverItem.status === 'pending' || (!serverItem.isApproved && serverItem.status !== 'rejected')) {
+              if (!nextPendingList.some((p) => p.id === cand.id)) nextPendingList.push(cand);
+            }
+          } else {
+            const duplicate = serverStations.find(
+              (s) => s.name === cand.name && Math.abs(s.lat - cand.lat) < 0.0001
+            );
+            if (!duplicate) {
+              mergedMap.set(cand.id, cand);
+              if (!nextPendingList.some((p) => p.id === cand.id)) nextPendingList.push(cand);
+            }
+          }
+        }
+
         try {
-          localStorage.setItem("myup_my_stations", JSON.stringify(serverStations));
+          localStorage.setItem("myup_pending_stations", JSON.stringify(nextPendingList));
+        } catch (e) {}
+
+        const finalStations = Array.from(mergedMap.values());
+        setMyStations(finalStations);
+        try {
+          localStorage.setItem("myup_my_stations", JSON.stringify(finalStations));
           if (currentUser?.id) {
-            localStorage.setItem(`myup_my_stations_${currentUser.id}`, JSON.stringify(serverStations));
+            localStorage.setItem(`myup_my_stations_${currentUser.id}`, JSON.stringify(finalStations));
           }
         } catch (e) {}
 
-        if (serverStations.length > 0) {
+        if (finalStations.length > 0) {
           setUser((prev) => {
             if (prev && (!prev.hasLocation || !prev.has_location)) {
               const updated = {
@@ -520,7 +571,7 @@ export default function App() {
                 has_location: true,
                 canAddStation: true,
                 can_add_station: true,
-                locationName: prev.locationName || serverStations[0]?.name || "",
+                locationName: prev.locationName || finalStations[0]?.name || "",
               };
               try {
                 localStorage.setItem("myup_user", JSON.stringify(updated));
@@ -2518,22 +2569,43 @@ export default function App() {
       });
 
       if (res && (res.success || res.station)) {
-        const savedSt = res.station || { ...station, id: res.id || station.id };
+        const savedSt = {
+          ...station,
+          ...(res.station || {}),
+          id: res.station?.id || res.id || station.id,
+          name: res.station?.name || station.name,
+          lat: res.station?.lat ?? station.lat,
+          lng: res.station?.lng ?? station.lng,
+          address: res.station?.address || station.address,
+          phone: res.station?.phone || station.phone || user?.phoneNumber || user?.phone || '',
+          status: res.station?.status || 'pending',
+          isApproved: res.station?.isApproved ?? false,
+          is_approved: res.station?.is_approved ?? false,
+          ownerId: res.station?.ownerId || user?.id,
+          createdAt: res.station?.createdAt || new Date().toISOString(),
+        };
         console.log("✅ Shahobcha muvaffaqiyatli PostgreSQL ga saqlandi:", savedSt.id, savedSt.name);
 
-        // Multi-device sync: foydalanuvchida joylashuv faolligini darhol tasdiqlab qo'yamiz
-        if (user && (!user.hasLocation || !user.has_location || !user.canAddStation)) {
-          const updatedUser = {
-            ...user,
-            hasLocation: true,
-            has_location: true,
-            canAddStation: true,
-            can_add_station: true,
-          };
-          setUser(updatedUser);
-          try {
-            localStorage.setItem("myup_user", JSON.stringify(updatedUser));
-          } catch (e) {}
+        // 1. Foydalanuvchi profilida joylashuv borligini tasdiqlash
+        const updatedUser = {
+          ...(user || {}),
+          id: user?.id || savedSt.ownerId || `usr_${Date.now()}`,
+          role: user?.role || "owner",
+          hasLocation: true,
+          has_location: true,
+          canAddStation: true,
+          can_add_station: true,
+          locationName: user?.locationName || savedSt.name,
+          phoneNumber: user?.phoneNumber || user?.phone || savedSt.phone,
+          registeredViaLocation: true,
+          registered_via_location: true,
+        };
+        setUser(updatedUser);
+        try {
+          localStorage.setItem("myup_user", JSON.stringify(updatedUser));
+        } catch (e) {}
+
+        if (user?.id) {
           api.auth
             .updateProfile({
               hasLocation: true,
@@ -2544,12 +2616,29 @@ export default function App() {
             .catch(() => {});
         }
 
-        if (!savedSt.status) savedSt.status = 'pending';
-        if (savedSt.isApproved === undefined) savedSt.isApproved = false;
-        if (savedSt.is_approved === undefined) savedSt.is_approved = false;
+        // 2. Yangi qo'shilgan manzilni DARHOL myStations ro'yxatiga qo'shish (Ko'rib chiqilmoqda holatida)
+        setMyStations((prev) => {
+          const filtered = prev.filter((s) => s.id !== savedSt.id && s.id !== station.id);
+          const nextList = [savedSt, ...filtered];
+          try {
+            localStorage.setItem("myup_my_stations", JSON.stringify(nextList));
+            if (updatedUser?.id) {
+              localStorage.setItem(`myup_my_stations_${updatedUser.id}`, JSON.stringify(nextList));
+            }
+          } catch (e) {}
+          return nextList;
+        });
 
-        // Serverdan darhol foydalanuvchining yangilangan haqiqiy shahobchalar ro'yxatini yuklaymiz
-        await syncMyStations(false);
+        // 3. Kutilayotgan shahobchalarning doimiy keshiga ham saqlash
+        try {
+          const pStr = localStorage.getItem("myup_pending_stations");
+          const pList = pStr ? JSON.parse(pStr) : [];
+          const updatedPending = [savedSt, ...pList.filter((s) => s.id !== savedSt.id && s.id !== station.id)];
+          localStorage.setItem("myup_pending_stations", JSON.stringify(updatedPending));
+        } catch (e) {}
+
+        // 4. Server bilan sinxronlash (fonda)
+        syncMyStations(false).catch(() => {});
 
         // Faqat super admin tasdiqlagan bo'lsa, asosiy ro'yxatga qo'shiladi!
         const isApprovedBool = (savedSt.isApproved === true || savedSt.is_approved === true || savedSt.status === 'approved') && savedSt.status !== 'pending' && savedSt.isApproved !== false && savedSt.is_approved !== false;

@@ -153,25 +153,32 @@ export const approveStation = async (req, res) => {
 
     const existingStation = currentRes.rows[0];
 
-    // 2. Himoya: Bitta manzilga ikki marta qaror berilishining va qarorlar to'qnashuvining oldini olish
-    if (existingStation.status !== 'pending') {
-      const currentLabel = existingStation.status === 'approved' ? 'Tasdiqlangan' : 'Rad etilgan';
+    // 2. Himoya: Bitta holatga ikki marta takroriy qaror yuborilishining oldini olish
+    if (existingStation.status === 'approved' && isApprovedBool) {
       return res.status(409).json({
         success: false,
-        message: `Ushbu manzilga allaqachon qaror qabul qilingan (Hozirgi holati: "${currentLabel}"). Qayta qaror qabul qilish taqiqlanadi.`,
+        message: 'Ushbu manzil allaqachon tasdiqlangan.',
+        currentStatus: existingStation.status,
+        isApproved: existingStation.is_approved,
+      });
+    }
+    if (existingStation.status === 'rejected' && !isApprovedBool) {
+      return res.status(409).json({
+        success: false,
+        message: 'Ushbu manzil allaqachon rad etilgan.',
         currentStatus: existingStation.status,
         isApproved: existingStation.is_approved,
       });
     }
 
-    // 3. Atomar UPDATE: Faqat status = 'pending' bo'lgandagina ishlaydi (Race condition himoyasi)
+    // 3. Atomar UPDATE: Qarorni PostgreSQL bazasiga yozish
     const result = await query(
       `UPDATE stations SET 
          is_approved = $1, 
          status = $2, 
          rejected_at = $3, 
          updated_at = CURRENT_TIMESTAMP 
-       WHERE id = $4 AND status = 'pending'
+       WHERE id = $4
        RETURNING id, name, lat, lng, address, city, phone, is_approved, status, rejected_at, owner_id`,
       [
         isApprovedBool,

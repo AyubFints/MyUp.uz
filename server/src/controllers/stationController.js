@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { pool, query } from '../config/db.js';
 
 const isUuid = (id) => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
@@ -162,8 +163,11 @@ export const getMyStations = async (req, res) => {
       LEFT JOIN fuel_prices fp ON s.id = fp.station_id
       LEFT JOIN station_amenities sa ON s.id = sa.station_id
       LEFT JOIN station_payments sp ON s.id = sp.station_id
-      WHERE (s.owner_id = $1)
-         OR ($2 != '' AND REGEXP_REPLACE(s.phone, '\\D', '', 'g') = $2)
+      WHERE (
+        ($1::uuid IS NOT NULL AND s.owner_id = $1::uuid)
+        OR ($2 != '' AND REGEXP_REPLACE(s.phone, '\\D', '', 'g') = $2)
+      )
+      AND (s.status != 'rejected' OR s.rejected_at IS NULL OR s.rejected_at >= NOW() - INTERVAL '1 day')
       GROUP BY s.id, sa.station_id, sp.station_id
       ORDER BY s.created_at DESC
     `;
@@ -174,8 +178,13 @@ export const getMyStations = async (req, res) => {
         ? st.types 
         : Object.keys(st.prices || {});
       const metanP = st.pressures?.metan || st.gasPressure || (typeList.includes('metan') ? 200 : null);
+      const isApprovedBool = Boolean(st.isApproved);
+      const finalStatus = st.status || (isApprovedBool ? 'approved' : 'pending');
       return {
         ...st,
+        isApproved: isApprovedBool,
+        status: finalStatus,
+        rejectedAt: st.rejectedAt || null,
         type: typeList,
         gasPressure: metanP,
         images: Array.isArray(st.images) && st.images.length > 0 
@@ -239,7 +248,7 @@ export const createStation = async (req, res) => {
 
   let ownerId = req.user ? req.user.id : null;
   const requestedOwnerId = req.body.userId || req.body.ownerId || req.body.createdBy;
-  const requestedOwnerPhone = req.body.ownerPhone || req.body.userPhone || '';
+  const requestedOwnerPhone = req.body.ownerPhone || req.body.userPhone || req.body.phone || phone || '';
   const cleanOwnerPhone = requestedOwnerPhone ? requestedOwnerPhone.replace(/\s+/g, '') : '';
   const ownerDigits = (requestedOwnerPhone || '').replace(/\D/g, '');
 
@@ -255,6 +264,26 @@ export const createStation = async (req, res) => {
     if (uRes.rows.length > 0) {
       ownerId = uRes.rows[0].id;
     }
+  }
+
+  // Foydalanuvchini users jadvaliga kiritish/yangilash (owner_id qat'iyan NULL bo'lmasligi va profilingizga bog'lanishi uchun)
+  if (!ownerId) {
+    const newUserId = (requestedOwnerId && isUuid(requestedOwnerId)) ? requestedOwnerId : crypto.randomUUID();
+    const formattedPhone = cleanOwnerPhone ? (cleanOwnerPhone.startsWith('+') ? cleanOwnerPhone : ('+' + cleanOwnerPhone)) : '+998000000000';
+    const authorName = req.body.responsiblePerson || req.body.authorName || name.trim() || 'Foydalanuvchi';
+    
+    await query(
+      `INSERT INTO users (id, phone, first_name, role, has_location, can_add_station, created_at, updated_at)
+       VALUES ($1, $2, $3, 'owner', true, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       ON CONFLICT (id) DO UPDATE SET has_location = true, can_add_station = true`,
+      [newUserId, formattedPhone, authorName]
+    ).catch(() => {});
+    ownerId = newUserId;
+  } else {
+    await query(
+      `UPDATE users SET has_location = true, can_add_station = true WHERE id = $1`,
+      [ownerId]
+    ).catch(() => {});
   }
 
   const isApproved = Boolean(req.user && req.user.role === 'super_admin');
