@@ -2301,36 +2301,22 @@ export default function App() {
 
   const gpsWatchIdRef = useRef(null);
   const locatingInProgressRef = useRef(false);
+  const isLocatingRef = useRef(isLocating);
+  useEffect(() => {
+    isLocatingRef.current = isLocating;
+  }, [isLocating]);
+  const requestSeqRef = useRef(0);
+  const settledSeqRef = useRef(0);
+  const isFinalizingRef = useRef(false);
+  const wasHiddenRef = useRef(false);
   const activeTimersRef = useRef({
     progressInterval: null,
     finishTimer: null,
     hardTimeoutTimer: null,
+    retryTimer: null,
   });
 
-  // 80% aniqlik va yaqin shahobchalar tayyor bo'lishini kutib, silliq yakunlash
-  const finishLocatingWithNearestStations = useCallback((coords, rawAccuracy) => {
-    if (!coords || typeof coords.lat !== "number" || typeof coords.lng !== "number") return;
-
-    // Koordinatani saqlash va darhol o'rnatish
-    setUserCoords(coords);
-    try {
-      sessionStorage.setItem("axmap_user_coords", JSON.stringify(coords));
-      localStorage.setItem("axmap_last_known_coords", JSON.stringify(coords));
-    } catch (e) {}
-
-    let targetPercent = 95;
-    if (typeof rawAccuracy === "number") {
-      if (rawAccuracy <= 30) targetPercent = 100;
-      else if (rawAccuracy <= 70) targetPercent = 98;
-      else if (rawAccuracy <= 150) targetPercent = 95;
-      else if (rawAccuracy <= 500) targetPercent = 92;
-      else targetPercent = 88;
-    }
-
-    // Foydalanuvchi talabi: eng kamida 80% aniqlik bo'lsin
-    targetPercent = Math.max(targetPercent, 88);
-
-    // Animatsiya intervalini to'xtatish
+  const clearLocatingTimers = useCallback((clearFinish = false) => {
     if (activeTimersRef.current.progressInterval) {
       clearInterval(activeTimersRef.current.progressInterval);
       activeTimersRef.current.progressInterval = null;
@@ -2339,223 +2325,312 @@ export default function App() {
       clearTimeout(activeTimersRef.current.hardTimeoutTimer);
       activeTimersRef.current.hardTimeoutTimer = null;
     }
-
-    // Foizni bir tekisda 80% dan oshirib 95-100% ga ko'tarish
-    setLocationAccuracyPercent((prev) => Math.max(prev, 82));
-    
-    setTimeout(() => {
-      setLocationAccuracyPercent(targetPercent);
-    }, 120);
-
-    // Shahobchalar bazadan yuklanayotgan bo'lsa, qisqa kutib,
-    // manzillar tayyor bo'lgach bir vaqtning o'zida "Aniqlanmoqda"ni yo'qotib yaqin manzillarni ochish
-    const finalize = () => {
-      setIsGpsActive(true);
-      setLocationStatus("ready");
-      setIsLocating(false);
-      locatingInProgressRef.current = false;
-    };
-
-    if (activeTimersRef.current.finishTimer) {
-      clearTimeout(activeTimersRef.current.finishTimer);
+    if (activeTimersRef.current.retryTimer) {
+      clearTimeout(activeTimersRef.current.retryTimer);
+      activeTimersRef.current.retryTimer = null;
     }
-
-    const delay = (stationsRef.current && stationsRef.current.length === 0 && isStationsLoadingRef.current) ? 750 : 450;
-    activeTimersRef.current.finishTimer = setTimeout(() => {
-      finalize();
-    }, delay);
+    if (clearFinish && activeTimersRef.current.finishTimer) {
+      clearTimeout(activeTimersRef.current.finishTimer);
+      activeTimersRef.current.finishTimer = null;
+      isFinalizingRef.current = false;
+    }
   }, []);
 
-  // Dasturga kirishi bilanoq, refresh berganda yoki qayta ochilganda geolokatsiyani so'rash va tekshirish
-  const requestLocation = useCallback((options = {}) => {
-    const { force = false, silent = false } = options;
+  // Aniqlik va yaqin shahobchalar tayyor bo'lguncha silliq yakunlash;
+  // GPS allaqachon faol bo'lsa timerlarni qayta boshlamasdan faqat koordinatani yangilash
+  const finishLocatingWithNearestStations = useCallback(
+    (coords, rawAccuracy) => {
+      if (!coords || typeof coords.lat !== "number" || typeof coords.lng !== "number") return;
 
-    if (!silent) {
-      setIsGpsDismissed(false);
+      // Koordinatani saqlash va darhol o'rnatish
+      settledSeqRef.current = Math.max(settledSeqRef.current, requestSeqRef.current);
+      setUserCoords(coords);
       try {
-        sessionStorage.removeItem("myup_gps_dismissed");
+        sessionStorage.setItem("axmap_user_coords", JSON.stringify(coords));
+        localStorage.setItem("axmap_last_known_coords", JSON.stringify(coords));
       } catch (e) {}
-    }
 
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      if (!silent) {
-        setLocationStatus("unsupported");
-        setIsLocating(false);
-        setIsGpsActive(false);
-        setUserCoords((prev) => prev || { lat: 41.311081, lng: 69.240562 });
+      // Agar GPS allaqachon tayyor bo'lsa va hozir "Aniqlanmoqda" ko'rsatilmayotgan bo'lsa,
+      // ortiqcha timer/animatsiya qo'ymaymiz
+      if (
+        isGpsActiveRef.current &&
+        !isLocatingRef.current &&
+        !locatingInProgressRef.current &&
+        !isFinalizingRef.current
+      ) {
+        return;
       }
-      return;
-    }
 
-    // Agar allaqachon aniqlash jarayoni ketayotgan bo'lsa va force bo'lmasa, qayta chaqirmaslik
-    if (locatingInProgressRef.current && !force) {
-      return;
-    }
+      let targetPercent = 96;
+      if (typeof rawAccuracy === "number") {
+        if (rawAccuracy <= 30) targetPercent = 100;
+        else if (rawAccuracy <= 70) targetPercent = 99;
+        else if (rawAccuracy <= 150) targetPercent = 96;
+        else if (rawAccuracy <= 500) targetPercent = 93;
+        else targetPercent = 90;
+      }
 
-    locatingInProgressRef.current = true;
+      clearLocatingTimers(false);
+      locatingInProgressRef.current = false;
 
-    if (!silent) {
-      setLocationStatus("locating");
-      setIsLocating(true);
-      setLocationAccuracyPercent((prev) => (prev >= 60 && prev <= 85 ? prev : 50));
-    }
+      // Agar allaqachon yakuniy silliq o'tish jarayoni ketayotgan bo'lsa, finishTimer ni orqaga surmaymiz
+      if (isFinalizingRef.current) {
+        return;
+      }
 
-    // Eskirgan timerlarni tozalash
-    if (activeTimersRef.current.progressInterval) {
-      clearInterval(activeTimersRef.current.progressInterval);
-    }
-    if (activeTimersRef.current.hardTimeoutTimer) {
-      clearTimeout(activeTimersRef.current.hardTimeoutTimer);
-    }
+      // Agar foniy tekshiruv (yoki Permissions) orqali "Aniqlanmoqda" ko'rinmasdan topilgan bo'lsa darhol yoqamiz
+      if (!isLocatingRef.current) {
+        setLocationAccuracyPercent(targetPercent);
+        setIsGpsActive(true);
+        setLocationStatus("ready");
+        setIsLocating(false);
+        return;
+      }
 
-    let hasResolved = false;
+      setLocationAccuracyPercent(targetPercent);
+      isFinalizingRef.current = true;
 
-    // Silliq 80% gacha oshib boruvchi radar progress animatsiyasi
-    if (!silent) {
-      activeTimersRef.current.progressInterval = setInterval(() => {
-        setLocationAccuracyPercent((prev) => {
-          if (prev < 84) {
-            return prev + Math.floor(Math.random() * 6 + 4);
-          }
-          return prev;
-        });
-      }, 130);
-    }
+      const delay =
+        stationsRef.current && stationsRef.current.length === 0 && isStationsLoadingRef.current
+          ? 420
+          : 180;
 
-    const onLocationSuccess = (pos) => {
-      if (!pos || !pos.coords) return;
-      hasResolved = true;
-      const { latitude, longitude, accuracy } = pos.coords;
-      finishLocatingWithNearestStations({ lat: latitude, lng: longitude }, accuracy);
-    };
-
-    const onLocationFailure = (err) => {
-      console.warn("Geolokatsiya olish xabari:", err?.code, err?.message);
-
-      // 1. Agar foydalanuvchi aniq "Ruxsat berilmadi" (denied) ni bosgan bo'lsa:
-      if (err?.code === 1) { // PERMISSION_DENIED
-        hasResolved = true;
-        if (activeTimersRef.current.progressInterval) {
-          clearInterval(activeTimersRef.current.progressInterval);
-        }
-        if (activeTimersRef.current.hardTimeoutTimer) {
-          clearTimeout(activeTimersRef.current.hardTimeoutTimer);
-        }
-        setIsGpsActive(false);
-        setLocationStatus("denied");
+      activeTimersRef.current.finishTimer = setTimeout(() => {
+        isFinalizingRef.current = false;
+        activeTimersRef.current.finishTimer = null;
+        setIsGpsActive(true);
+        setLocationStatus("ready");
         setIsLocating(false);
         locatingInProgressRef.current = false;
+      }, delay);
+    },
+    [clearLocatingTimers]
+  );
+
+  // Dasturga kirishi bilanoq, refresh berganda yoki qayta ochilganda geolokatsiyani so'rash va tekshirish
+  const requestLocation = useCallback(
+    (options = {}) => {
+      const { force = false, silent = false } = options;
+
+      if (!silent) {
+        setIsGpsDismissed(false);
+        try {
+          sessionStorage.removeItem("myup_gps_dismissed");
+        } catch (e) {}
+      }
+
+      if (typeof navigator === "undefined" || !navigator.geolocation) {
+        if (!silent) {
+          locatingInProgressRef.current = false;
+          setLocationStatus("unsupported");
+          setIsLocating(false);
+          setIsGpsActive(false);
+          setUserCoords((prev) => prev || { lat: 41.311081, lng: 69.240562 });
+        }
+        return;
+      }
+
+      // Agar allaqachon aniqlash jarayoni ketayotgan bo'lsa va force bo'lmasa, qayta chaqirmaslik
+      if (locatingInProgressRef.current && !force) {
+        return;
+      }
+
+      const myReqId = ++requestSeqRef.current;
+      locatingInProgressRef.current = true;
+      clearLocatingTimers(true);
+
+      if (!silent) {
+        setLocationStatus("locating");
+        setIsLocating(true);
+        setLocationAccuracyPercent((prev) => (prev >= 55 && prev <= 86 ? prev : 50));
+
+        // Silliq 88% gacha oshib boruvchi radar progress animatsiyasi
+        activeTimersRef.current.progressInterval = setInterval(() => {
+          if (requestSeqRef.current !== myReqId) return;
+          setLocationAccuracyPercent((prev) => {
+            if (prev < 88) {
+              return Math.min(88, prev + Math.floor(Math.random() * 5 + 3));
+            }
+            return prev;
+          });
+        }, 160);
+      }
+
+      let pendingOneShotCount = 2; // 1) tezkor network + 2) yuqori aniqlikdagi GPS
+      const isReqStaleOrSettled = () =>
+        requestSeqRef.current !== myReqId || settledSeqRef.current >= myReqId;
+
+      const markFailedAndStop = (status) => {
+        if (isReqStaleOrSettled()) return;
+        settledSeqRef.current = Math.max(settledSeqRef.current, myReqId);
+        clearLocatingTimers(true);
+        locatingInProgressRef.current = false;
+        setIsGpsActive(false);
+        setLocationStatus(status);
+        setIsLocating(false);
         setUserCoords((prev) => prev || { lat: 41.311081, lng: 69.240562 });
-        return;
+      };
+
+      const onLocationSuccess = (pos) => {
+        if (isReqStaleOrSettled()) return;
+        if (!pos || !pos.coords) return;
+        const { latitude, longitude, accuracy } = pos.coords;
+        finishLocatingWithNearestStations({ lat: latitude, lng: longitude }, accuracy);
+      };
+
+      const onOneShotFailure = (err) => {
+        if (isReqStaleOrSettled()) return;
+        console.warn("Geolokatsiya olish xabari:", err?.code, err?.message);
+
+        // 1. Agar foydalanuvchi aniq "Ruxsat berilmadi" (PERMISSION_DENIED) ni bosgan bo'lsa:
+        if (err?.code === 1) {
+          markFailedAndStop("denied");
+          return;
+        }
+
+        // Bitta so'rov xato bersa ham boshqa faol so'rov (yuqori aniqlik yoki watchPosition)
+        // yakunlanmaguncha "Aniqlanmoqda" holatini to'xtatmaymiz!
+        pendingOneShotCount = Math.max(0, pendingOneShotCount - 1);
+        if (pendingOneShotCount > 0) {
+          return;
+        }
+
+        // Ikkala asosiy so'rov ham xato bilan tugadi:
+        // - Agar avtomatik tekshiruv (force === false) bo'lsa, darhol "disabled" ga o'tamiz.
+        // - Agar foydalanuvchi "Geolokatsiyani yoqish"ni bosgan (force === true) bo'lsa,
+        //   qurilma GPS datchigi uyg'onishi uchun qisqa qayta tekshiruv o'tkazamiz, shunda
+        //   "Aniqlanmoqda" uzilib qayta sabzi rang tugma miltillamaydi.
+        if (!force) {
+          markFailedAndStop("disabled");
+          return;
+        }
+
+        if (activeTimersRef.current.retryTimer) {
+          clearTimeout(activeTimersRef.current.retryTimer);
+        }
+        activeTimersRef.current.retryTimer = setTimeout(() => {
+          if (isReqStaleOrSettled()) return;
+          try {
+            navigator.geolocation.getCurrentPosition(
+              onLocationSuccess,
+              (retryErr) => {
+                if (isReqStaleOrSettled()) return;
+                if (retryErr?.code === 1) {
+                  markFailedAndStop("denied");
+                } else {
+                  markFailedAndStop("disabled");
+                }
+              },
+              {
+                enableHighAccuracy: false,
+                timeout: 5000,
+                maximumAge: 5000,
+              }
+            );
+          } catch (e) {
+            markFailedAndStop("disabled");
+          }
+        }, 1200);
+      };
+
+      // Xavfsiz hard taym-aut: force rejimida qurilma ruxsat oynasi + sun'iy yo'ldosh uyg'onishi uchun yetarli vaqt
+      const hardTimeoutMs = force ? 20000 : 9000;
+      activeTimersRef.current.hardTimeoutTimer = setTimeout(() => {
+        if (isReqStaleOrSettled()) return;
+        markFailedAndStop("disabled");
+      }, hardTimeoutMs);
+
+      // Force bosilganda eski watchPosition ni yangilab qo'yamiz, shunda yangi yoqilgan datchik darhol ishlaydi
+      if (force && gpsWatchIdRef.current !== null) {
+        try {
+          navigator.geolocation.clearWatch(gpsWatchIdRef.current);
+        } catch (e) {}
+        gpsWatchIdRef.current = null;
       }
 
-      // 2. Agar avvaldan koordinata bor bo'lsa, GPS aktivligini bekor qilmaymiz
-      if (userCoordsRef.current) {
-        hasResolved = true;
-        finishLocatingWithNearestStations(userCoordsRef.current, 100);
-        return;
-      }
-
-      // 3. POSITION_UNAVAILABLE yoki vaqtinchalik xatolik bo'lsa:
-      // Darhol "o'chiq" deb qabul qilmaymiz! Chunki mobil qurilmalarda GPS datchigi 1-2 soniyada uyg'onadi.
-      // Quyi aniqlik (tarmoq/Wi-Fi) bilan darhol qayta urinib ko'ramiz:
+      // 1. Tezkor tarmoq koordinatasini olish (Wi-Fi / Mobil tarmoq orqali bir necha yuz millisekundda)
       try {
         navigator.geolocation.getCurrentPosition(
-          (fallbackPos) => {
-            if (fallbackPos && fallbackPos.coords) {
-              onLocationSuccess(fallbackPos);
-            }
-          },
-          (fallbackErr) => {
-            console.warn("Quyi aniqlikdagi GPS xatosi:", fallbackErr?.message);
-            if (!hasResolved && !userCoordsRef.current) {
-              setIsGpsActive(false);
-              setLocationStatus("disabled");
-              setIsLocating(false);
-              locatingInProgressRef.current = false;
-            }
-          },
+          onLocationSuccess,
+          onOneShotFailure,
           {
             enableHighAccuracy: false,
-            timeout: 5000,
-            maximumAge: 60000,
-          }
-        );
-      } catch (e) {}
-    };
-
-    // 9 soniyalik xavfsiz hard taym-aut:
-    // Faqat agar 9 soniya ichida hech qanday koordinata olinmasa va GPS haqiqatdan o'chiq bo'lsa,
-    // shundagina "Qurilmangizda geolokatsiya (GPS) o'chiq" holatini chiqaramiz
-    activeTimersRef.current.hardTimeoutTimer = setTimeout(() => {
-      if (!hasResolved && !userCoordsRef.current) {
-        if (activeTimersRef.current.progressInterval) {
-          clearInterval(activeTimersRef.current.progressInterval);
-        }
-        setIsGpsActive(false);
-        setLocationStatus("disabled");
-        setIsLocating(false);
-        locatingInProgressRef.current = false;
-        setUserCoords((prev) => prev || { lat: 41.311081, lng: 69.240562 });
-      }
-    }, 9000);
-
-    // 1. Tezkor tarmoq koordinatasini olish (Wi-Fi / Mobil tarmoq orqali bir necha yuz millisekundda olish)
-    try {
-      navigator.geolocation.getCurrentPosition(
-        onLocationSuccess,
-        onLocationFailure,
-        {
-          enableHighAccuracy: false,
-          timeout: 4000,
-          maximumAge: 60000,
-        }
-      );
-    } catch (e) {}
-
-    // 2. Yuqori aniqlikdagi GPS so'rovi (sun'iy yo'ldoshlar orqali aniq koordinata)
-    try {
-      navigator.geolocation.getCurrentPosition(
-        onLocationSuccess,
-        onLocationFailure,
-        {
-          enableHighAccuracy: true,
-          timeout: 8000,
-          maximumAge: 10000,
-        }
-      );
-    } catch (e) {}
-
-    // 3. Doimiy foniy watchPosition kuzatuvi
-    if (!gpsWatchIdRef.current) {
-      try {
-        gpsWatchIdRef.current = navigator.geolocation.watchPosition(
-          (wPos) => {
-            if (wPos && wPos.coords) {
-              const { latitude, longitude, accuracy } = wPos.coords;
-              finishLocatingWithNearestStations({ lat: latitude, lng: longitude }, accuracy);
-            }
-          },
-          (wErr) => {
-            if (wErr?.code === 1) { // PERMISSION_DENIED
-              setIsGpsActive(false);
-              setLocationStatus("denied");
-              setIsLocating(false);
-              locatingInProgressRef.current = false;
-            } else if (wErr?.code === 2) { // POSITION_UNAVAILABLE
-              setIsGpsActive(false);
-              setLocationStatus("disabled");
-            }
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 20000,
+            timeout: force ? 12000 : 4000,
             maximumAge: 5000,
           }
         );
-      } catch (e) {}
-    }
-  }, [finishLocatingWithNearestStations]);
+      } catch (e) {
+        pendingOneShotCount = Math.max(0, pendingOneShotCount - 1);
+      }
+
+      // 2. Yuqori aniqlikdagi GPS so'rovi (qurilmaning GPS yoqish so'rovini uyg'otadi va aniq koordinata oladi)
+      try {
+        navigator.geolocation.getCurrentPosition(
+          onLocationSuccess,
+          onOneShotFailure,
+          {
+            enableHighAccuracy: true,
+            timeout: force ? 16000 : 7500,
+            maximumAge: 5000,
+          }
+        );
+      } catch (e) {
+        pendingOneShotCount = Math.max(0, pendingOneShotCount - 1);
+      }
+
+      // 3. Doimiy foniy watchPosition kuzatuvi
+      if (gpsWatchIdRef.current === null) {
+        try {
+          gpsWatchIdRef.current = navigator.geolocation.watchPosition(
+            (wPos) => {
+              if (!wPos || !wPos.coords) return;
+              const { latitude, longitude, accuracy } = wPos.coords;
+              finishLocatingWithNearestStations({ lat: latitude, lng: longitude }, accuracy);
+            },
+            (wErr) => {
+              if (wErr?.code === 1) {
+                requestSeqRef.current += 1;
+                clearLocatingTimers(true);
+                locatingInProgressRef.current = false;
+                setIsGpsActive(false);
+                setLocationStatus("denied");
+                setIsLocating(false);
+              } else if (wErr?.code === 2 && !locatingInProgressRef.current && isGpsActiveRef.current) {
+                // Faqat hozir aniqlash ketmayotgan va GPS yoqilgan paytdagina haqiqatan o'chganini tekshiramiz
+                try {
+                  navigator.geolocation.getCurrentPosition(
+                    (vPos) => {
+                      if (vPos && vPos.coords) {
+                        const { latitude, longitude, accuracy } = vPos.coords;
+                        finishLocatingWithNearestStations({ lat: latitude, lng: longitude }, accuracy);
+                      }
+                    },
+                    (vErr) => {
+                      if (!locatingInProgressRef.current) {
+                        setIsGpsActive(false);
+                        setLocationStatus(vErr?.code === 1 ? "denied" : "disabled");
+                      }
+                    },
+                    {
+                      enableHighAccuracy: false,
+                      timeout: 4000,
+                      maximumAge: 1000,
+                    }
+                  );
+                } catch (e) {}
+              }
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 22000,
+              maximumAge: 5000,
+            }
+          );
+        } catch (e) {}
+      }
+    },
+    [clearLocatingTimers, finishLocatingWithNearestStations]
+  );
 
   // 1. Dastur ishga tushishi yoki sahifa yangilanishi (refresh) bilanoq geolokatsiyani so'rash
   useEffect(() => {
@@ -2564,49 +2639,86 @@ export default function App() {
 
   // 2. Dasturga kirganda, ilovadan chiqib (masalan parda/sozlamalardan GPSni yoqib) qaytib kirganda darhol tekshirish
   useEffect(() => {
-    const handleRecheck = () => {
-      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+    const handleVisibilityChange = () => {
+      if (typeof document === "undefined") return;
+      if (document.visibilityState === "hidden") {
+        wasHiddenRef.current = true;
+        return;
+      }
+      if (document.visibilityState === "visible") {
+        const cameBackFromBackground = wasHiddenRef.current;
+        wasHiddenRef.current = false;
         setIsGpsDismissed(false);
         try {
           sessionStorage.removeItem("myup_gps_dismissed");
         } catch (e) {}
+        // Agar hozir faol aniqlash jarayoni ketayotgan bo'lsa va foydalanuvchi fon rejimidan qaytmagan bo'lsa,
+        // ishlab turgan jarayonni uzmaymiz
+        if (locatingInProgressRef.current && !cameBackFromBackground) {
+          return;
+        }
         requestLocation({ force: true, silent: isGpsActiveRef.current });
       }
     };
 
-    window.addEventListener("focus", handleRecheck);
-    document.addEventListener("visibilitychange", handleRecheck);
+    const handleWindowFocus = () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        return;
+      }
+      // Brauzerning ruxsat oynasi yopilganda focus qaytadi — faol aniqlashni uzib qo'ymaslik uchun kutamiz
+      if (locatingInProgressRef.current) {
+        return;
+      }
+      if (!isGpsActiveRef.current && !isGpsDismissedRef.current) {
+        requestLocation({ force: true, silent: false });
+      }
+    };
+
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
-      window.removeEventListener("focus", handleRecheck);
-      document.removeEventListener("visibilitychange", handleRecheck);
+      window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [requestLocation]);
 
   // 3. Brauzer geolokatsiya ruxsatlari o'zgarganda darhol ushlab olish (Permissions API)
   useEffect(() => {
+    let mounted = true;
     if (typeof navigator !== "undefined" && navigator.permissions && navigator.permissions.query) {
       navigator.permissions
         .query({ name: "geolocation" })
         .then((permissionStatus) => {
+          if (!mounted) return;
           if (permissionStatus.state === "denied") {
+            requestSeqRef.current += 1;
+            clearLocatingTimers(true);
+            locatingInProgressRef.current = false;
             setIsGpsActive(false);
             setLocationStatus("denied");
-          } else if (permissionStatus.state === "granted") {
-            requestLocation({ force: true, silent: true });
+            setIsLocating(false);
           }
 
           permissionStatus.onchange = () => {
+            if (!mounted) return;
             if (permissionStatus.state === "granted") {
-              requestLocation({ force: true, silent: true });
+              requestLocation({ force: true, silent: isGpsActiveRef.current });
             } else if (permissionStatus.state === "denied") {
+              requestSeqRef.current += 1;
+              clearLocatingTimers(true);
+              locatingInProgressRef.current = false;
               setIsGpsActive(false);
               setLocationStatus("denied");
+              setIsLocating(false);
             }
           };
         })
         .catch(() => {});
     }
-  }, [requestLocation]);
+    return () => {
+      mounted = false;
+    };
+  }, [clearLocatingTimers, requestLocation]);
 
   // 4. Foydalanuvchiga bilinmasdan har 10 soniyada geolakatsiya yoniq/o'chiqligini tekshirib turish
   useEffect(() => {
@@ -2616,25 +2728,31 @@ export default function App() {
         return;
       }
 
+      // Faol aniqlash jarayoni ketayotgan bo'lsa xalaqit bermaymiz
+      if (locatingInProgressRef.current) {
+        return;
+      }
+
       if (typeof navigator === "undefined" || !navigator.geolocation) {
         setIsGpsActive(false);
         setLocationStatus("unsupported");
         return;
       }
 
-      // Sokin tekshirish (foydalanuvchiga bilinmasdan koordinatani datchikdan tekshirish)
+      // Sokin tekshirish (foydalanuvchiga bilinmasdan koordinatani datchikdan yangidan tekshirish)
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          if (locatingInProgressRef.current) return;
           if (pos && pos.coords) {
-            setIsGpsActive(true);
-            setLocationStatus("ready");
             const { latitude, longitude, accuracy } = pos.coords;
             finishLocatingWithNearestStations({ lat: latitude, lng: longitude }, accuracy);
           }
         },
         (err) => {
+          if (locatingInProgressRef.current) return;
           console.warn("Fonda 10 soniyalik GPS tekshiruvi: datchik o'chiq:", err?.code);
           setIsGpsActive(false);
+          setIsLocating(false);
           if (err?.code === 1) {
             setLocationStatus("denied");
           } else {
@@ -2643,8 +2761,8 @@ export default function App() {
         },
         {
           enableHighAccuracy: false,
-          timeout: 6000,
-          maximumAge: 8000,
+          timeout: 5500,
+          maximumAge: 1000,
         }
       );
     }, TEN_SECONDS_MS);
@@ -2655,6 +2773,9 @@ export default function App() {
   // Standart ko'rinishga o'tish (foydalanuvchi "Standart xarita bo'yicha ko'rish"ni bosganda GPS eslatmalarini to'liq yo'qotish)
   const handleUseDefaultLocation = () => {
     const defaultCoords = { lat: 41.311081, lng: 69.240562 };
+    requestSeqRef.current += 1;
+    clearLocatingTimers(true);
+    locatingInProgressRef.current = false;
     setUserCoords(defaultCoords);
     setLocationStatus("ready");
     setLocationAccuracyPercent(80);
