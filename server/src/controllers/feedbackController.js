@@ -45,11 +45,12 @@ export const getFeedbacks = async (req, res) => {
     // 1. ODDIY FOYDALANUVCHILAR YOKI MEHMONLAR UCHUN MAXSUS HIMOYALANGAN REJIM:
     if (!isSuperAdmin) {
       const cleanPhone = phone ? String(phone).replace(/\s+/g, '') : null;
+      const phoneDigits = phone ? String(phone).replace(/\D/g, '') : '';
       const isValidUuid = userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
 
       // Agar na haqiqiy userId va na telefon raqam berilmagan bo'lsa (yoki bo'sh bo'lsa),
       // begonalar yoki boshqa foydalanuvchilarning fikrlari ko'rinmasligi uchun darhol bo'sh ro'yxat qaytaramiz!
-      if (!isValidUuid && (!cleanPhone || cleanPhone.length < 7)) {
+      if (!isValidUuid && (!phoneDigits || phoneDigits.length < 7)) {
         return res.json({ success: true, count: 0, feedbacks: [] });
       }
 
@@ -60,15 +61,15 @@ export const getFeedbacks = async (req, res) => {
         WHERE
       `;
       const params = [];
-      if (isValidUuid && cleanPhone) {
-        params.push(userId, cleanPhone);
-        sql += ` (user_id = $1 OR REPLACE(author_phone, ' ', '') = $2)`;
+      if (isValidUuid && phoneDigits) {
+        params.push(userId, cleanPhone || '', phoneDigits);
+        sql += ` (user_id = $1 OR REPLACE(author_phone, ' ', '') = $2 OR ($3 != '' AND REGEXP_REPLACE(author_phone, '\\D', '', 'g') = $3))`;
       } else if (isValidUuid) {
         params.push(userId);
         sql += ` user_id = $1`;
       } else {
-        params.push(cleanPhone);
-        sql += ` REPLACE(author_phone, ' ', '') = $1`;
+        params.push(cleanPhone || '', phoneDigits);
+        sql += ` (REPLACE(author_phone, ' ', '') = $1 OR ($2 != '' AND REGEXP_REPLACE(author_phone, '\\D', '', 'g') = $2))`;
       }
 
       sql += ' ORDER BY created_at DESC';

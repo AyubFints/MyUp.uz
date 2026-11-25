@@ -6,6 +6,14 @@ import {
 } from 'lucide-react';
 import api from '../api/client';
 
+const formatNotifDate = (dateVal) => {
+  if (!dateVal) return '';
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return String(dateVal);
+  const months = ['yan', 'fev', 'mar', 'apr', 'may', 'iyn', 'iyl', 'avg', 'sen', 'okt', 'noy', 'dek'];
+  return `${d.getDate()}-${months[d.getMonth()]} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
 export default function AuthScreen({ 
   onLoginSuccess, 
   isLight = false, 
@@ -147,15 +155,21 @@ export default function AuthScreen({
 
         const newUser = {
           id: res.user.id,
-          firstName: res.user.first_name || formData.firstName.trim(),
-          lastName: res.user.last_name || formData.lastName.trim(),
-          phoneNumber: res.user.phone || formData.phone,
+          firstName: res.user.firstName || res.user.first_name || formData.firstName.trim(),
+          lastName: res.user.lastName || res.user.last_name || formData.lastName.trim(),
+          phoneNumber: res.user.phone || res.user.phoneNumber || formData.phone,
           birthDate: `${formData.bYear}-${String(formData.bMonth).padStart(2, '0')}-${String(formData.bDay).padStart(2, '0')}`,
-          registeredAt: res.user.created_at || new Date().toISOString(),
-          avatar: res.user.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanPhone}`,
+          registeredAt: res.user.createdAt || res.user.created_at || new Date().toISOString(),
+          avatar: res.user.avatarUrl || res.user.avatar_url || res.user.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanPhone}`,
+          avatarUrl: res.user.avatarUrl || res.user.avatar_url || null,
+          bio: res.user.bio || '',
           role: res.user.role || 'user',
           hasLocation: false,
+          has_location: false,
+          canAddStation: false,
+          can_add_station: false,
           registeredViaLocation: false,
+          registered_via_location: false,
           userProfileCompleted: true,
         };
         localStorage.setItem('myup_user', JSON.stringify(newUser));
@@ -180,9 +194,15 @@ export default function AuthScreen({
         birthDate: `${formData.bYear}-${String(formData.bMonth).padStart(2, '0')}-${String(formData.bDay).padStart(2, '0')}`,
         registeredAt: new Date().toISOString(),
         avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanPhone}`,
+        avatarUrl: null,
+        bio: '',
         role: 'user',
         hasLocation: false,
+        has_location: false,
+        canAddStation: false,
+        can_add_station: false,
         registeredViaLocation: false,
+        registered_via_location: false,
         userProfileCompleted: true,
       };
 
@@ -384,32 +404,67 @@ export default function AuthScreen({
         const userStations = Array.isArray(res.stations) ? res.stations : [];
         const primaryStation = userStations[0] || null;
 
+        const realAvatar = res.user.avatarUrl || res.user.avatar_url || res.user.avatar || null;
+        const serverHasLocation = Boolean(
+          res.user.hasLocation ?? res.user.has_location ?? (res.user.role === 'owner' || res.user.role === 'super_admin' || userStations.length > 0)
+        );
+        const serverCanAdd = Boolean(
+          res.user.canAddStation ?? res.user.can_add_station ?? serverHasLocation
+        );
+        const serverRegViaLoc = Boolean(
+          res.user.registeredViaLocation ?? res.user.registered_via_location ?? res.user.locationName ?? res.user.location_name ?? serverHasLocation
+        );
+        const firstNameVal = res.user.firstName || res.user.first_name || 'Foydalanuvchi';
+        const lastNameVal = res.user.lastName || res.user.last_name || '';
+
         const loggedUser = {
           id: res.user.id,
-          firstName: res.user.firstName || res.user.first_name || 'Foydalanuvchi',
-          lastName: res.user.lastName || res.user.last_name || '',
+          firstName: firstNameVal,
+          lastName: lastNameVal,
           phoneNumber: res.user.phone || res.user.phoneNumber || loginPhone,
           role: res.user.role || 'user',
-          hasLocation: Boolean(res.user.hasLocation ?? res.user.has_location ?? (userStations.length > 0)),
-          canAddStation: Boolean(res.user.canAddStation ?? res.user.can_add_station ?? res.user.hasLocation ?? res.user.has_location),
-          registeredViaLocation: Boolean(res.user.registeredViaLocation ?? res.user.registered_via_location ?? res.user.locationName ?? res.user.location_name),
+          hasLocation: serverHasLocation,
+          has_location: serverHasLocation,
+          canAddStation: serverCanAdd,
+          can_add_station: serverCanAdd,
+          registeredViaLocation: serverRegViaLoc,
+          registered_via_location: serverRegViaLoc,
+          userProfileCompleted: Boolean(res.user.firstName || res.user.first_name),
+          isLocationOnly: Boolean(!(res.user.firstName || res.user.first_name) && res.user.role === 'owner'),
           locationName: res.user.locationName || res.user.location_name || primaryStation?.name || '',
           organizationName: res.user.locationName || res.user.location_name || primaryStation?.name || '',
-          responsiblePerson: res.user.responsiblePerson || res.user.responsible_person || primaryStation?.responsiblePerson || (res.user.first_name ? `${res.user.first_name} ${res.user.last_name || ''}`.trim() : ''),
+          responsiblePerson: res.user.responsiblePerson || res.user.responsible_person || primaryStation?.responsiblePerson || (firstNameVal ? `${firstNameVal} ${lastNameVal}`.trim() : ''),
           locationAddress: primaryStation?.address || '',
           locationPhone: res.user.locationPhone || res.user.location_phone || primaryStation?.phone || res.user.phone || loginPhone,
-          locationImage: res.user.locationImage || res.user.location_image || primaryStation?.image || (Array.isArray(primaryStation?.images) ? primaryStation.images[0] : null) || null,
+          locationImage: res.user.locationImage || res.user.location_image || (Array.isArray(primaryStation?.images) ? primaryStation.images[0] : null) || primaryStation?.image || null,
           bio: res.user.bio || '',
-          avatar: res.user.avatarUrl || res.user.avatar_url || res.user.avatar || primaryStation?.image || `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanPhone}`,
+          avatarUrl: realAvatar,
+          avatar: realAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanPhone}`,
           registeredAt: res.user.createdAt || res.user.created_at || new Date().toISOString(),
         };
 
         localStorage.setItem('myup_user', JSON.stringify(loggedUser));
         localStorage.setItem('myup_my_stations', JSON.stringify(userStations));
+        localStorage.setItem(`myup_my_stations_${loggedUser.id}`, JSON.stringify(userStations));
 
         if (Array.isArray(res.notifications)) {
-          localStorage.setItem('myup_incoming_notifications', JSON.stringify(res.notifications));
-          const unreadCount = res.notifications.filter(n => !n.isRead && !n.readAt).length;
+          const formattedNotifs = res.notifications.map((n) => ({
+            id: n.id,
+            userId: n.userId,
+            userPhone: n.userPhone || n.phone || loggedUser.phoneNumber || '',
+            title: n.title,
+            message: n.message,
+            badge: n.badge || (n.type === 'station_approved' ? 'Tasdiqlandi' : n.type === 'station_rejected' ? 'Rad etildi' : n.type === 'location_guide' ? "Qo'llanma" : 'Moderatsiya'),
+            date: formatNotifDate(n.createdAt),
+            createdAt: n.createdAt,
+            type: n.type,
+            stationId: n.stationId,
+            isRead: Boolean(n.isRead),
+            readAt: n.readAt || null,
+            sender: n.type === 'location_guide' ? 'AX-Map Tizimi' : 'Super Administrator',
+          }));
+          localStorage.setItem('myup_incoming_notifications', JSON.stringify(formattedNotifs));
+          const unreadCount = formattedNotifs.filter(n => !n.isRead && !n.readAt).length;
           localStorage.setItem('myup_notif_unread_count', String(unreadCount));
           localStorage.setItem('myup_notif_unread', unreadCount > 0 ? 'true' : 'false');
         }

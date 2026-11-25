@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'myup_super_secret_jwt_key_2026_uzbekistan';
+const isUuid = (id) => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
 // Yordamchi: Foydalanuvchi ma'lumotlarini qulay camelCase va snake_case formatda shakllantirish
 const formatUserRow = (u) => {
@@ -147,9 +148,10 @@ export const login = async (req, res) => {
     }
 
     const cleanInputPhone = inputLogin.replace(/\s+/g, '');
+    const inputDigits = inputLogin.replace(/\D/g, '');
     const isSuperAdminAlias = ['admin', 'ayubxon', 'superadmin', 'admin@amaps.uz', 'ayub'].includes(inputLogin.toLowerCase());
 
-    // Bazadan foydalanuvchini qidirish: telefon yoki super admin bo'yicha
+    // Bazadan foydalanuvchini qidirish: telefon (barcha formatlarda) yoki super admin bo'yicha
     let result;
     if (isSuperAdminAlias) {
       result = await query(
@@ -159,8 +161,11 @@ export const login = async (req, res) => {
     } else {
       result = await query(
         `SELECT ${USER_FIELDS_SELECT}, password_hash
-         FROM users WHERE REPLACE(phone, ' ', '') = $1 OR phone = $2`,
-        [cleanInputPhone, inputLogin]
+         FROM users
+         WHERE REPLACE(phone, ' ', '') = $1
+            OR phone = $2
+            OR ($3 != '' AND REGEXP_REPLACE(phone, '\\D', '', 'g') = $3)`,
+        [cleanInputPhone, inputLogin, inputDigits]
       );
     }
 
@@ -253,17 +258,22 @@ export const login = async (req, res) => {
 
     // 3. Foydalanuvchiga kelgan barcha bildirishnomalarni olish (location_guide 2 kun, boshqalari 1 kun)
     const notifsResult = await query(
-      `SELECT id, user_id AS "userId", station_id AS "stationId",
+      `SELECT id, user_id AS "userId", user_phone AS "userPhone", station_id AS "stationId",
               title, message, badge, type, is_read AS "isRead",
               read_at AS "readAt", created_at AS "createdAt"
        FROM user_notifications
-       WHERE (user_id = $1 OR user_phone = $2 OR REPLACE(user_phone, ' ', '') = $3)
+       WHERE (
+         user_id = $1
+         OR user_phone = $2
+         OR REPLACE(user_phone, ' ', '') = $3
+         OR ($4 != '' AND REGEXP_REPLACE(user_phone, '\\D', '', 'g') = $4)
+       )
          AND (
            (type = 'location_guide' AND created_at >= NOW() - INTERVAL '2 days')
            OR (type != 'location_guide' AND (read_at IS NULL OR read_at >= NOW() - INTERVAL '1 day'))
          )
        ORDER BY created_at DESC LIMIT 50`,
-      [rawUser.id, rawUser.phone, cleanInputPhone]
+      [rawUser.id, rawUser.phone, cleanInputPhone, userPhoneDigits || inputPhoneDigits || '']
     );
 
     const user = formatUserRow(rawUser);
@@ -313,10 +323,19 @@ export const updateProfile = async (req, res) => {
       userId, phone: bodyPhone
     } = req.body;
 
-    let targetUserId = req.user ? req.user.id : (userId || req.body.id || null);
+    const rawTargetId = req.user ? req.user.id : (userId || req.body.id || null);
+    let targetUserId = isUuid(rawTargetId) ? rawTargetId : null;
     if (!targetUserId && bodyPhone) {
       const cleanP = String(bodyPhone).replace(/\s+/g, '');
-      const uRes = await query(`SELECT id FROM users WHERE REPLACE(phone, ' ', '') = $1 OR phone = $2 LIMIT 1`, [cleanP, bodyPhone]);
+      const phoneDigits = String(bodyPhone).replace(/\D/g, '');
+      const uRes = await query(
+        `SELECT id FROM users
+         WHERE REPLACE(phone, ' ', '') = $1
+            OR phone = $2
+            OR ($3 != '' AND REGEXP_REPLACE(phone, '\\D', '', 'g') = $3)
+         LIMIT 1`,
+        [cleanP, bodyPhone, phoneDigits]
+      );
       if (uRes.rows.length > 0) {
         targetUserId = uRes.rows[0].id;
       }

@@ -14,15 +14,51 @@ export default function ProfileDetailModal({
   const [bio, setBio] = useState(user?.bio || '');
   const [editingBio, setEditingBio] = useState(false);
   const [viewingPhoto, setViewingPhoto] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [saveFeedback, setSaveFeedback] = useState('');
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    if (user?.bio) setBio(user.bio);
-  }, [user?.bio]);
+    setBio(user?.bio || '');
+  }, [user?.bio, user?.id]);
+
+  // Modal ochilganda serverdagi eng so'nggi rasm va bio ma'lumotlarini sinxronlash
+  useEffect(() => {
+    if (!isOpen || !user) return;
+    const token = localStorage.getItem('myup_token');
+    if (!token) return;
+
+    let isActive = true;
+    api.auth
+      .getMe()
+      .then((res) => {
+        if (!isActive || !res?.success || !res?.user) return;
+        const srv = res.user;
+        const srvAvatar = srv.avatarUrl || srv.avatar_url || srv.avatar || null;
+        const srvBio = typeof srv.bio === 'string' ? srv.bio : user.bio || '';
+        const merged = {
+          ...user,
+          bio: srvBio,
+          ...(srvAvatar ? { avatar: srvAvatar, avatarUrl: srvAvatar } : {}),
+        };
+        if (merged.bio !== user.bio || merged.avatar !== user.avatar) {
+          try {
+            localStorage.setItem('myup_user', JSON.stringify(merged));
+          } catch {}
+          onUpdateUser(merged);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isActive = false;
+    };
+  }, [isOpen]);
 
   if (!isOpen || !user) return null;
 
-  const hasRealPhoto = user.avatar && !user.avatar.includes('dicebear');
+  const avatarSrc = user.avatar || user.avatarUrl || user.avatar_url || null;
+  const hasRealPhoto = Boolean(avatarSrc && !String(avatarSrc).includes('dicebear'));
 
   const panelBg = isLight ? '#ffffff' : (appTheme?.panel || '#18181b');
   const cardBg = isLight ? '#f1f5f9' : (appTheme?.card || '#222226');
@@ -30,50 +66,78 @@ export default function ProfileDetailModal({
   const textPrimary = isLight ? '#0f172a' : (appTheme?.text || '#ffffff');
   const textMuted = isLight ? '#64748b' : (appTheme?.textMuted || '#94a3b8');
 
+  const savePendingProfileUpdate = (patch) => {
+    try {
+      const prev = JSON.parse(localStorage.getItem('myup_pending_profile_update') || '{}');
+      localStorage.setItem('myup_pending_profile_update', JSON.stringify({
+        ...prev,
+        ...patch,
+        userId: user?.id,
+        phone: user?.phoneNumber || user?.phone,
+      }));
+    } catch {}
+  };
+
   const handlePhotoUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Rasmni yumaloq formatga avtomatik crop qilish (400x400)
+    // Rasmni yumaloq formatga avtomatik crop qilish (360x360)
     const reader = new FileReader();
     reader.onload = (ev) => {
       const img = new Image();
-      img.onload = () => {
+      img.onload = async () => {
         const canvas = document.createElement('canvas');
         const size = Math.min(img.width, img.height);
-        canvas.width = 400;
-        canvas.height = 400;
+        canvas.width = 360;
+        canvas.height = 360;
         const ctx = canvas.getContext('2d');
-        
+
         // Rasmni markazdan qirqib olish (square crop)
         const sx = (img.width - size) / 2;
         const sy = (img.height - size) / 2;
-        ctx.drawImage(img, sx, sy, size, size, 0, 0, 400, 400);
+        ctx.drawImage(img, sx, sy, size, size, 0, 0, 360, 360);
 
-        const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.78);
         const newUser = { ...user, avatar: croppedDataUrl, avatarUrl: croppedDataUrl };
-        localStorage.setItem('myup_user', JSON.stringify(newUser));
+        try {
+          localStorage.setItem('myup_user', JSON.stringify(newUser));
+        } catch {}
         onUpdateUser(newUser);
+        setIsSavingProfile(true);
+        setSaveFeedback("Rasm serverga saqlanmoqda...");
 
         // Multi-device sync: PostgreSQL bazasiga saqlaymiz (boshqa barcha telefonlarda ham ko'rinadi)
-        api.auth.updateProfile({
-          avatarUrl: croppedDataUrl,
-          userId: user?.id,
-          phone: user?.phoneNumber || user?.phone,
-        })
-          .then((res) => {
-            if (res.success && res.user) {
-              const syncedUser = {
-                ...newUser,
-                avatar: res.user.avatarUrl || res.user.avatar || croppedDataUrl,
-              };
-              localStorage.setItem('myup_user', JSON.stringify(syncedUser));
-              onUpdateUser(syncedUser);
-            }
-          })
-          .catch((err) => {
-            console.warn("Avatar sync error:", err.message);
+        try {
+          const res = await api.auth.updateProfile({
+            avatarUrl: croppedDataUrl,
+            userId: user?.id,
+            phone: user?.phoneNumber || user?.phone,
           });
+          if (res?.success && res?.user) {
+            const finalAv = res.user.avatarUrl || res.user.avatar_url || res.user.avatar || croppedDataUrl;
+            const syncedUser = {
+              ...newUser,
+              avatar: finalAv,
+              avatarUrl: finalAv,
+            };
+            try {
+              localStorage.setItem('myup_user', JSON.stringify(syncedUser));
+            } catch {}
+            onUpdateUser(syncedUser);
+            setSaveFeedback("Rasm muvaffaqiyatli saqlandi!");
+          } else {
+            savePendingProfileUpdate({ avatarUrl: croppedDataUrl });
+            setSaveFeedback("Rasm vaqtincha lokal saqlandi, internet ulanganda serverga yuklanadi.");
+          }
+        } catch (err) {
+          console.warn("Avatar sync error:", err.message);
+          savePendingProfileUpdate({ avatarUrl: croppedDataUrl });
+          setSaveFeedback("Rasm saqlandi (sinxronlash navbatda).");
+        } finally {
+          setIsSavingProfile(false);
+          setTimeout(() => setSaveFeedback(''), 3000);
+        }
       };
       img.src = ev.target.result;
     };
@@ -81,19 +145,41 @@ export default function ProfileDetailModal({
   };
 
   const handleSaveBio = async () => {
-    const newUser = { ...user, bio };
-    localStorage.setItem('myup_user', JSON.stringify(newUser));
+    const cleanBio = bio.trim();
+    const newUser = { ...user, bio: cleanBio };
+    try {
+      localStorage.setItem('myup_user', JSON.stringify(newUser));
+    } catch {}
     onUpdateUser(newUser);
     setEditingBio(false);
+    setIsSavingProfile(true);
+    setSaveFeedback("Ma'lumot saqlanmoqda...");
 
     try {
-      await api.auth.updateProfile({
-        bio,
+      const res = await api.auth.updateProfile({
+        bio: cleanBio,
         userId: user?.id,
         phone: user?.phoneNumber || user?.phone,
       });
+      if (res?.success && res?.user) {
+        const syncedUser = {
+          ...newUser,
+          bio: typeof res.user.bio === 'string' ? res.user.bio : cleanBio,
+        };
+        try {
+          localStorage.setItem('myup_user', JSON.stringify(syncedUser));
+        } catch {}
+        onUpdateUser(syncedUser);
+        setSaveFeedback("Ma'lumot serverga saqlandi!");
+      } else {
+        savePendingProfileUpdate({ bio: cleanBio });
+      }
     } catch (err) {
       console.warn("Bio sync error:", err.message);
+      savePendingProfileUpdate({ bio: cleanBio });
+    } finally {
+      setIsSavingProfile(false);
+      setTimeout(() => setSaveFeedback(''), 3000);
     }
   };
 
@@ -145,7 +231,7 @@ export default function ProfileDetailModal({
               }}
             >
               {hasRealPhoto ? (
-                <img src={user.avatar} alt={user.firstName} />
+                <img src={avatarSrc} alt={user.firstName} />
               ) : (
                 <div className="profile-detail-avatar-placeholder">
                   <User size={56} />
@@ -157,6 +243,7 @@ export default function ProfileDetailModal({
             <button
               className="profile-change-photo-btn"
               onClick={() => fileInputRef.current?.click()}
+              disabled={isSavingProfile}
             >
               <Camera size={18} />
               <span>{hasRealPhoto ? "O'zgartirish" : "Rasm yuklash"}</span>
@@ -170,6 +257,11 @@ export default function ProfileDetailModal({
             style={{ display: 'none' }}
             onChange={handlePhotoUpload}
           />
+          {saveFeedback && (
+            <div style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 600, marginTop: '6px' }}>
+              {saveFeedback}
+            </div>
+          )}
           <h2 className="profile-detail-name" style={{ color: textPrimary }}>
             {user.firstName} {user.lastName}
           </h2>
@@ -179,7 +271,7 @@ export default function ProfileDetailModal({
         {viewingPhoto && hasRealPhoto && (
           <div className="photo-fullview-overlay" onClick={() => setViewingPhoto(false)}>
             <div className="photo-fullview-circle">
-              <img src={user.avatar} alt={user.firstName} />
+              <img src={avatarSrc} alt={user.firstName} />
             </div>
           </div>
         )}

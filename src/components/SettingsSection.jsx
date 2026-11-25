@@ -292,25 +292,40 @@ export default function SettingsSection({
     const userPhone = user?.phoneNumber || user?.phone || "";
     const userId = user?.id || null;
 
-    if (!userPhone && !userId) return;
+    if (!userPhone && !userId) {
+      setIncomingNotifications([]);
+      return;
+    }
 
+    const userPhoneDigits = userPhone.replace(/\D/g, "");
     api.notifications
       ?.getAll({ userId: userId || "", phone: userPhone })
       .then((res) => {
         if (isMounted && res.success && Array.isArray(res.notifications)) {
           const ONE_DAY_MS = 24 * 60 * 60 * 1000;
           const apiNotifs = res.notifications
+            .filter((n) => {
+              const nPhoneDigits = (n.userPhone || n.phone || "").replace(/\D/g, "");
+              const hasOwnerMeta = Boolean(n.userId || nPhoneDigits);
+              if (!hasOwnerMeta) return true;
+              if (userId && n.userId && n.userId === userId) return true;
+              if (userPhoneDigits && nPhoneDigits && nPhoneDigits === userPhoneDigits) return true;
+              return false;
+            })
             .map((n) => ({
               id: n.id,
+              userId: n.userId,
+              userPhone: n.userPhone || n.phone || "",
               title: n.title,
               message: n.message,
-              badge: n.badge || (n.type === 'station_approved' ? "Tasdiqlandi" : "Moderatsiya"),
+              badge: n.badge || (n.type === 'station_approved' ? "Tasdiqlandi" : n.type === 'station_rejected' ? "Rad etildi" : n.type === 'admin_reply' ? "Admin javobi" : (n.type === 'location_guide' ? "Qo'llanma" : "Moderatsiya")),
               date: formatNotifDate(n.createdAt),
+              createdAt: n.createdAt,
               type: n.type,
               stationId: n.stationId,
-              isRead: true,
-              readAt: n.readAt || new Date().toISOString(),
-              sender: "Super Administrator",
+              isRead: Boolean(n.isRead),
+              readAt: n.readAt || null,
+              sender: n.type === 'location_guide' ? "AX-Map Tizimi" : "Super Administrator",
             }))
             .filter((n) => {
               if (n.readAt) {
@@ -324,8 +339,6 @@ export default function SettingsSection({
           try {
             localStorage.setItem("myup_incoming_notifications", JSON.stringify(apiNotifs));
           } catch (e) {}
-
-          api.notifications?.markAllRead({ userId: userId || "", phone: userPhone }).catch(() => {});
         }
       })
       .catch((err) => {
@@ -441,8 +454,8 @@ export default function SettingsSection({
           title="Profil bo'limiga o'tish"
         >
           <div className="new-profile-avatar-wrap">
-            {user?.avatar ? (
-              <img src={user.avatar} alt={displayName || "Avatar"} className="new-profile-avatar-img" />
+            {(user?.avatar || user?.avatarUrl || user?.avatar_url) && !String(user?.avatar || user?.avatarUrl || user?.avatar_url).includes('dicebear') ? (
+              <img src={user?.avatar || user?.avatarUrl || user?.avatar_url} alt={displayName || "Avatar"} className="new-profile-avatar-img" />
             ) : (
               <div className="new-profile-avatar-circle">
                 {initialLetter ? (

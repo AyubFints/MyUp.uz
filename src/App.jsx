@@ -402,6 +402,7 @@ export default function App() {
     }
 
     setActiveTab(newTab);
+    setShowProfileDetail(false);
     if (newTab !== "my") {
       setShowNotificationsPage(false);
       setSelectedManageStationId(null);
@@ -455,6 +456,7 @@ export default function App() {
 
   // Profil bo'limiga kirganda manzil bor-yo'qligini faqat bir marta tekshirish (miltillash va qayta yuklanishlarni oldini olish uchun)
   const hasCheckedMyStationsRef = useRef(false);
+  const skipInitialLoadingSpinnerForUserIdRef = useRef(null);
   const isFetchingMyStationsRef = useRef(false);
   const userRef = useRef(user);
   useEffect(() => {
@@ -524,10 +526,26 @@ export default function App() {
           if (st && st.id) mergedMap.set(st.id, st);
         });
 
-        // 2. Mahalliy xotiradagi kutilayotgan stansiyalarni tekshiramiz
+        // 2. Mahalliy xotiradagi kutilayotgan stansiyalarni tekshiramiz (faqat shu foydalanuvchiga tegishli bo'lsa)
+        const currentPhoneDigits = String(currentUser.phoneNumber || currentUser.phone || "").replace(/\D/g, "");
+        const isOwnedCandidate = (cand) => {
+          if (!cand || !cand.id) return false;
+          if (cand.ownerId && currentUser.id && cand.ownerId !== currentUser.id && !String(cand.ownerId).startsWith("usr_")) {
+            return false;
+          }
+          if (cand.createdBy && currentUser.id && cand.createdBy !== currentUser.id && !String(cand.createdBy).startsWith("usr_")) {
+            return false;
+          }
+          if (!cand.ownerId && !cand.createdBy && currentPhoneDigits) {
+            const cDigits = String(cand.phone || "").replace(/\D/g, "");
+            if (cDigits && cDigits !== currentPhoneDigits) return false;
+          }
+          return true;
+        };
+
         const allCandidates = [
-          ...localPending,
-          ...currentList.filter((s) => s && (s.status === 'pending' || s.isApproved === false || s.is_approved === false))
+          ...localPending.filter(isOwnedCandidate),
+          ...currentList.filter((s) => isOwnedCandidate(s) && (s.status === 'pending' || s.isApproved === false || s.is_approved === false))
         ];
 
         const nextPendingList = [];
@@ -609,6 +627,14 @@ export default function App() {
       }
     } catch {}
 
+    // Register/Login javobidan stansiyalar allaqachon kelgan bo'lsa qayta yuklash spinnerini ko'rsatmasdan jim sinxronlash
+    if (skipInitialLoadingSpinnerForUserIdRef.current && skipInitialLoadingSpinnerForUserIdRef.current === user.id) {
+      skipInitialLoadingSpinnerForUserIdRef.current = null;
+      hasCheckedMyStationsRef.current = true;
+      syncMyStations(false);
+      return;
+    }
+
     // Multi-device: har doim serverdan foydalanuvchining haqiqiy barcha shahobchalarini (kutilayotgan va tasdiqlangan) yuklash
     syncMyStations(true);
   }, [user?.id, syncMyStations]);
@@ -649,6 +675,14 @@ export default function App() {
       .then((res) => {
         if (res.success && res.user) {
           setUser((prev) => {
+            const srvHasLocation = Boolean(
+              res.user.hasLocation ??
+              res.user.has_location ??
+              (res.user.role === "owner" || res.user.role === "super_admin") ??
+              prev?.hasLocation
+            );
+            const srvAvatar = res.user.avatarUrl || res.user.avatar_url || res.user.avatar || null;
+            const srvBio = typeof res.user.bio === "string" ? res.user.bio : (prev?.bio || "");
             const updated = {
               ...(prev || {}),
               id: res.user.id,
@@ -656,17 +690,19 @@ export default function App() {
               lastName: res.user.lastName || res.user.last_name || prev?.lastName || "",
               phoneNumber: res.user.phone || res.user.phoneNumber || prev?.phoneNumber,
               role: res.user.role || prev?.role || "user",
-              hasLocation: Boolean(res.user.hasLocation ?? res.user.has_location ?? prev?.hasLocation),
-              bio: res.user.bio || prev?.bio || "",
-              avatar: res.user.avatarUrl || res.user.avatar_url || res.user.avatar || prev?.avatar,
+              hasLocation: srvHasLocation,
+              has_location: srvHasLocation,
+              bio: srvBio,
+              avatarUrl: srvAvatar || prev?.avatarUrl || null,
+              avatar: srvAvatar || prev?.avatar,
               registeredAt: res.user.createdAt || res.user.created_at || prev?.registeredAt,
               locationName: res.user.locationName || res.user.location_name || prev?.locationName || "",
               responsiblePerson: res.user.responsiblePerson || res.user.responsible_person || prev?.responsiblePerson || "",
               locationAddress: prev?.locationAddress || "",
               locationPhone: res.user.locationPhone || res.user.location_phone || prev?.locationPhone || "",
               locationImage: res.user.locationImage || res.user.location_image || prev?.locationImage || null,
-              canAddStation: Boolean(res.user.canAddStation ?? res.user.can_add_station ?? prev?.canAddStation ?? true),
-              registeredViaLocation: Boolean(res.user.registeredViaLocation ?? res.user.registered_via_location ?? prev?.registeredViaLocation ?? true),
+              canAddStation: Boolean(res.user.canAddStation ?? res.user.can_add_station ?? srvHasLocation ?? prev?.canAddStation ?? false),
+              registeredViaLocation: Boolean(res.user.registeredViaLocation ?? res.user.registered_via_location ?? res.user.locationName ?? res.user.location_name ?? srvHasLocation ?? prev?.registeredViaLocation ?? false),
             };
             try {
               localStorage.setItem("myup_user", JSON.stringify(updated));
@@ -702,8 +738,34 @@ export default function App() {
               if (res && res.success && res.token && res.user) {
                 console.log("✅ Offline foydalanuvchi bazaga sinxronlandi:", res.user.id);
                 localStorage.setItem("myup_token", res.token);
-                setUser((prev) => ({ ...prev, id: res.user.id, role: res.user.role || prev?.role }));
+                setUser((prev) => {
+                  const synced = { ...(prev || {}), id: res.user.id, role: res.user.role || prev?.role };
+                  try {
+                    localStorage.setItem("myup_user", JSON.stringify(synced));
+                  } catch {}
+                  if (prev?.bio || (prev?.avatar && !String(prev.avatar).includes("dicebear"))) {
+                    api.auth.updateProfile({
+                      userId: res.user.id,
+                      phone: res.user.phone || prev?.phoneNumber,
+                      ...(prev?.bio ? { bio: prev.bio } : {}),
+                      ...(prev?.avatar && !String(prev.avatar).includes("dicebear") ? { avatarUrl: prev.avatar } : {}),
+                    }).catch(() => {});
+                  }
+                  return synced;
+                });
                 localStorage.removeItem("myup_pending_user_reg");
+              }
+            }
+          }
+
+          // 1b. Kutilayotgan profil o'zgarishlarini (avatar, bio) bazaga sinxronlash
+          const pendingProfRaw = localStorage.getItem("myup_pending_profile_update");
+          if (pendingProfRaw && localStorage.getItem("myup_token")) {
+            const pendingProf = JSON.parse(pendingProfRaw);
+            if (pendingProf && (pendingProf.bio !== undefined || pendingProf.avatarUrl)) {
+              const pRes = await api.auth.updateProfile(pendingProf).catch(() => null);
+              if (pRes && pRes.success) {
+                localStorage.removeItem("myup_pending_profile_update");
               }
             }
           }
@@ -837,7 +899,8 @@ export default function App() {
             const userPhoneDigits = userPhone.replace(/\D/g, "");
             const myUnread = res.notifications.filter((n) => {
               const nPhoneDigits = (n.userPhone || n.phone || "").replace(/\D/g, "");
-              const isMine = (userId && n.userId === userId) || (userPhoneDigits && nPhoneDigits === userPhoneDigits);
+              const hasOwnerMeta = Boolean(n.userId || nPhoneDigits);
+              const isMine = !hasOwnerMeta || (userId && n.userId === userId) || (userPhoneDigits && nPhoneDigits === userPhoneDigits);
               return isMine && !n.isRead && !n.readAt;
             });
             const count = myUnread.length;
@@ -1099,13 +1162,30 @@ export default function App() {
   };
 
   const handleAuthSuccess = (loggedUser, newStation, userStations = null) => {
+    if (Array.isArray(userStations) && loggedUser?.id) {
+      skipInitialLoadingSpinnerForUserIdRef.current = loggedUser.id;
+    }
     setUser(loggedUser);
+    setShowProfileDetail(false);
+    setShowNotificationsPage(false);
+    setSelectedManageStationId(null);
+    handleTabChange("my");
+
+    try {
+      const cnt = parseInt(localStorage.getItem("myup_notif_unread_count") || "0", 10) || 0;
+      setUnreadNotifCount(cnt);
+      setHasUnreadNotification(cnt > 0);
+    } catch {}
+
     if (newStation) {
       setMyStations((prev) => {
         const exists = prev.find((s) => s.id === newStation.id);
         const updated = exists ? prev.map((s) => (s.id === newStation.id ? newStation : s)) : [newStation, ...prev];
         try {
           localStorage.setItem("myup_my_stations", JSON.stringify(updated));
+          if (loggedUser?.id) {
+            localStorage.setItem(`myup_my_stations_${loggedUser.id}`, JSON.stringify(updated));
+          }
         } catch (e) {}
         return updated;
       });
@@ -1113,6 +1193,9 @@ export default function App() {
       setMyStations(userStations);
       try {
         localStorage.setItem("myup_my_stations", JSON.stringify(userStations));
+        if (loggedUser?.id) {
+          localStorage.setItem(`myup_my_stations_${loggedUser.id}`, JSON.stringify(userStations));
+        }
       } catch (e) {}
     } else if (loggedUser?.id || loggedUser?.phoneNumber) {
       api.stations
@@ -1121,6 +1204,9 @@ export default function App() {
           if (res.success && Array.isArray(res.stations)) {
             setMyStations(res.stations);
             localStorage.setItem("myup_my_stations", JSON.stringify(res.stations));
+            if (loggedUser?.id) {
+              localStorage.setItem(`myup_my_stations_${loggedUser.id}`, JSON.stringify(res.stations));
+            }
           }
         })
         .catch(() => {});
@@ -1181,7 +1267,19 @@ export default function App() {
     try {
       localStorage.setItem("myup_user", JSON.stringify(updatedUser));
     } catch (e) {}
+    api.auth
+      .updateProfile({
+        userId: updatedUser.id,
+        phone: updatedUser.phoneNumber,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        avatarUrl: updatedUser.avatar && !updatedUser.avatar.includes("dicebear") ? updatedUser.avatar : undefined,
+      })
+      .catch(() => {});
     setShowCompleteUserProfileModal(false);
+    setShowProfileDetail(false);
+    setShowNotificationsPage(false);
+    handleTabChange("my");
   };
 
   const handleLocationModalStep1Submit = (e) => {
@@ -1240,9 +1338,12 @@ export default function App() {
         avatarUrl: finalImg || null,
       };
 
+      const isExistingLoggedUser = Boolean(
+        token && user && user.id && !String(user.id).startsWith("usr_") && !String(user.id).startsWith("user_")
+      );
       let realUserId = user?.id;
 
-      if (!token || !user || !user.id || user.id.startsWith("usr_")) {
+      if (!isExistingLoggedUser) {
         // Foydalanuvchi tizimga kirmagan bo'lsa: markaziy PostgreSQL bazasida ro'yxatdan o'tkazamiz (Real Account)
         try {
           let authRes;
@@ -1283,11 +1384,19 @@ export default function App() {
           console.warn("Joylashuv registratsiyasida backend xatosi:", authErr.message);
         }
       } else {
-        // Foydalanuvchi allaqachon tizimga kirgan bo'lsa: uning profilini va parolini bazada yangilaymiz
+        // Foydalanuvchi allaqachon ro'yxatdan o'tgan bo'lsa: shaxsiy rasm/bio/parolini buzmasdan faqat joylashuv huquqini yoqamiz
         try {
           await api.auth.updateProfile({
-            ...regPayload,
-            password: locModalData.password,
+            userId: user.id,
+            phone: user.phoneNumber || user.phone || cleanPhone,
+            hasLocation: true,
+            canAddStation: true,
+            registeredViaLocation: true,
+            role: user.role === "super_admin" ? "super_admin" : "owner",
+            locationName: locName,
+            responsiblePerson: respPerson,
+            locationPhone: locPhone,
+            locationImage: finalImg,
           });
         } catch (apiErr) {
           console.warn("Backendga joylashuv ma'lumotlarini saqlashda xato:", apiErr.message);
@@ -1296,23 +1405,41 @@ export default function App() {
 
       // DIQQAT: Bu yerda hech qanday soxta shahobcha (joylashuv) yaratilmaydi!
       // Faqat foydalanuvchiga joylashuv/shahobcha qo'shish huquqi beriladi.
-      const updatedUser = {
-        ...(user || {}),
-        id: realUserId || user?.id || ("usr_" + Date.now()),
-        role: "owner",
-        hasLocation: true,
-        has_location: true,
-        canAddStation: true,
-        can_add_station: true,
-        registeredViaLocation: true,
-        registered_via_location: true,
-        organizationName: locName,
-        locationName: locName,
-        responsiblePerson: respPerson,
-        locationPhone: locPhone,
-        locationImage: finalImg,
-        phoneNumber: locPhone,
-      };
+      const updatedUser = isExistingLoggedUser
+        ? {
+            ...user,
+            id: realUserId || user.id,
+            role: user.role === "super_admin" ? "super_admin" : "owner",
+            hasLocation: true,
+            has_location: true,
+            canAddStation: true,
+            can_add_station: true,
+            registeredViaLocation: true,
+            registered_via_location: true,
+            organizationName: locName,
+            locationName: locName,
+            responsiblePerson: respPerson,
+            locationPhone: locPhone,
+            locationImage: finalImg,
+          }
+        : {
+            ...(user || {}),
+            id: realUserId || user?.id || ("usr_" + Date.now()),
+            role: "owner",
+            hasLocation: true,
+            has_location: true,
+            canAddStation: true,
+            can_add_station: true,
+            registeredViaLocation: true,
+            registered_via_location: true,
+            organizationName: locName,
+            locationName: locName,
+            responsiblePerson: respPerson,
+            locationPhone: locPhone,
+            locationImage: finalImg,
+            phoneNumber: locPhone,
+            ...(finalImg ? { avatar: finalImg, avatarUrl: finalImg } : {}),
+          };
 
       setUser(updatedUser);
       try {
@@ -1335,6 +1462,9 @@ export default function App() {
 
       setShowLocationRegisterModal(false);
       setLocModalStep(1);
+      setShowProfileDetail(false);
+      setShowNotificationsPage(false);
+      handleTabChange("my");
     } catch (finishErr) {
       console.error("handleFinishLocationModalRegister xatosi:", finishErr);
     } finally {
@@ -2550,6 +2680,10 @@ export default function App() {
     localStorage.removeItem("myup_user");
     localStorage.removeItem("myup_token");
     localStorage.removeItem("myup_my_stations");
+    localStorage.removeItem("myup_pending_stations");
+    localStorage.removeItem("myup_my_sent_feedbacks");
+    localStorage.removeItem("myup_pending_profile_update");
+    localStorage.removeItem("myup_pending_user_reg");
     localStorage.removeItem("myup_incoming_notifications");
     localStorage.removeItem("myup_notif_unread");
     localStorage.removeItem("myup_notif_unread_count");
@@ -2559,6 +2693,7 @@ export default function App() {
     setHasUnreadNotification(false);
     setSelectedManageStationId(null);
     setShowNotificationsPage(false);
+    setShowProfileDetail(false);
   };
 
   const handleRateStation = (stationId, newRating) => {
@@ -3802,7 +3937,12 @@ export default function App() {
         
         <button
           className="mobile-header-profile"
-          onClick={() => handleTabChange("my")}
+          onClick={() => {
+            setShowProfileDetail(false);
+            setShowNotificationsPage(false);
+            setSelectedManageStationId(null);
+            handleTabChange("my");
+          }}
           style={{ background: 'none', border: 'none', padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0 }}
           title="Profil"
         >
@@ -5266,6 +5406,8 @@ export default function App() {
                         user?.location_name ||
                         user?.hasLocation ||
                         user?.has_location ||
+                        user?.canAddStation ||
+                        user?.can_add_station ||
                         user?.role === 'owner' ||
                         user?.role === 'super_admin' ||
                         myStations.length > 0
@@ -5410,9 +5552,9 @@ export default function App() {
                                     onClick={() => setShowProfileDetail(true)}
                                     title="Rasmni ko'rish yoki tahrirlash"
                                   >
-                                    {user?.avatar && !user?.avatar.includes("dicebear") ? (
+                                    {(user?.avatar || user?.avatarUrl || user?.avatar_url) && !String(user?.avatar || user?.avatarUrl || user?.avatar_url).includes("dicebear") ? (
                                       <img
-                                        src={user?.avatar}
+                                        src={user?.avatar || user?.avatarUrl || user?.avatar_url}
                                         alt={user?.firstName}
                                         className="profile-hero-avatar-img"
                                       />
@@ -5475,8 +5617,8 @@ export default function App() {
                             </div>
                           )}
 
-                          {/* 2. PROFIL PASTIDA JOYLASHUV QO'SHISH TUGMASI VA MENING JOYLASHUVLARIM */}
-                          {true && (
+                          {/* 2. PROFIL PASTIDA JOYLASHUV QO'SHISH TUGMASI VA MENING JOYLASHUVLARIM (FAQAT JOYLASHUV QO'SHISH FAOLLASHTIRILGANDAN KEYIN) */}
+                          {isLocationRegistered && (
                             <>
                               <button
                                 className="profile-add-station-banner-btn"
@@ -5809,11 +5951,10 @@ export default function App() {
                   user={user}
                   onLogout={() => setShowLogoutConfirm(true)}
                   onNavigateProfile={() => {
-                    if (user) {
-                      setShowProfileDetail(true);
-                    } else {
-                      handleTabChange("my");
-                    }
+                    setShowProfileDetail(false);
+                    setShowNotificationsPage(false);
+                    setSelectedManageStationId(null);
+                    handleTabChange("my");
                   }}
                   onOpenNotifications={handleOpenNotifications}
                   hasUnreadNotification={unreadNotifCount > 0 || hasUnreadNotification}
@@ -5862,6 +6003,18 @@ export default function App() {
                 onGoToAddLocation={() => {
                   if (!user) {
                     handleTabChange("my", "register");
+                  } else if (
+                    !user?.hasLocation &&
+                    !user?.has_location &&
+                    !user?.canAddStation &&
+                    !user?.can_add_station &&
+                    !user?.registeredViaLocation &&
+                    !user?.registered_via_location &&
+                    user?.role !== "owner" &&
+                    user?.role !== "super_admin" &&
+                    myStations.length === 0
+                  ) {
+                    handleGoToLocationRegister();
                   } else {
                     handleTabChange("my");
                     setEditingStation(null);

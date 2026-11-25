@@ -154,17 +154,17 @@ export default function NotificationsView({
   // Foydalanuvchining o'z fikrlarini begona/eskirgan keshdan ajratib olish yordamchisi
   const sanitizeMyFeedbacks = (list, currentUser) => {
     if (!Array.isArray(list)) return [];
-    const cleanUserPhone = (currentUser?.phoneNumber || currentUser?.phone || "").replace(/\s+/g, "");
+    const cleanUserDigits = (currentUser?.phoneNumber || currentUser?.phone || "").replace(/\D/g, "");
     const currentUserId = currentUser?.id || null;
 
     return list.filter((item) => {
-      const itemPhone = (item.phone || "").replace(/\s+/g, "");
+      const itemDigits = (item.phone || "").replace(/\D/g, "");
       // Agar tizimga kirgan bo'lsa va telefon raqami mos kelsa
-      if (cleanUserPhone && itemPhone && cleanUserPhone === itemPhone) return true;
+      if (cleanUserDigits && itemDigits && cleanUserDigits === itemDigits) return true;
       // Agar userId mos kelsa
       if (currentUserId && item.userId && currentUserId === item.userId) return true;
       // Agar mehmon bo'lsa, faqat shu qurilmaning o'zida yozilgan lokal xabarlar
-      if (!cleanUserPhone && !currentUserId && typeof item.id === "string" && item.id.startsWith("fb_") && !itemPhone) {
+      if (!cleanUserDigits && !currentUserId && typeof item.id === "string" && item.id.startsWith("fb_") && !itemDigits) {
         return true;
       }
       return false;
@@ -275,37 +275,47 @@ export default function NotificationsView({
       return;
     }
 
+    const handleFeedbackResponse = (res) => {
+      if (isMounted && res?.success && Array.isArray(res.feedbacks)) {
+        const userPhoneDigits = userPhone.replace(/\D/g, "");
+        // Qat'iy xavfsizlik: faqat haqiqatan ham ushbu foydalanuvchiga tegishli bo'lganlarini qabul qilamiz
+        const strictlyMyFeedbacks = res.feedbacks.filter(f => {
+          const fDigits = (f.phone || f.author_phone || "").replace(/\D/g, "");
+          if (userId && f.userId && f.userId === userId) return true;
+          if (userPhoneDigits && fDigits && fDigits === userPhoneDigits) return true;
+          return false;
+        });
+
+        const formatted = strictlyMyFeedbacks.map((f) => ({
+          id: f.id,
+          userId: f.userId,
+          type: f.type,
+          text: f.message,
+          author: f.author || `${user?.firstName || user?.first_name || ""} ${user?.lastName || user?.last_name || ""}`.trim() || "Siz",
+          phone: f.phone || f.author_phone || "",
+          date: formatNotifDate(f.createdAt),
+          status: f.status === "yangi" ? "Yuborildi" : (f.status === "hal_etildi" ? "Ko'rib chiqildi" : f.status),
+          adminReply: f.adminReply || f.admin_reply || null,
+        }));
+
+        setMyFeedbacks(formatted);
+        try {
+          localStorage.setItem("myup_my_sent_feedbacks", JSON.stringify(formatted));
+        } catch {}
+      }
+    };
+
     api.feedbacks
       .getAll({ userId: userId || "", phone: userPhone })
-      .then((res) => {
-        if (isMounted && res.success && Array.isArray(res.feedbacks)) {
-          const cleanUserPhone = userPhone.replace(/\s+/g, "");
-          // Qat'iy xavfsizlik: faqat haqiqatan ham ushbu foydalanuvchiga tegishli bo'lganlarini qabul qilamiz
-          const strictlyMyFeedbacks = res.feedbacks.filter(f => {
-            const fPhone = (f.phone || "").replace(/\s+/g, "");
-            if (cleanUserPhone && fPhone) return fPhone === cleanUserPhone;
-            if (userId && f.userId) return f.userId === userId;
-            return false;
-          });
-
-          const formatted = strictlyMyFeedbacks.map((f) => ({
-            id: f.id,
-            userId: f.userId,
-            type: f.type,
-            text: f.message,
-            author: f.author || `${user?.firstName || user?.first_name || ""} ${user?.lastName || user?.last_name || ""}`.trim() || "Siz",
-            phone: f.phone || "",
-            date: formatNotifDate(f.createdAt),
-            status: f.status === "yangi" ? "Yuborildi" : (f.status === "hal_etildi" ? "Ko'rib chiqildi" : f.status),
-            adminReply: f.adminReply,
-          }));
-
-          setMyFeedbacks(formatted);
-          localStorage.setItem("myup_my_sent_feedbacks", JSON.stringify(formatted));
+      .then(handleFeedbackResponse)
+      .catch(async (err) => {
+        // Eski server versiyasida query params xato (500) bersa, parametrsiz so'rab qat'iy client-filter qilamiz
+        try {
+          const fallbackRes = await api.feedbacks.getAll();
+          handleFeedbackResponse(fallbackRes);
+        } catch {
+          console.warn("API dan fikrlarni olishda xato (offline rejim):", err.message);
         }
-      })
-      .catch((err) => {
-        console.warn("API dan fikrlarni olishda xato (offline rejim):", err.message);
       });
 
     return () => {
@@ -336,6 +346,8 @@ export default function NotificationsView({
           // Faqat joriy foydalanuvchiga tegishli bildirishnomalar
           const myOnly = res.notifications.filter(n => {
             const nPhoneDigits = (n.userPhone || n.phone || "").replace(/\D/g, "");
+            const hasOwnerMeta = Boolean(n.userId || nPhoneDigits);
+            if (!hasOwnerMeta) return true;
             if (userId && n.userId && n.userId === userId) return true;
             if (userPhoneDigits && nPhoneDigits && nPhoneDigits === userPhoneDigits) return true;
             return false;
@@ -346,7 +358,7 @@ export default function NotificationsView({
               id: n.id,
               title: n.title,
               message: n.message,
-              badge: n.badge || (n.type === 'station_approved' ? "Tasdiqlandi" : (n.type === 'location_guide' ? "Qo'llanma" : "Moderatsiya")),
+              badge: n.badge || (n.type === 'station_approved' ? "Tasdiqlandi" : n.type === 'station_rejected' ? "Rad etildi" : n.type === 'admin_reply' ? "Admin javobi" : (n.type === 'location_guide' ? "Qo'llanma" : "Moderatsiya")),
               date: formatNotifDate(n.createdAt),
               createdAt: n.createdAt,
               type: n.type,
