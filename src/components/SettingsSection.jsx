@@ -273,13 +273,16 @@ export default function SettingsSection({
       const saved = localStorage.getItem("myup_incoming_notifications");
       if (saved) {
         const parsed = JSON.parse(saved);
+        if (!Array.isArray(parsed)) return [];
         const ONE_DAY_MS = 24 * 60 * 60 * 1000;
         return parsed.filter((item) => {
+          if (!item || typeof item !== "object") return false;
           if (item.readAt) {
             const age = Date.now() - new Date(item.readAt).getTime();
             if (age >= ONE_DAY_MS) return false;
           }
-          return item.id !== "sys_amaps_welcome" && !item.id?.startsWith("incoming_reply_");
+          const idStr = String(item?.id ?? "");
+          return idStr !== "sys_amaps_welcome" && !idStr.startsWith("incoming_reply_");
         });
       }
     } catch {}
@@ -297,7 +300,7 @@ export default function SettingsSection({
       return;
     }
 
-    const userPhoneDigits = userPhone.replace(/\D/g, "");
+    const userPhoneDigits = String(userPhone ?? "").replace(/\D/g, "");
     api.notifications
       ?.getAll({ userId: userId || "", phone: userPhone })
       .then((res) => {
@@ -305,7 +308,7 @@ export default function SettingsSection({
           const ONE_DAY_MS = 24 * 60 * 60 * 1000;
           const apiNotifs = res.notifications
             .filter((n) => {
-              const nPhoneDigits = (n.userPhone || n.phone || "").replace(/\D/g, "");
+              const nPhoneDigits = String(n?.userPhone ?? n?.phone ?? "").replace(/\D/g, "");
               const hasOwnerMeta = Boolean(n.userId || nPhoneDigits);
               if (!hasOwnerMeta) return true;
               if (userId && n.userId && n.userId === userId) return true;
@@ -600,7 +603,7 @@ export default function SettingsSection({
               {/* 12 ta yumaloq rang */}
               <div className="new-twelve-circles-grid">
                 {TWELVE_PRESETS.map((preset) => {
-                  const isSelected = selectedTheme.bg.toLowerCase() === preset.bg.toLowerCase();
+                  const isSelected = String(selectedTheme?.bg ?? "").toLowerCase() === String(preset?.bg ?? "").toLowerCase();
                   return (
                     <button
                       key={preset.id}
@@ -744,9 +747,10 @@ export default function SettingsSection({
 
           {incomingNotifications.length > 0 ? (
             <div className="notif-items-vertical-stack">
-              {incomingNotifications.map((item) => {
-                const isApprovedNotif = item.type === 'station_approved' || item.badge === 'Tasdiqlandi' || (item.title && item.title.includes('tasdiqlandi'));
-                const isRejectedNotif = item.type === 'station_rejected' || item.badge === 'Rad etildi' || (item.title && item.title.includes('rad etildi'));
+              {incomingNotifications.filter((item) => item && typeof item === 'object').map((item) => {
+                const titleStr = typeof item.title === 'string' ? item.title : String(item.title ?? '');
+                const isApprovedNotif = item.type === 'station_approved' || item.badge === 'Tasdiqlandi' || titleStr.includes('tasdiqlandi');
+                const isRejectedNotif = item.type === 'station_rejected' || item.badge === 'Rad etildi' || titleStr.includes('rad etildi');
 
                 return (
                   <div 

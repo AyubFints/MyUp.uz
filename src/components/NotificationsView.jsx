@@ -154,11 +154,12 @@ export default function NotificationsView({
   // Foydalanuvchining o'z fikrlarini begona/eskirgan keshdan ajratib olish yordamchisi
   const sanitizeMyFeedbacks = (list, currentUser) => {
     if (!Array.isArray(list)) return [];
-    const cleanUserDigits = (currentUser?.phoneNumber || currentUser?.phone || "").replace(/\D/g, "");
+    const cleanUserDigits = String(currentUser?.phoneNumber ?? currentUser?.phone ?? "").replace(/\D/g, "");
     const currentUserId = currentUser?.id || null;
 
     return list.filter((item) => {
-      const itemDigits = (item.phone || "").replace(/\D/g, "");
+      if (!item || typeof item !== "object") return false;
+      const itemDigits = String(item.phone ?? "").replace(/\D/g, "");
       // Agar tizimga kirgan bo'lsa va telefon raqami mos kelsa
       if (cleanUserDigits && itemDigits && cleanUserDigits === itemDigits) return true;
       // Agar userId mos kelsa
@@ -193,10 +194,12 @@ export default function NotificationsView({
     const now = Date.now();
 
     return list.filter((item) => {
-      if (item.id === "sys_amaps_welcome" || item.id?.startsWith("incoming_reply_")) return false;
+      if (!item || typeof item !== "object") return false;
+      const idStr = String(item.id ?? "");
+      if (idStr === "sys_amaps_welcome" || idStr.startsWith("incoming_reply_")) return false;
 
       // 2 kunlik yo'riqnoma bildirishnoma: faqat yangi foydalanuvchi bo'lib kirgandan so'ng 2 kun tursin va uchib ketsin!
-      if (item.type === "location_guide" || item.id?.startsWith("sys_location_guide")) {
+      if (item.type === "location_guide" || idStr.startsWith("sys_location_guide")) {
         const createdTime = new Date(item.createdAt || item.created_at || item.date).getTime();
         if (!isNaN(createdTime) && now - createdTime >= TWO_DAYS_MS) {
           return false; // 2 kundan oshgach avtomatik uchib ketadi
@@ -719,10 +722,12 @@ export default function NotificationsView({
 
         {incomingNotifications.length > 0 ? (
           <div className="notif-items-vertical-stack">
-            {incomingNotifications.map((item) => {
-              const isApprovedNotif = item.type === 'station_approved' || item.badge === 'Tasdiqlandi' || (item.title && item.title.includes('tasdiqlandi'));
-              const isRejectedNotif = item.type === 'station_rejected' || item.badge === 'Rad etildi' || (item.title && item.title.includes('rad etildi'));
-              const isLocationGuide = item.type === 'location_guide' || item.id?.startsWith('sys_location_guide');
+            {incomingNotifications.filter((item) => item && typeof item === 'object').map((item) => {
+              const idStr = String(item.id ?? '');
+              const titleStr = typeof item.title === 'string' ? item.title : String(item.title ?? '');
+              const isApprovedNotif = item.type === 'station_approved' || item.badge === 'Tasdiqlandi' || titleStr.includes('tasdiqlandi');
+              const isRejectedNotif = item.type === 'station_rejected' || item.badge === 'Rad etildi' || titleStr.includes('rad etildi');
+              const isLocationGuide = item.type === 'location_guide' || idStr.startsWith('sys_location_guide');
 
               return (
                 <div 

@@ -277,7 +277,8 @@ function renderStationPopupContent(station, onSelectStation, onNavigate, popup) 
   `;
 
   // Listenerlar
-  const closeBtn = popupContent.querySelector(`#btn-close-${station.id}`);
+  const safeStationIdAttr = String(station?.id ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  const closeBtn = popupContent.querySelector(`[id="btn-close-${safeStationIdAttr}"]`);
   if (closeBtn && popup) {
     closeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -285,7 +286,7 @@ function renderStationPopupContent(station, onSelectStation, onNavigate, popup) 
     });
   }
 
-  const navBtn = popupContent.querySelector(`#btn-nav-${station.id}`);
+  const navBtn = popupContent.querySelector(`[id="btn-nav-${safeStationIdAttr}"]`);
   if (navBtn) {
     navBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -301,7 +302,7 @@ function renderStationPopupContent(station, onSelectStation, onNavigate, popup) 
     });
   }
 
-  const detailBtn = popupContent.querySelector(`#btn-detail-${station.id}`);
+  const detailBtn = popupContent.querySelector(`[id="btn-detail-${safeStationIdAttr}"]`);
   if (detailBtn && onSelectStation) {
     detailBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -309,7 +310,7 @@ function renderStationPopupContent(station, onSelectStation, onNavigate, popup) 
     });
   }
 
-  const reportBtn = popupContent.querySelector(`#btn-report-${station.id}`);
+  const reportBtn = popupContent.querySelector(`[id="btn-report-${safeStationIdAttr}"]`);
   if (reportBtn) {
     reportBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -871,6 +872,7 @@ export default function MapView({
     if (mapRef.current || !mapContainerRef.current) return;
 
     let isMounted = true;
+    let createdMap = null;
 
     function initMap() {
       try {
@@ -887,11 +889,12 @@ export default function MapView({
           zoom: 13.5,
           attributionControl: false,
         });
+        createdMap = map;
 
         map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
 
         map.on('load', () => {
-          if (!isMounted) return;
+          if (!isMounted || map._removed) return;
           mapRef.current = map;
           setMapInstance(map);
 
@@ -918,9 +921,16 @@ export default function MapView({
 
     return () => {
       isMounted = false;
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
+      const targetMap = mapRef.current || createdMap;
+      mapRef.current = null;
+      createdMap = null;
+      setMapInstance(null);
+      if (targetMap) {
+        try {
+          if (!targetMap._removed) {
+            targetMap.remove();
+          }
+        } catch (e) {}
       }
     };
   }, [protomapsKey]);
@@ -928,21 +938,22 @@ export default function MapView({
   // Xarita konteyneri o'lchami o'zgarganda (balandlik oshirilganda) MapLibre'ni darhol qayta moslash
   useEffect(() => {
     if (!mapInstance) return;
-    if (typeof mapInstance.resize === 'function') {
-      mapInstance.resize();
-    }
-    const ro = new ResizeObserver(() => {
-      if (mapInstance && typeof mapInstance.resize === 'function') {
-        mapInstance.resize();
+    const safeResize = () => {
+      if (mapInstance && !mapInstance._removed && typeof mapInstance.resize === 'function') {
+        try {
+          mapInstance.resize();
+        } catch (e) {}
       }
+    };
+    safeResize();
+    const ro = new ResizeObserver(() => {
+      safeResize();
     });
     if (mapContainerRef.current) {
       ro.observe(mapContainerRef.current);
     }
     const t = setTimeout(() => {
-      if (mapInstance && typeof mapInstance.resize === 'function') {
-        mapInstance.resize();
-      }
+      safeResize();
     }, 150);
     return () => {
       ro.disconnect();
@@ -953,15 +964,18 @@ export default function MapView({
   // Xarita va barcha shahobchalar xaritaga to'liq tushguncha yarqirab turishi (Foydalanuvchi talabi)
   useEffect(() => {
     if (!mapInstance) return;
+    let finishTimer = null;
     const timer = setTimeout(() => {
       setIsMapFadingOut(true);
-      const finishTimer = setTimeout(() => {
+      finishTimer = setTimeout(() => {
         setIsMapReady(true);
       }, 500);
-      return () => clearTimeout(finishTimer);
     }, 1800);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (finishTimer) clearTimeout(finishTimer);
+    };
   }, [mapInstance, filteredStationList?.length]);
 
   // 2. Foydalanuvchi GPS joylashuvini kuzatish

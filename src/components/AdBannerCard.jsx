@@ -277,7 +277,7 @@ export function DesktopSideBanner({
         brand: item.brand || item.company_name || item.advertiser_name || item.advertiserName || "AX-Map Hamkor",
         category: item.category || item.target_audience || "",
         title: item.title || "Reklama",
-        highlightWord: item.highlightWord || (item.title ? item.title.split(' ')[2] : null),
+        highlightWord: item.highlightWord ? String(item.highlightWord) : (typeof item.title === 'string' && item.title ? item.title.split(' ')[2] : null),
         description: item.description || "",
         mediaUrl: item.video_url || item.media_url || item.imageUrl || null,
         target_link: item.target_link || item.targetLink || item.link || null,
@@ -440,7 +440,7 @@ export function DesktopSideBanner({
             style={{ cursor: 'pointer' }}
           >
             <h4 className="side-banner-main-title">
-              {currentSlide.highlightWord && currentSlide.title.includes(currentSlide.highlightWord) ? (
+              {currentSlide.highlightWord && typeof currentSlide.title === 'string' && currentSlide.title.includes(currentSlide.highlightWord) ? (
                 currentSlide.title.split(currentSlide.highlightWord).map((part, i, arr) => (
                   <React.Fragment key={i}>
                     {part}
@@ -523,7 +523,7 @@ export function MobileAdBanner({ ads = [], ad = null, onOpenAdvertising }) {
         brand: item.brand || item.company_name || item.advertiser_name || item.advertiserName || "AX-Map Hamkor",
         category: item.category || item.target_audience || "",
         title: item.title || "Reklama",
-        highlightWord: item.highlightWord || (item.title ? item.title.split(' ')[2] : null),
+        highlightWord: item.highlightWord ? String(item.highlightWord) : (typeof item.title === 'string' && item.title ? item.title.split(' ')[2] : null),
         description: item.description || "",
         mediaUrl: item.video_url || item.media_url || item.imageUrl || null,
         target_link: item.target_link || item.targetLink || item.link || null,

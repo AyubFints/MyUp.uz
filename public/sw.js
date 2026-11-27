@@ -208,20 +208,22 @@ self.addEventListener('fetch', (event) => {
         if (cachedResponse) {
           return cachedResponse;
         }
-        return fetch(request).then((networkResponse) => {
-          if (!networkResponse || networkResponse.status !== 200) {
-            // Yangi reliz chiqqanida eski index.html keshda qolmasligi uchun uni tozalaymiz
-            if (networkResponse && networkResponse.status === 404) {
-              caches.open(CACHE_NAME).then((cache) => cache.delete('/index.html'));
+        return fetch(request)
+          .then((networkResponse) => {
+            if (!networkResponse || networkResponse.status !== 200) {
+              // Yangi reliz chiqqanida eski index.html keshda qolmasligi uchun uni tozalaymiz
+              if (networkResponse && networkResponse.status === 404) {
+                caches.open(CACHE_NAME).then((cache) => cache.delete('/index.html')).catch(() => {});
+              }
+              return networkResponse;
             }
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseClone).catch(() => {});
+            }).catch(() => {});
             return networkResponse;
-          }
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseClone);
-          });
-          return networkResponse;
-        });
+          })
+          .catch(() => Response.error());
       })
     );
     return;

@@ -83,33 +83,68 @@ import {
 } from "lucide-react";
 import "./App.css";
 
-// Yangi deploy paytida eski chunk 404 bo'lib qolishini oldini oluvchi xavfsiz lazy yuklovchi
+// Yangi deploy paytida eski chunk 404 yoki vaqtinchalik tarmoq uzilishi bo'lib qolishini oldini oluvchi xavfsiz lazy yuklovchi
+function isDynamicChunkError(err) {
+  const msg = String(err?.message || err || '').toLowerCase();
+  return (
+    msg.includes('dynamically imported module') ||
+    msg.includes('importing a module script failed') ||
+    msg.includes('error loading dynamically imported module') ||
+    msg.includes('load failed') ||
+    msg.includes('failed to fetch') ||
+    msg.includes('loading chunk') ||
+    msg.includes('loading css chunk') ||
+    msg.includes('unable to preload') ||
+    msg.includes('networkerror') ||
+    msg.includes('mime type')
+  );
+}
+
 function lazyWithRetry(componentImport) {
   return lazy(async () => {
-    try {
-      return await componentImport();
-    } catch (err) {
-      const msg = err?.message || String(err || '');
-      if (
-        msg.includes('Failed to fetch dynamically imported module') ||
-        msg.includes('dynamically imported module') ||
-        msg.includes('Loading chunk')
-      ) {
-        const hasRetried = sessionStorage.getItem('sw_chunk_retried');
-        if (!hasRetried) {
-          sessionStorage.setItem('sw_chunk_retried', 'true');
-          if ('caches' in window) {
-            try {
-              const keys = await caches.keys();
-              await Promise.all(keys.map((k) => caches.delete(k)));
-            } catch (e) {}
-          }
-          window.location.reload();
-          return new Promise(() => {});
+    let lastErr = null;
+    const retryDelays = [0, 250];
+    for (let i = 0; i < retryDelays.length; i++) {
+      if (retryDelays[i] > 0) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelays[i]));
+      }
+      try {
+        return await componentImport();
+      } catch (err) {
+        lastErr = err;
+        if (!isDynamicChunkError(err)) {
+          throw err;
         }
       }
-      throw err;
     }
+
+    if (isDynamicChunkError(lastErr)) {
+      let shouldReload = false;
+      try {
+        const lastReload = parseInt(sessionStorage.getItem('lazy_chunk_reload_ts') || '0', 10);
+        const now = Date.now();
+        if (now - lastReload > 15000) {
+          sessionStorage.setItem('lazy_chunk_reload_ts', String(now));
+          sessionStorage.removeItem('sw_chunk_retried');
+          shouldReload = true;
+        }
+      } catch (e) {
+        shouldReload = false;
+      }
+
+      if (shouldReload) {
+        if ('caches' in window) {
+          try {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+          } catch (e) {}
+        }
+        window.location.reload();
+        return new Promise(() => {});
+      }
+    }
+
+    throw lastErr;
   });
 }
 
@@ -337,11 +372,18 @@ export default function App() {
       }
     };
     window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      if (tabTransitionTimerRef.current) {
+        clearTimeout(tabTransitionTimerRef.current);
+        tabTransitionTimerRef.current = null;
+      }
+    };
   }, []);
 
   const [prevTab, setPrevTab] = useState("home");
   const [tabTransitionDirection, setTabTransitionDirection] = useState(null);
+  const tabTransitionTimerRef = useRef(null);
 
   // Tablar ketma-ketligi (Harita, Xizmatlar, Qo'llanmalar, Profil):
   const MAIN_TABS = useMemo(() => ["home", "map", "services", "guide", "settings", "my"], []);
@@ -364,9 +406,13 @@ export default function App() {
       dir = newIdx > curIdx ? "next" : "prev";
     }
     if (dir) {
+      if (tabTransitionTimerRef.current) {
+        clearTimeout(tabTransitionTimerRef.current);
+      }
       setTabTransitionDirection(dir);
-      setTimeout(() => {
+      tabTransitionTimerRef.current = setTimeout(() => {
         setTabTransitionDirection(null);
+        tabTransitionTimerRef.current = null;
       }, 260);
     }
 
@@ -381,14 +427,14 @@ export default function App() {
     if (newTab === "home") {
       if (hasSubHistoryRef.current) {
         hasSubHistoryRef.current = false;
-        window.history.back();
+        try { window.history.back(); } catch (err) {}
         setActiveTab("home");
         if (closeAllModalsRef.current) {
           try { closeAllModalsRef.current(); } catch (err) {}
         }
         return;
       } else {
-        window.history.replaceState({ tab: "home", isSub: false }, "", "/" + searchStr);
+        try { window.history.replaceState({ tab: "home", isSub: false }, "", "/" + searchStr); } catch (err) {}
       }
     } else {
       if (!hasSubHistoryRef.current) {
@@ -3871,6 +3917,444 @@ export default function App() {
     return filteredStations.slice(0, visibleStationCount);
   }, [filteredStations, visibleStationCount]);
 
+  // Mobil telefon ko'rinishida scroll payti pastki navigatsiya (Hide on scroll),
+  // yuqori header (Shrink header) va kartochkalar animatsiyasini boshqarish.
+  // Kompyuter (desktop > 768px) ko'rinishiga ta'sir qilmaydi.
+  const [isMobileBottomNavHidden, setIsMobileBottomNavHidden] = useState(false);
+  const [isMobileHeaderCompact, setIsMobileHeaderCompact] = useState(false);
+  const mobileScrollTrackerRef = useRef({
+    downAccum: 0,
+    upAccum: 0,
+    lastTouchY: null,
+    ticking: false,
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isMobile = () => window.innerWidth <= 768;
+
+    const getDocScrollY = () =>
+      Math.max(
+        0,
+        window.scrollY || 0,
+        document.scrollingElement?.scrollTop || 0,
+        document.documentElement?.scrollTop || 0,
+        document.body?.scrollTop || 0
+      );
+
+    const hasModalOpen = Boolean(
+      detailStation ||
+        pendingInspectionModalStation ||
+        showAddStation ||
+        showSettingsModal ||
+        showServicesModal ||
+        showLogoutConfirm ||
+        showCompleteUserProfileModal ||
+        showLocationRegisterModal ||
+        showEditLocationHeroModal
+    );
+
+    const startY = getDocScrollY();
+    mobileScrollTrackerRef.current.downAccum = 0;
+    mobileScrollTrackerRef.current.upAccum = 0;
+    mobileScrollTrackerRef.current.lastTouchY = null;
+
+    // Tab o'zgarganda yoki modal ochilganda pastki menyu ko'rinib tursin
+    setIsMobileBottomNavHidden(false);
+    setIsMobileHeaderCompact(isMobile() && activeTab !== "map" && startY > 42);
+
+    const lastYByTarget = new WeakMap();
+    let docLastY = startY;
+
+    const isIgnoredTarget = (target) => {
+      if (!target || target === document || target === window || target === document.documentElement || target === document.body) {
+        return false;
+      }
+      if (typeof target.closest !== "function") return false;
+      return Boolean(
+        target.closest(
+          '.notif-modal-overlay, .profile-overlay, .sd-modal-overlay, .modal-overlay, [role="dialog"], .maplibregl-map, .benzin-subbar-pills'
+        )
+      );
+    };
+
+    const evaluateVerticalScroll = (y, prevY, maxScroll) => {
+      // 1-video 5-telefon uslubi: pastga aylantirganda header silliq ixchamlashadi (hysteresis bilan)
+      if (y > 42) {
+        setIsMobileHeaderCompact(true);
+      } else if (y < 14) {
+        setIsMobileHeaderCompact(false);
+      }
+
+      // Tepada turganda har doim ko'rinsin
+      if (y <= 18) {
+        mobileScrollTrackerRef.current.downAccum = 0;
+        mobileScrollTrackerRef.current.upAccum = 0;
+        setIsMobileBottomNavHidden(false);
+        return;
+      }
+
+      const step = y - prevY;
+      if (Math.abs(step) < 0.5) return;
+
+      const tracker = mobileScrollTrackerRef.current;
+      if (step > 0) {
+        // Pastga harakatlanish: yo'qolish yumshoq va barqaror ishlaydi
+        tracker.upAccum = 0;
+        tracker.downAccum += step;
+        if (tracker.downAccum >= 5 && y > 22) {
+          setIsMobileBottomNavHidden(true);
+        }
+      } else {
+        // Pastki chetdagi kichik iOS/Android rezina sakrashini e'tiborsiz qoldiramiz,
+        // lekin salgina tepaga surilganda darhol menyu chiqadi
+        const upStep = -step;
+        tracker.downAccum = 0;
+        tracker.upAccum += upStep;
+        const isTinyBottomBounce = maxScroll > 20 && prevY >= maxScroll - 2 && tracker.upAccum < 10;
+        if (!isTinyBottomBounce && tracker.upAccum >= 2) {
+          setIsMobileBottomNavHidden(false);
+        }
+      }
+    };
+
+    const handleScroll = (event) => {
+      if (!isMobile() || activeTab === "map" || hasModalOpen) {
+        setIsMobileBottomNavHidden(false);
+        if (!isMobile() || activeTab === "map") {
+          setIsMobileHeaderCompact(false);
+        }
+        return;
+      }
+
+      const rawTarget = event?.target;
+      if (isIgnoredTarget(rawTarget)) return;
+
+      const isDocumentScroll =
+        !rawTarget ||
+        rawTarget === document ||
+        rawTarget === window ||
+        rawTarget === document.documentElement ||
+        rawTarget === document.body;
+
+      if (isDocumentScroll) {
+        const tracker = mobileScrollTrackerRef.current;
+        if (tracker.ticking) return;
+        tracker.ticking = true;
+        window.requestAnimationFrame(() => {
+          tracker.ticking = false;
+          if (!isMobile() || activeTab === "map") return;
+          const y = getDocScrollY();
+          const maxScroll = Math.max(
+            0,
+            (document.scrollingElement?.scrollHeight || document.documentElement.scrollHeight) - window.innerHeight
+          );
+          evaluateVerticalScroll(y, docLastY, maxScroll);
+          docLastY = y;
+        });
+      } else if (typeof rawTarget.scrollTop === "number" && rawTarget.scrollHeight > rawTarget.clientHeight + 4) {
+        const prevY = lastYByTarget.get(rawTarget) ?? rawTarget.scrollTop;
+        const y = Math.max(0, rawTarget.scrollTop);
+        const maxScroll = Math.max(0, rawTarget.scrollHeight - rawTarget.clientHeight);
+        evaluateVerticalScroll(y, prevY, maxScroll);
+        lastYByTarget.set(rawTarget, y);
+      }
+    };
+
+    const handleTouchStart = (e) => {
+      if (!isMobile() || activeTab === "map" || hasModalOpen) return;
+      if (isIgnoredTarget(e.target)) return;
+      if (e.touches && e.touches.length === 1) {
+        mobileScrollTrackerRef.current.lastTouchY = e.touches[0].clientY;
+      }
+    };
+
+    const handleTouchMove = (e) => {
+      if (!isMobile() || activeTab === "map" || hasModalOpen) return;
+      if (isIgnoredTarget(e.target)) return;
+      if (!e.touches || e.touches.length !== 1) return;
+      const curTouchY = e.touches[0].clientY;
+      const prevTouchY = mobileScrollTrackerRef.current.lastTouchY;
+      if (prevTouchY === null) {
+        mobileScrollTrackerRef.current.lastTouchY = curTouchY;
+        return;
+      }
+      const touchDelta = curTouchY - prevTouchY;
+      // Barmoq ozgina pastga surilsa (sahifa tepaga chiqsa >= 3px): menyu darhol sakin chiqib keladi
+      if (touchDelta >= 3) {
+        mobileScrollTrackerRef.current.downAccum = 0;
+        setIsMobileBottomNavHidden(false);
+        mobileScrollTrackerRef.current.lastTouchY = curTouchY;
+      } else if (touchDelta <= -6) {
+        // Barmoq tepaga surilsa (sahifa pastga tushsa): menyu sekin pastga yashirina boshlaydi
+        const y = getDocScrollY();
+        if (y > 20) {
+          setIsMobileBottomNavHidden(true);
+        }
+        mobileScrollTrackerRef.current.lastTouchY = curTouchY;
+      }
+    };
+
+    const handleTouchEnd = () => {
+      mobileScrollTrackerRef.current.lastTouchY = null;
+    };
+
+    const handleResize = () => {
+      if (!isMobile()) {
+        setIsMobileBottomNavHidden(false);
+        setIsMobileHeaderCompact(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true, capture: true });
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd, { passive: true });
+    window.addEventListener("resize", handleResize, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll, { capture: true });
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [
+    activeTab,
+    detailStation,
+    pendingInspectionModalStation,
+    showAddStation,
+    showSettingsModal,
+    showServicesModal,
+    showLogoutConfirm,
+    showCompleteUserProfileModal,
+    showLocationRegisterModal,
+    showEditLocationHeroModal,
+  ]);
+
+  // Mobil ko'rinishda boshqa kartochkalarning (bannerlar, servislar, qo'llanma) silliq chiqish animatsiyasi
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const CARD_SELECTOR =
+      ".mobile-map-find-banner, .mobile-ad-banner, .home-download-app-card, .service-card-item, .services-hero-banner, .services-partner-card, .guide-card-block";
+
+    const container = document.querySelector(".app-main-content-view") || document;
+    const cards = Array.from(container.querySelectorAll(CARD_SELECTOR));
+
+    if (window.innerWidth > 768) {
+      cards.forEach((el) => {
+        el.classList.remove("mobile-scroll-card-pending", "mobile-scroll-card-enter");
+        el.style.removeProperty("--mobile-card-delay");
+      });
+      return;
+    }
+
+    const viewportH = window.innerHeight || document.documentElement.clientHeight || 800;
+    const pendingNodes = [];
+    let visibleEnterIdx = 0;
+
+    cards.forEach((el) => {
+      if (el.dataset.scrollAnimDone === "1") {
+        el.classList.remove("mobile-scroll-card-pending");
+        return;
+      }
+
+      const rect = el.getBoundingClientRect();
+      if (rect.top < viewportH + 16) {
+        const delayMs = Math.min(visibleEnterIdx, 5) * 40;
+        visibleEnterIdx += 1;
+        el.style.setProperty("--mobile-card-delay", `${delayMs}ms`);
+        el.classList.remove("mobile-scroll-card-pending");
+        el.classList.add("mobile-scroll-card-enter");
+        el.dataset.scrollAnimDone = "1";
+      } else {
+        el.style.setProperty("--mobile-card-delay", "0ms");
+        el.classList.remove("mobile-scroll-card-enter");
+        el.classList.add("mobile-scroll-card-pending");
+        pendingNodes.push(el);
+      }
+    });
+
+    if (pendingNodes.length === 0) return;
+
+    const revealElement = (el) => {
+      if (!el || el.dataset.scrollAnimDone === "1") return;
+      el.classList.remove("mobile-scroll-card-pending");
+      el.classList.add("mobile-scroll-card-enter");
+      el.dataset.scrollAnimDone = "1";
+    };
+
+    let observer = null;
+    if (typeof IntersectionObserver !== "undefined") {
+      observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting || entry.boundingClientRect.top < (window.innerHeight || 800) + 32) {
+              revealElement(entry.target);
+              observer?.unobserve(entry.target);
+            }
+          });
+        },
+        {
+          threshold: 0.04,
+          rootMargin: "0px 0px 32px 0px",
+        }
+      );
+      pendingNodes.forEach((el) => observer.observe(el));
+    } else {
+      pendingNodes.forEach(revealElement);
+    }
+
+    const handleSafetyReveal = () => {
+      const vh = window.innerHeight || 800;
+      pendingNodes.forEach((el) => {
+        if (el.dataset.scrollAnimDone === "1") return;
+        const r = el.getBoundingClientRect();
+        if (r.top < vh + 32) {
+          revealElement(el);
+          observer?.unobserve(el);
+        }
+      });
+    };
+
+    window.addEventListener("scroll", handleSafetyReveal, { passive: true });
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("scroll", handleSafetyReveal);
+    };
+  }, [
+    activeTab,
+    displayedStations.length,
+    fuelSubFilter,
+    selectedBenzinGrade,
+    fuelSortBy,
+    searchQuery,
+    visibleStationCount,
+    showNotificationsPage,
+    showProfileDetail,
+    isStationsLoading,
+  ]);
+
+  // Mobil "Asosiy" bo'limida stansiya kartochkalari uchun 60 FPS scroll fokus (depth/scale) animatsiyasi
+  // Faqat telefon (<= 768px) ko'rinishida ishlaydi, kompyuter ko'rinishiga ta'sir qilmaydi
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const clearFocusStyles = () => {
+      const allCards = document.querySelectorAll(".dark-theme-home .station-list .custom-station-card");
+      allCards.forEach((el) => {
+        el.style.removeProperty("--focus-scale");
+        el.style.removeProperty("--focus-opacity");
+        el.classList.remove("is-scroll-focused");
+      });
+    };
+
+    const prefersReducedMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (window.innerWidth > 768 || activeTab !== "home" || prefersReducedMotion) {
+      clearFocusStyles();
+      return;
+    }
+
+    let rafId = null;
+    const updateStationCardFocus = () => {
+      rafId = null;
+      if (window.innerWidth > 768) {
+        clearFocusStyles();
+        return;
+      }
+
+      const stationListEl = document.querySelector(".dark-theme-home .station-list");
+      if (!stationListEl) return;
+      const cards = Array.from(
+        stationListEl.querySelectorAll(".custom-station-card:not(.station-card-skeleton)")
+      );
+      if (cards.length === 0) return;
+
+      if (cards.length === 1) {
+        cards[0].style.setProperty("--focus-scale", "1");
+        cards[0].style.setProperty("--focus-opacity", "1");
+        cards[0].classList.add("is-scroll-focused");
+        return;
+      }
+
+      const viewportH = window.innerHeight || document.documentElement.clientHeight || 800;
+      const listRect = stationListEl.getBoundingClientRect();
+      const visibleTop = Math.max(54, listRect.top);
+      const visibleBottom = Math.max(visibleTop + 220, viewportH - 36);
+      const focusCenterY = Math.max(
+        viewportH * 0.46,
+        visibleTop + (visibleBottom - visibleTop) * 0.45
+      );
+      const spread = Math.max(340, viewportH * 0.55);
+
+      let closestCard = null;
+      let closestDist = Infinity;
+      const metrics = [];
+
+      // 1-bosqich: barcha o'lchamlarni o'qish (layout thrashing bo'lmasligi uchun)
+      for (let i = 0; i < cards.length; i++) {
+        const el = cards[i];
+        const rect = el.getBoundingClientRect();
+        const cardCenterY = rect.top + rect.height / 2;
+        const dist = Math.abs(cardCenterY - focusCenterY);
+        const ratio = Math.min(1, dist / spread);
+        const focusFactor = Math.cos((ratio * Math.PI) / 2);
+
+        const scale = 0.948 + focusFactor * (1.06 - 0.948);
+        const opacity = 0.82 + focusFactor * (1.0 - 0.82);
+
+        metrics.push({ el, scale, opacity, focusFactor });
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestCard = el;
+        }
+      }
+
+      // 2-bosqich: faqat GPU custom property va fokus klassini yozish
+      for (let i = 0; i < metrics.length; i++) {
+        const { el, scale, opacity, focusFactor } = metrics[i];
+        el.style.setProperty("--focus-scale", scale.toFixed(4));
+        el.style.setProperty("--focus-opacity", opacity.toFixed(3));
+        if (el === closestCard && focusFactor >= 0.52) {
+          el.classList.add("is-scroll-focused");
+        } else {
+          el.classList.remove("is-scroll-focused");
+        }
+      }
+    };
+
+    const scheduleFocusUpdate = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(updateStationCardFocus);
+    };
+
+    scheduleFocusUpdate();
+    window.addEventListener("scroll", scheduleFocusUpdate, { passive: true, capture: true });
+    window.addEventListener("resize", scheduleFocusUpdate, { passive: true });
+    return () => {
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+      window.removeEventListener("scroll", scheduleFocusUpdate, { capture: true });
+      window.removeEventListener("resize", scheduleFocusUpdate);
+    };
+  }, [
+    activeTab,
+    displayedStations.length,
+    fuelSubFilter,
+    selectedBenzinGrade,
+    fuelSortBy,
+    searchQuery,
+    visibleStationCount,
+    isStationsLoading,
+    isGpsActive,
+    isLocating,
+    isGpsDismissed,
+  ]);
+
   if (navigationTarget) {
     return (
       <Suspense fallback={<SectionLoadingFallback />}>
@@ -4011,7 +4495,7 @@ export default function App() {
       {/* NEW DARK HOME SPLIT LAYOUT */}
 
       {/* NEW GLOBAL DARK HEADER */}
-      <header className="top-header">
+      <header className={`top-header ${isMobileHeaderCompact ? "mobile-header-compact" : ""}`}>
         <div
           className="logo header-logo-container"
           onClick={() => handleTabChange("home")}
@@ -7295,6 +7779,15 @@ export default function App() {
         setActiveTab={handleTabChange}
         onOpenSettings={() => setShowSettingsModal(true)}
         onOpenServices={() => handleTabChange("services")}
+        isHiddenOnScroll={isMobileBottomNavHidden}
+        badges={{
+          settings:
+            unreadNotifCount > 0
+              ? unreadNotifCount
+              : hasUnreadNotification
+              ? 1
+              : 0,
+        }}
       />
     </div>
   );

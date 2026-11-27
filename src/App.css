@@ -21264,6 +21264,327 @@ body.light-theme .location-fallback-btn {
   color: #64748b;
 }
 
+/* ==========================================================================
+   MOBILE ONLY: SCROLL & NAVIGATION ANIMATIONS (VIDEO 1 #5 & VIDEO 2 #5-#6)
+   Desktop (> 768px) ko'rinishi umuman o'zgarmaydi
+   ========================================================================== */
+@keyframes mobileCardFadeUp {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 22px, 0) scale(0.975);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
 
+@keyframes mobileNavBadgePop {
+  0% {
+    opacity: 0;
+    transform: scale(0.45);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
 
+@media (max-width: 768px) {
+  /* 1-video 5-telefon: Pastga skrollda yuqori header silliq ixchamlashishi (Shrink header) */
+  .top-header {
+    transition:
+      height 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+      padding 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 0.38s ease,
+      box-shadow 0.38s ease,
+      border-color 0.38s ease !important;
+    will-change: height, padding;
+  }
+
+  .top-header .header-logo-container,
+  .top-header .header-search-bar,
+  .top-header .mobile-header-profile {
+    transition:
+      transform 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+      height 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+      padding 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.32s ease !important;
+  }
+
+  .top-header .header-logo-container {
+    transform-origin: left center;
+  }
+
+  .top-header.mobile-header-compact {
+    height: 50px !important;
+    padding: 0 12px !important;
+    background-color: rgba(24, 24, 28, 0.88) !important;
+    backdrop-filter: blur(18px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(150%) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.32) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .top-header.mobile-header-compact .header-logo-container {
+    transform: scale(0.88);
+  }
+
+  .top-header.mobile-header-compact .header-search-bar {
+    height: 35px !important;
+    padding: 4px 12px !important;
+  }
+
+  .top-header.mobile-header-compact .mobile-header-profile {
+    transform: scale(0.92);
+  }
+
+  /* 1-video 1-telefon ("1 Sliding bar"), 5-telefon ("Hide on scroll") va 6-telefon ("Badges") */
+  .modern-bottom-nav.bottom-nav-bar {
+    background: rgba(18, 18, 22, 0.92) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow:
+      0 12px 34px rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+    backdrop-filter: blur(22px) saturate(160%) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(160%) !important;
+    transform: translate3d(-50%, 0, 0) scale(1) !important;
+    opacity: 1 !important;
+    will-change: transform, opacity;
+    /* Tepaga qaytganda sekin va silliq chiqib kelish */
+    transition:
+      transform 0.52s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.42s ease !important;
+  }
+
+  /* 1-video 1-telefon: sekin, ravon va elastik suriluvchi indikator chizig'i */
+  .modern-bottom-nav .nav-sliding-bar {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 3.5px !important;
+    border-radius: 999px !important;
+    background: linear-gradient(90deg, #38bdf8 0%, #60a5fa 50%, #38bdf8 100%) !important;
+    box-shadow:
+      0 1px 8px rgba(56, 189, 248, 0.85),
+      0 0 16px rgba(56, 189, 248, 0.45),
+      inset 0 1px 1px rgba(255, 255, 255, 0.7) !important;
+    pointer-events: none !important;
+    z-index: 5 !important;
+    will-change: transform, width !important;
+    transition:
+      transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      width 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.25s ease !important;
+  }
+
+  .modern-bottom-nav .nav-sliding-bar::after {
+    content: "" !important;
+    position: absolute !important;
+    top: 100% !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 44px !important;
+    height: 14px !important;
+    background: radial-gradient(ellipse at top, rgba(56, 189, 248, 0.4) 0%, rgba(56, 189, 248, 0) 75%) !important;
+    pointer-events: none !important;
+    filter: blur(2px) !important;
+  }
+
+  .modern-bottom-nav.bottom-nav-bar.is-scroll-hidden {
+    transform: translate3d(-50%, calc(100% + 36px), 0) scale(0.92) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    /* Pastga tushganda shoshmasdan, sekin va ravon yashirinishi */
+    transition:
+      transform 0.68s cubic-bezier(0.4, 0, 0.2, 1),
+      opacity 0.56s ease !important;
+  }
+
+  .modern-bottom-nav .bottom-nav-item {
+    position: relative !important;
+    padding: 4px 2px !important;
+    gap: 3px !important;
+    transition:
+      color 0.22s ease,
+      transform 0.16s cubic-bezier(0.22, 1, 0.36, 1) !important;
+  }
+
+  .modern-bottom-nav .bottom-nav-item:active {
+    transform: scale(0.92) !important;
+  }
+
+  .modern-bottom-nav .bottom-nav-item .nav-icon-wrap {
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 40px !important;
+    height: 28px !important;
+    border-radius: 999px !important;
+    overflow: visible !important;
+    transition:
+      background-color 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.26s cubic-bezier(0.34, 1.56, 0.64, 1),
+      box-shadow 0.26s ease !important;
+  }
+
+  .modern-bottom-nav .bottom-nav-item.active .nav-icon-wrap {
+    background: rgba(56, 189, 248, 0.16) !important;
+    transform: translateY(-1px) scale(1.06) !important;
+    box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.28) !important;
+  }
+
+  .modern-bottom-nav .bottom-nav-item .nav-label {
+    display: block !important;
+    width: 100% !important;
+    text-align: center !important;
+    transition: color 0.2s ease, font-weight 0.2s ease !important;
+  }
+
+  .modern-bottom-nav .bottom-nav-item.active .nav-label {
+    font-weight: 700 !important;
+  }
+
+  .modern-bottom-nav .bottom-nav-item .nav-badge-count {
+    position: absolute !important;
+    top: -3px !important;
+    right: 0px !important;
+    width: auto !important;
+    min-width: 16px !important;
+    height: 16px !important;
+    padding: 0 4px !important;
+    border-radius: 999px !important;
+    background: linear-gradient(135deg, #f43f5e 0%, #ef4444 100%) !important;
+    color: #ffffff !important;
+    font-size: 0.6rem !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
+    letter-spacing: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 2px solid #141418 !important;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.45) !important;
+    pointer-events: none !important;
+    animation: mobileNavBadgePop 0.34s cubic-bezier(0.34, 1.56, 0.64, 1) both !important;
+    z-index: 2 !important;
+    box-sizing: border-box !important;
+  }
+
+  .modern-bottom-nav .bottom-nav-item .nav-badge-dot {
+    position: absolute !important;
+    top: 1px !important;
+    right: 4px !important;
+    width: 8px !important;
+    height: 8px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    background: #38bdf8 !important;
+    border: 1.5px solid #141418 !important;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.75) !important;
+    pointer-events: none !important;
+    animation: mobileNavBadgePop 0.34s cubic-bezier(0.34, 1.56, 0.64, 1) both !important;
+    z-index: 2 !important;
+  }
+
+  /* Asosiy bo'lim kartochkalari uchun mobil scroll fokus (depth/scale) animatsiyasi */
+  .dark-theme-home .station-list {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    overflow-x: visible !important;
+  }
+
+  .dark-theme-home .station-list .custom-station-card:not(.station-card-skeleton) {
+    position: relative;
+    transform-origin: center center;
+    transform: scale(var(--focus-scale, 1)) translateZ(0);
+    opacity: var(--focus-opacity, 1);
+    will-change: transform, opacity;
+    transition:
+      background-color 0.25s ease,
+      border-color 0.26s ease,
+      box-shadow 0.26s ease !important;
+  }
+
+  .dark-theme-home .station-list .custom-station-card.is-scroll-focused:not(.station-card-skeleton) {
+    box-shadow:
+      0 16px 36px rgba(0, 0, 0, 0.4),
+      0 0 0 1px rgba(56, 189, 248, 0.28) !important;
+    border-color: rgba(56, 189, 248, 0.3) !important;
+    z-index: 2;
+  }
+
+  .dark-theme-home.is-light .station-list .custom-station-card.is-scroll-focused:not(.station-card-skeleton) {
+    box-shadow:
+      0 14px 30px rgba(15, 23, 42, 0.14),
+      0 0 0 1px rgba(14, 165, 233, 0.26) !important;
+    border-color: rgba(14, 165, 233, 0.28) !important;
+  }
+
+  .dark-theme-home .station-list .custom-station-card:not(.station-card-skeleton):active {
+    transform: scale(calc(var(--focus-scale, 1) * 0.975)) translateZ(0) !important;
+    transition: transform 0.12s ease !important;
+  }
+
+  /* Kartochkalar (Gazz, Tok bor, Batafsil, Borish va boshqa bo'lim kartalari) scroll animatsiyasi */
+  .mobile-scroll-card-pending {
+    opacity: 0;
+    transform: translate3d(0, 22px, 0) scale(0.975);
+  }
+
+  .mobile-scroll-card-enter {
+    animation: mobileCardFadeUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) var(--mobile-card-delay, 0ms) backwards;
+    will-change: transform, opacity;
+  }
+
+  .service-card-item,
+  .guide-card-block,
+  .home-download-app-card {
+    transition:
+      transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 0.25s ease,
+      border-color 0.25s ease,
+      box-shadow 0.25s ease !important;
+  }
+
+  .service-card-item:active,
+  .home-download-app-card:active {
+    transform: scale(0.985) !important;
+  }
+
+  .custom-btn-details,
+  .custom-btn-navigate {
+    transition:
+      transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.16s ease,
+      box-shadow 0.2s ease !important;
+  }
+
+  .custom-btn-details:active,
+  .custom-btn-navigate:active {
+    transform: scale(0.95) !important;
+  }
+}
+
+@media (max-width: 768px) and (prefers-reduced-motion: reduce) {
+  .mobile-scroll-card-pending {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .dark-theme-home .station-list .custom-station-card:not(.station-card-skeleton) {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+  .mobile-scroll-card-enter,
+  .modern-bottom-nav.bottom-nav-bar,
+  .top-header {
+    animation: none !important;
+    transition: none !important;
+  }
+}
 

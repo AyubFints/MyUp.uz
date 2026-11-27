@@ -27,16 +27,21 @@ class ErrorBoundary extends React.Component {
   }
 
   static getDerivedStateFromError(error) {
-    const msg = error?.message || String(error || '');
+    const msg = String(error?.message || error || '').toLowerCase();
     const isChunkOrPreloadError =
-      msg.includes('Failed to fetch dynamically imported module') ||
+      msg.includes('failed to fetch dynamically imported module') ||
       msg.includes('dynamically imported module') ||
-      msg.includes('Loading chunk') ||
-      msg.includes('Unable to preload CSS') ||
-      msg.includes('preload CSS') ||
-      msg.includes('Unable to preload') ||
-      msg.includes('Failed to load resource') ||
-      msg.includes('Loading CSS chunk') ||
+      msg.includes('importing a module script failed') ||
+      msg.includes('error loading dynamically imported module') ||
+      msg.includes('load failed') ||
+      msg.includes('failed to fetch') ||
+      msg.includes('loading chunk') ||
+      msg.includes('unable to preload css') ||
+      msg.includes('preload css') ||
+      msg.includes('unable to preload') ||
+      msg.includes('failed to load resource') ||
+      msg.includes('loading css chunk') ||
+      msg.includes('networkerror') ||
       msg.includes('mime type');
 
     if (isChunkOrPreloadError) {
